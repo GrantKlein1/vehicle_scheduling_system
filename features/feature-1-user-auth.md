@@ -14,7 +14,7 @@
 ### US-1.1: Register an account via Google Auth
 
 **As a** new user
-**I want to** create an account with my name, email, universityId, and password  
+**I want to** create an account with my name, email, , and password  
 **So that** I can sign in and do the activities allowed for my role
 
 **Priority:** P1  
