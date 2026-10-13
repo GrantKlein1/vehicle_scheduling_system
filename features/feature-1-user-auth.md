@@ -1,10 +1,3 @@
-Client ID
-362327955787-n3fbnb6neuajgujqrh55pmqrb75d02i0.apps.googleusercontent.com
-
-Client secret
-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
-
-
 # Feature: User Authentication & Session Management
 
 **Feature ID:** 1
