@@ -1,0 +1,111 @@
+Random notes: drivers can only drive vehicles thley are approved to drive. So drivers with permission to drive golf carts can’t drive a truck. Admins add and remove drivers from this approved drivers list.
+
+Feature 1: User Auth
+Google Auth
+Include three different user types:
+Admins: 
+An Admin/Area Admin can log in and see a weekly schedule (calendar) of Vehicle Request/Status/Vehicle.
+An Admin/Area Admin can log in and see a list of request that need servicing. (need vehicle, need to be checked in)
+On return the area admin can make the request status returned
+An Admin/Area Admin can login and maintain all the Users, Requests, Vehicles, Drivers, Area, Destinations
+An Admin/System assigns a Vehicle to the trip if available (reserved) or indicates that there is not a current vehicle available (awaiting vehicle)
+Drivers:
+A Driver/Requestor can log in and see all their request and statuses
+On return requestor can submit a notice that the reservation/vehicle had issues, before, during or after a trip like Low Gas or Dirty or Maintenance needed
+Maintenance
+A Maintenance person can log in person can view maintenance request, view list of vehicles, log mileage and log Services done on a vehicle (repair, oil change, tire replacement)
+Feature 2. Vehicle
+A way for admins to add, edit and remove vehicles
+All vehicles fall into ONE of the below categories:
+Golf Cart
+Truck
+Car
+Van
+A Unique maintenance view: 
+View maintenance request, view list of vehicles, and log mileage
+Services done on a vehicle (repair, oil change, tire replacement)
+Feature 3. Drivers
+For admins:
+A way to add, edit and remove drivers
+A way to edit the drivers information (UNIQUE to being edited by admins: Approved Date, Status):
+First Name
+Last Name
+Driver’s License State
+Driver’s License Expiration Date
+Approved Date
+Status (list of what the driver is approved to drive)
+Golf Cart
+Truck
+Car
+Van
+For drivers:
+A way to edit their information
+First Name
+Last Name
+Driver’s License State
+Driver’s License Expiration Date
+ADDED LATER but might be good to have a placeholder: 
+A Driver/Requestor can log in and see all their request and statuses
+On return requestor can submit a notice that the reservation/vehicle had issues, before, during or after a trip like Low Gas or Dirty or Maintenance needed
+Feature 4. Destination
+A way for admins to add, edit and remove destinations
+Destination (could be city or selected from known locations). – used for milage
+estimate
+Feature 5. Area
+A way for admins to add, edit and remove areas
+Feature 6. Reservation
+A driver submits a request for a reservation: 
+Then the system checks if the requested vehicle has been assigned to anyone
+The system checks if the driver is on the list of approved drivers for that vehicle type (ie a driver NOT on the list of approved drivers for golf carts would be denied a reservation request for a golf cart at this point)
+Then the system either assigns the requested vehicle to the requestor(driver) or tells them the vehicle is not available.
+Create a text file that has the details of the reservation
+In the next feature this file will be used to send an email to the driver
+Feature 7. Email
+An email is sent to the driver when their reservation has been confirmed (right after they create it)
+On the day before of the trip, the requestor should get an email (custom by area) with instructions for picking up the vehicle (what vehicle, designated parking for the vehicle, where to get the keys, what to do on return (fill with gas, clean up, where to put the keys), who to contact if there is an issue.
+Feature 8: Admin page
+An Admin can log in and see a weekly schedule (calendar) of Vehicle Request/Status/Vehicle.
+An Admin can log in and see a list of requests that need servicing. (need vehicle, need to be checked in)
+Reservation
+Person or Team making the request
+Driver (on list of approved drivers)
+Start Data and Time (some only use dates)
+End Date and time (some only use dates)
+Destination (could be city or selected from known locations). – used for milage
+estimate
+Number of people in trip.
+Note (from admin,requestor) Note type, Note text
+Vehicles
+Make (combo box with std list)
+Model (combo box with std list)
+Year
+VIN
+Purchased Date
+Mileage Log (date, current mileage)
+Service Log (date, service performed)
+Color
+Number of passengers (capacity)
+License Plate Number
+License Plate Expiration Month
+Area Assigned
+Drivers
+First Name
+Last Name
+Driver’s License State
+Driver’s License Expiration Date
+Approved Date
+Status
+Destinations
+Name
+Address Line 1
+Address Line 2
+City
+State
+Zip Code
+Area 
+OC areas: Athletics, Support Central, Maintenance
+Area Name
+Area Logo
+Notification Email
+
+
