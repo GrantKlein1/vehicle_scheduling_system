@@ -5,7 +5,7 @@
 **Status:** Ready
 **Created:** 2026-10-03
 **Input:** An admin keeps a shared vehicle catalog on one screen. A maintenance user can view that catalog and record mileage and services. A vehicle is not owned by a user.
-**Depends on:** [Feature 1 — User Authentication](feature-1-user-auth.md)
+**Depends on:** Feature 1 — User Authentication
 
 ---
 
