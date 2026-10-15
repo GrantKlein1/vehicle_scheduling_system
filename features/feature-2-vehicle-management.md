@@ -2,84 +2,94 @@
 
 **Feature ID:** 2
 **Branch pattern:** `feature/2-vehicle-management`
-**Status:** Draft
+**Status:** Ready
 **Created:** 2026-10-03
-**Input:** Logged-in admin maintains a shared catalog of vehicles on a single view via dialogs; vehicles are not tied to a userId
+**Input:** An admin keeps a shared vehicle catalog on one screen. A maintenance user can view that catalog and record mileage and services. A vehicle is not owned by a user.
 **Depends on:** [Feature 1 — User Authentication](feature-1-user-auth.md)
 
 ---
 
 ## User Stories
 
-### US-3.1: View Vehicle List Page
+### US-2.1: View Vehicle List Page
 
-**As a** singed-in admin
-**I want to** select "Vehicle" from the navigation menu
-**So that** I can access the vehicle management screen
- 
-**Priority:** P1
-**Independent test:** Verify clicking "Vehicle" in MenuBar redirects to /course view
-**Acceptance scenarios:** See ### US-3.1 under Acceptance Criteria
-
-### US-3.2: Create Vehicle
-
-**As a** signed-in admin
-**I want to** create a new vehicle using a modal dialog
-**So that** it is added to the shared application catalog
+**As a** signed-in admin or maintenance user
+**I want to** select **Vehicle** from the navigation menu
+**So that** I can open the vehicle screen
 
 **Priority:** P1
-**Independent test:** Open modal, submit valid vehicle details, and check if it appears in the table
-**Acceptance scenarios:** see ### US-3.2 under Acceptance Criteria
+**Independent test:** Click **Vehicle** in `MenuBar` and confirm the browser lands on `/vehicle`
+**Acceptance scenarios:** see ### US-2.1 under Acceptance Criteria
 
-
-### US-3.3: Read Vehicle Catalog
+### US-2.2: Create Vehicle
 
 **As a** signed-in admin
-**I want to** view the list of all vehicles in the catalog
-**So that** I can review existing vehicle details
+**I want to** create a vehicle in a dialog
+**So that** it is added to the shared catalog
 
 **Priority:** P1
-**Independent test:** Verify that vehicles returned by API are listed in the data table
-**Acceptance scenarios:** see ### US-3.3 under Acceptance Criteria
+**Independent test:** Open the dialog, submit a valid vehicle, and confirm it appears in the table
+**Acceptance scenarios:** see ### US-2.2 under Acceptance Criteria
 
-### US-3.4: Row Action Icons
+### US-2.3: Read Vehicle Catalog
 
-**As a** signed-in admin
-**I want to** see Edit and Delete icons on each row in the vehicle table
-**So that** I can trigger actions directly for a specific vehicle
+**As a** signed-in admin or maintenance user
+**I want to** see every vehicle in the catalog
+**So that** I can review the fleet
 
 **Priority:** P1
-**Independent test:** Verify row action buttons are rendered for every vehicle entry
-**Acceptance scenarios:** see ### US-3.4 under Acceptance Criteria
+**Independent test:** Confirm the table lists the vehicles returned by the API, in make order
+**Acceptance scenarios:** see ### US-2.3 under Acceptance Criteria
 
-### US-3.5: Edit Vehicle
+### US-2.4: Row Action Icons
+
 **As a** signed-in admin
-**I want** to update an existing vehicle's details
-**So that** the catalog information remains accurate
+**I want to** see Edit and Delete on each vehicle row
+**So that** I can change or remove that vehicle
+
+**Priority:** P1
+**Independent test:** Confirm every admin row shows Edit and Delete, and a maintenance row does not
+**Acceptance scenarios:** see ### US-2.4 under Acceptance Criteria
+
+### US-2.5: Edit Vehicle
+
+**As a** signed-in admin
+**I want to** update a vehicle's details
+**So that** the catalog stays accurate
 
 **Priority:** P2
-**Independent test:** Edit vehicle information and confirm changes persist in the list
-**Acceptance scenarios:** see ### US-3.5 under Acceptance Criteria
+**Independent test:** Change a vehicle and confirm the table shows the new values
+**Acceptance scenarios:** see ### US-2.5 under Acceptance Criteria
 
-### US-3.6: Delete vehicle
+### US-2.6: Delete Vehicle
 
 **As a** signed-in admin
-**I want** to delete a vehicle after confirmation
-**So that** obsolete vehicles are removed from the system
+**I want to** delete a vehicle after I confirm
+**So that** a vehicle that is no longer in the fleet is removed
 
 **Priority:** P2
-**Independent test:** Delete a vehicle via confirmation dialog and verify its removal
-**Acceptance scenarios:** see ### US-3.6 under Acceptance Criteria
+**Independent test:** Confirm delete and verify the vehicle is gone from the table
+**Acceptance scenarios:** see ### US-2.6 under Acceptance Criteria
 
-### US-3.7: Role-Based Access Control
+### US-2.7: Role-Based Access Control
 
-**As** the application
-**I want** to restrict vehicle catalog modifications and menu visibility exclusively to admins
-**So that** student users cannot modify or see the course management view
+**As the** application
+**I want to** keep catalog create, update, and delete limited to admins, and keep the vehicle screen limited to admins and maintenance users
+**So that** a requestor cannot see or change the fleet, and a maintenance user cannot add, edit, or remove a vehicle
 
 **Priority:** P1
-**Independent test:** Sign in as maintenance AND requestor to ensure editing or deleting a "Vehicle" yields a 403
-**Acceptance scenarios:** see ### US-3.7 under Acceptance Criteria
+**Independent test:** Sign in as a requestor and as a maintenance user and confirm the forbidden calls return 403
+**Acceptance scenarios:** see ### US-2.7 under Acceptance Criteria
+
+### US-2.8: Log Mileage and Service
+
+**As a** signed-in maintenance user
+**I want to** record a mileage reading and a service on a vehicle
+**So that** the fleet's mileage and service history stays current
+
+**Priority:** P1
+**Independent test:** Log a mileage reading and an oil change on a vehicle and confirm both appear on that vehicle
+**Acceptance scenarios:** see ### US-2.8 under Acceptance Criteria
 
 ---
 
@@ -87,125 +97,270 @@
 
 ### Functional Requirements
 
-- **FR-001:** All vehicle endpoints MUST require authentication (`authenticate` middleware). 
-- **FR-002:** `GET`, `POST`, `PUT`, and `DELETE` MUST be accessible by any authenticated admin user.
-- **FR-003:** `GET`, `POST`, `PUT`, and `DELETE` endpoints MUST be restricted strictly to users with `req.user.role === "admin"`.
-- **FR-004:** Vehicles MUST be stored as a shared catalog without a `userId` field. Any `userId` supplied in the request body MUST be ignored.
-- **FR-005:** If a `maintenance` or `requestor` user attempts a `GET`, `POST`, `PUT`, or `DELETE` request, the API MUST return HTTP status `403 Forbidden` with `{ "message": "Admin role required." }`.
-- **FR-006:** All input strings MUST be trimmed. Submissions containing empty or whitespace-only strings for required fields MUST be rejected with HTTP `400 Bad Request`.
-- **FR-007:** Requests without a valid session token MUST yield HTTP `401 Unauthorized`. Unauthenticated route navigation to `/vehicle` MUST redirect to `/login`.
-- **FR-008:** The vehicle list MUST be sorted alphabetically by `Make` by default.
-- **FR-009:** `LicensePlateNumber` MUST be required, unique, and max 10 characters long. Duplicate or overly long values MUST return HTTP `400 Bad Request`.
-- **FR-010:** `VIN` MUST be required, unique, and max 20 characters long. Duplicate or overly long values MUST return HTTP `400 Bad Request`.
+- **FR-001:** Every vehicle endpoint MUST require authentication (`authenticate` middleware).
+- **FR-002:** An authenticated `admin` MUST be able to list vehicles, fetch one vehicle, create a vehicle, update a vehicle, and delete a vehicle.
+- **FR-003:** `POST`, `PUT`, and `DELETE` on a vehicle MUST succeed only when `req.user.role === "admin"`. A `maintenance` user who calls those endpoints MUST receive HTTP `403` with `{ "message": "Admin role required." }`.
+- **FR-004:** An authenticated `admin` or `maintenance` user MUST be able to list vehicles, fetch one vehicle, append a mileage log, and append a service log.
+- **FR-005:** A `requestor` who calls any vehicle endpoint MUST receive HTTP `403` with `{ "message": "Admin role required." }`.
+- **FR-006:** A vehicle MUST NOT have a `userId`. A `userId` in the request body MUST be ignored and MUST NOT be stored.
+- **FR-007:** Every input string MUST be trimmed. A required string that is missing, empty, or whitespace-only MUST be rejected with HTTP `400`.
+- **FR-008:** A request with no token MUST return HTTP `401` with `{ "message": "Unauthorized! No token provided." }`. A request with an invalid or expired token MUST return HTTP `401` with `{ "message": "Unauthorized! Invalid or expired token." }`. A visitor with no session who opens `/vehicle` MUST be redirected to `/login`. A signed-in `requestor` who opens `/vehicle` MUST be redirected to home.
+- **FR-009:** `GET /api/vehicle/vehicles` MUST return vehicles ordered by `make` ascending, then `model` ascending, then `id` ascending.
+- **FR-010:** `licensePlateNumber` MUST be required, unique, and at most 10 characters. A duplicate or longer value MUST return HTTP `400`.
+- **FR-011:** `vin` MUST be required, unique, and at most 20 characters. A duplicate or longer value MUST return HTTP `400`.
+- **FR-012:** `category` MUST be exactly one of `Golf Cart`, `Truck`, `Car`, or `Van`. `make` and `model` MUST be required strings of at most 40 characters. They are not limited to the standard list. The standard list is the suggestion list in the Make and Model combo boxes.
+- **FR-013:** `areaAssigned` MUST be exactly one of `Athletics`, `Support Central`, or `Maintenance`.
+- **FR-014:** `servicePerformed` MUST be exactly one of `Repair`, `Oil change`, or `Tire replacement`. Mileage and service rows are append-only in this feature.
+- **FR-015:** Deleting a vehicle MUST delete that vehicle's mileage logs and service logs.
+- **FR-016:** This feature MUST add **Vehicle** to the existing `MenuBar` for `admin` and `maintenance` only. It MUST NOT create a second `MenuBar`.
 
 ## Assumptions
 
-- Feature 1 user authentication is merged and active on `dev`.
-- The `MenuBar` component exists and supports conditional rendering based on user role.
-- Vehicles represent a shared global catalog rather than user-based resources.
-- Vehicle interactions use modal dialogs on a single view (`Courses.vue`) rather than split-scren views.
-- Feature 6 (Reservations) will associate `vehicleId` with a specific reservation when they are made and select that vehicle.
+- Feature 1 sessions, roles (`requestor`, `admin`, `maintenance`), and `MenuBar` are already in place.
+- Vehicles are one shared catalog. They are not private to the user who created them.
+- Catalog create, edit, and delete happen in dialogs on a single view (`/vehicle`).
+- Each vehicle has one category. Feature 3 uses that category when it records which vehicle types a driver is approved to drive. This feature does not create drivers.
+- Feature 5 will own area name, logo, and notification email. This feature stores only the area name on the vehicle.
+- Feature 6 will store `vehicleId` on a reservation when a vehicle is assigned. This feature does not create reservations.
+- A maintenance user can read the whole fleet. The list is not filtered by `areaAssigned`.
+- Trip problem notices (Low Gas, Dirty, Maintenance needed) are not a vehicle-catalog record. They belong to later reservation and admin-queue work.
 
 ---
 
 ## Edge Cases
 
-- Missing required fields: triggers client-side validation ("Required field") without making API calls.
-- Duplicate `VIN`: API returns HTTP `400 Bad Request` with `"VIN already exists"`.
-- Duplicate `LicensePlateNumber`: API returns HTTP `400 Bad Request` with `"License Plate Number already exists"`.
-- Invalid ID on Update/Delete: API returns HTTP `404 Not Found` with `"Vehicle with id= not found."`.
-- Admin Mutation Attempt: API returns HTTP `403 Forbbiden`.
-- Unauthenticated Access: Direct navigation to `/vehicle` redirects to `/login`; API calls return HTTP `401`.
+- A required field left blank on the form shows **Required field** and does not call the API.
+- Duplicate `vin`: HTTP `400` with `"VIN already exists."`.
+- Duplicate `licensePlateNumber`: HTTP `400` with `"License Plate Number already exists."`.
+- A `make` or `model` that is not on the standard list is stored. The API does not reject it for being off the list.
+- `year`, `passengerCapacity`, `licensePlateExpirationMonth`, `purchasedDate`, `color`, or `areaAssigned` outside the rules in the API error table: HTTP `400`.
+- Update, delete, or log for an id that does not exist: HTTP `404` with `"Vehicle with id=<vehicleId> not found."`.
+- A `maintenance` create, update, or delete of a vehicle: HTTP `403` with `"Admin role required."`.
+- A `requestor` call to any vehicle endpoint: HTTP `403` with `"Admin role required."`.
+- No session on `/vehicle`: redirect to `/login`. A vehicle API call with no token: HTTP `401`.
+- A signed-in `requestor` opening `/vehicle`: redirect to home. **Vehicle** is not in that user's `MenuBar`.
+- A `userId` sent with a create or update is dropped. The stored row has no `userId`.
 
-## Success criteria
+## Success Criteria
 
-- **SC-001**: Every Gherkin scenario is covered by automated unit/integration tests.
-- **SC-002**: Admin can perform complete CRUD operations on courses within a single screen using dialogs.
-- **SC-003**: Maintenance and Requestor users cannot perform GET, POST, PUT, DELETE requests on vehicles.
-- **SC-004**: All test suites (`npm test`) pass completely without failiures.
+- **SC-001:** Every Gherkin scenario is covered by an automated test in the Test Coverage Map.
+- **SC-002:** An admin can create, view, update, and delete a vehicle on one screen, using dialogs.
+- **SC-003:** A requestor cannot call vehicle endpoints. A maintenance user cannot create, update, or delete a vehicle.
+- **SC-004:** An admin or a maintenance user can list vehicles and append a mileage log and a service log.
+- **SC-005:** `npm test` passes.
 
 ## Data Ownership & Isolation
 
-Vehicle belong to a global shared catalog and are not tied to individual user accounts (`userId` is not present in the vehicle schema). Admin manage catalog entries.
+Vehicles belong to one shared catalog. There is no `userId` on a vehicle. Admins change catalog rows. Admins and maintenance users read the catalog and append logs.
 
 | Rule | Requirement |
 |------|-------------|
-| **Read scope** | `GET /vehicle/vehicles` returns all shared courses and is accessible by any authenticated admin user (`admin`). |
-| **Write scope** | `PUT` / `DELETE` `/vehicle/vehicles/:vehicleId` succeed only when `req.user.role === "admin"`. Maintenance and Requestor mutation attempts return `403`. |
-| **Create scope** | `POST /vehicle/vehicles` requires a valid faculty session (`req.user.role === "admin"`). Vehicle data is saved without a `userId` owner field. |
-| **Cross-user access** | Any admin can update or delete courses in the shared catalog. No `userId` validation exists for admin rows. |
-| **UI scope** | `Vehicles.vue` view and `Vehicles` option in `MenuBar` render exclusively when logged in as `admin`. |
-| **Implementation** | `authenticate` middleware in `backend/app/routes/` verifies session. Role check confirms `req.user.role === "admin"` for any action (`GET`, `POST`, `PUT`, `DELETE`). |
+| **Read scope** | `GET /api/vehicle/vehicles` and `GET /api/vehicle/vehicles/:vehicleId` return the shared catalog to an authenticated `admin` or `maintenance` user. |
+| **Write scope** | `PUT` and `DELETE` `/api/vehicle/vehicles/:vehicleId` succeed only when `req.user.role === "admin"`. |
+| **Create scope** | `POST /api/vehicle/vehicles` succeeds only when `req.user.role === "admin"`. The row is saved with no `userId`. |
+| **Log scope** | `POST` mileage and service logs succeed for `admin` and `maintenance`. They append a row for that `vehicleId`. |
+| **Requestor access** | Any vehicle endpoint returns `403` with `{ "message": "Admin role required." }`. |
+| **Maintenance catalog changes** | `POST`, `PUT`, and `DELETE` on a vehicle return `403` with `{ "message": "Admin role required." }`. |
+| **UI scope** | `Vehicles.vue` and the **Vehicle** `MenuBar` item render for `admin` and `maintenance` only. Add, Edit, and Delete render for `admin` only. |
+| **Implementation** | `authenticate` runs first. Role checks use `req.user.role`. |
 
 ---
 
 ## Key Entities
 
-- **Vehicle**: shared vehicle row in global catalog (no `userId` owner); has Make (combo box with std list), Model (combo box with std list), Year, VIN, Purchased Date, Mileage Log (date, current mileage), Service Log (date, service performed), Color, Number of passengers (capacity), License Plate Number, License Plate Expiration Month, Area Assigned, Car Type (SUV, Golf Cart, etc… for Driver approval list)
-- **User / Session**: required for vehicle list view navigation, modal CRUD and read actions (`admin` role), and role checks (Feature 1).
+- **Vehicle**: one shared catalog row (no `userId`). Fields: category, make, model, year, VIN, purchased date, color, passenger capacity, license plate number, license plate expiration month, area assigned. Category is exactly one of Golf Cart, Truck, Car, or Van.
+- **Mileage log**: a date and a current mileage for one vehicle.
+- **Service log**: a date and a service performed for one vehicle. The service is Repair, Oil change, or Tire replacement.
+- **User / Session**: required for navigation and API calls. Roles are `admin`, `maintenance`, and `requestor` (Feature 1).
 
 ---
 
 ## API Requirements
 
-Mount prefix: `/vehicle` (see `backend/server.js`). Flat JSON; errors `{ "message": "..." }`. Do not wrap in `{ success, data }`.
+`backend/server.js` mounts routers at `/api`. This feature registers a vehicle router so the paths below are the full HTTP paths. Responses are flat JSON. Errors are `{ "message": "..." }`. Do not wrap success or errors in `{ success, data }`.
+
+The error tables in this section are normative for HTTP `400` responses. Gherkin below covers a representative set of those rows.
 
 | Method | Endpoint | Auth | Purpose |
 |--------|----------|------|---------|
-| `POST` | `/vehicle/vehicles` | Yes (`admin`) | Create a vehicle |
-| `GET` | `/vehicle/vehicles` | Yes | List all vehicles, sorted by `Make` ascending |
-| `GET` | `/vehicle/vehicles/:vehicleId` | Yes | Fetch one vehicle |
-| `PUT` | `/vehicle/vehicles/:vehicleId` | Yes (`admin`) | Update a vehicle |
-| `DELETE` | `/vehicle/vehicles/:vehicleId` | Yes (`admin`) | Delete a vehicle |
+| `POST` | `/api/vehicle/vehicles` | `admin` | Create a vehicle |
+| `GET` | `/api/vehicle/vehicles` | `admin`, `maintenance` | List all vehicles |
+| `GET` | `/api/vehicle/vehicles/:vehicleId` | `admin`, `maintenance` | Fetch one vehicle, including logs |
+| `PUT` | `/api/vehicle/vehicles/:vehicleId` | `admin` | Update a vehicle |
+| `DELETE` | `/api/vehicle/vehicles/:vehicleId` | `admin` | Delete a vehicle and its logs |
+| `POST` | `/api/vehicle/vehicles/:vehicleId/mileage-logs` | `admin`, `maintenance` | Append a mileage log |
+| `POST` | `/api/vehicle/vehicles/:vehicleId/service-logs` | `admin`, `maintenance` | Append a service log |
 
-### Create – `POST /vehicle/vehicles`
+### Create – `POST /api/vehicle/vehicles`
 
 **Request body:**
 
 ```json
 {
-  "courseNumber": "CS101",
-  "courseName": "Introduction to Computer Science",
-  "courseDescription": "Basic programming concepts.",
-  "courseTerm": "Fall/Spring/Summer/Winter",
-  "sections": "{[sectionsHere]}"
+  "category": "Truck",
+  "make": "Ford",
+  "model": "F-150",
+  "year": 2022,
+  "vin": "1FTFW1E50NFA00001",
+  "purchasedDate": "2022-06-01",
+  "color": "White",
+  "passengerCapacity": 5,
+  "licensePlateNumber": "OC-1001",
+  "licensePlateExpirationMonth": 6,
+  "areaAssigned": "Athletics",
 }
 ```
 
-**Success** (`201`): course row JSON including `id`, `courseNumber`, `courseName`, `courseDescription`, `courseTerm`, `sections`, timestamps.
+A `userId` property in the body is ignored.
+
+**Success** (`201`): the saved vehicle JSON, including `id`, the fields above, `createdAt`, and `updatedAt`. The response does not include `userId`, `mileageLogs`, or `serviceLogs`.
 
 **Errors (`400`):**
 
 | Condition | `message` |
 |-----------|-----------|
-| Missing `courseNumber` | `Course Number cannot be empty for course!` |
-| Missing `courseName` | `Course Name cannot be empty for course!` |
-| Missing `courseTerm` | `Course Term cannot be empty for course!` |
-| Duplicate `courseNumber` | `Course number already exists.` |
+| Missing or blank `category` | `Category cannot be empty.` |
+| `category` not one of the four values | `Category must be Golf Cart, Truck, Car, or Van.` |
+| Missing or blank `make` | `Make cannot be empty.` |
+| `make` longer than 40 characters | `Make cannot exceed 40 characters.` |
+| Missing or blank `model` | `Model cannot be empty.` |
+| `model` longer than 40 characters | `Model cannot exceed 40 characters.` |
+| Missing `year`, or `year` not an integer from 1950 through 2027 | `Year must be from 1950 through 2027.` |
+| Missing or blank `vin` | `VIN cannot be empty.` |
+| `vin` longer than 20 characters | `VIN cannot exceed 20 characters.` |
+| Duplicate `vin` | `VIN already exists.` |
+| Missing, blank, or invalid `purchasedDate` | `Purchased Date must be a valid date.` |
+| Missing or blank `color` | `Color cannot be empty.` |
+| `color` longer than 30 characters | `Color cannot exceed 30 characters.` |
+| Missing `passengerCapacity`, or not an integer from 1 through 15 | `Number of passengers must be from 1 through 15.` |
+| Missing or blank `licensePlateNumber` | `License Plate Number cannot be empty.` |
+| `licensePlateNumber` longer than 10 characters | `License Plate Number cannot exceed 10 characters.` |
+| Duplicate `licensePlateNumber` | `License Plate Number already exists.` |
+| Missing `licensePlateExpirationMonth`, or not an integer from 1 through 12 | `License Plate Expiration Month must be from 1 through 12.` |
+| Missing or blank `areaAssigned` | `Area Assigned cannot be empty.` |
+| `areaAssigned` not one of the three area names | `Area Assigned must be Athletics, Support Central, or Maintenance.` |
 
-**Unauthorized:** `401` when the Bearer token is missing or invalid.
+`purchasedDate` MUST be a real calendar date in `YYYY-MM-DD` form. Uniqueness of `vin` and `licensePlateNumber` is exact after trim, and it is case-sensitive.
 
-### List all – `GET /course/courses`
+**Forbidden:** `403` `{ "message": "Admin role required." }` when the caller is `maintenance` or `requestor`.
 
-**Success** (`200`): JSON array of all courses, ordered by `courseName` ASC.
+**Unauthorized:** `401` when the Bearer token is missing, invalid, or expired, using the Feature 1 messages in **FR-008**.
 
-### Get one – `GET /course/courses/:courseId`
+### List all – `GET /api/vehicle/vehicles`
 
-**Success** (`200`): JSON **array** of matching courses (running controller uses `findAll`). The editor reads `response.data[0]`.
+**Success** (`200`): a JSON array of vehicles, ordered by `make` ASC, then `model` ASC, then `id` ASC. Each item has the same fields as the create success body. Logs are not included.
 
-### Update – `PUT /course/courses/:courseId`
+### Get one – `GET /api/vehicle/vehicles/:vehicleId`
 
-**Request body:** course fields to change (at least `courseNumber`, `courseName`, `courseDescription`, `courseTerm` as edited on screen).
+**Success** (`200`): one vehicle object (not an array). It includes `mileageLogs` and `serviceLogs`, each ordered by `entryDate` ascending, then `id` ascending.
 
-**Success:** `{ "message": "Course was updated successfully." }`
+```json
+{
+  "id": 1,
+  "category": "Truck",
+  "make": "Ford",
+  "model": "F-150",
+  "year": 2022,
+  "vin": "1FTFW1E50NFA00001",
+  "purchasedDate": "2022-06-01",
+  "color": "White",
+  "passengerCapacity": 5,
+  "licensePlateNumber": "OC-1001",
+  "licensePlateExpirationMonth": 6,
+  "areaAssigned": "Athletics",
+  "mileageLogs": [
+    { "id": 1, "vehicleId": 1, "entryDate": "2026-10-01", "currentMileage": 15000 }
+  ],
+  "serviceLogs": [
+    { "id": 1, "vehicleId": 1, "entryDate": "2026-09-01", "servicePerformed": "Oil change" }
+  ],
+  "createdAt": "2026-10-15T12:00:00.000Z",
+  "updatedAt": "2026-10-15T12:00:00.000Z"
+}
+```
 
-**Not found / not owned:** `404` `{ "message": "Cannot find Course with id=." }`
+**Not found:** `404` `{ "message": "Vehicle with id=<vehicleId> not found." }`
 
-### Delete – `DELETE /course/courses/:courseId`
+### Update – `PUT /api/vehicle/vehicles/:vehicleId`
 
-**Success:** `{ "message": "Course was deleted successfully!" }`
+**Request body:** the same fields as create. All of those fields are required on update. A `userId` in the body is ignored.
 
-**Not found / not owned:** `404` `{ "message": "Cannot find Course with id=." }`
+Validation messages match the create table. A duplicate `vin` or `licensePlateNumber` is reported only when another vehicle already has that value.
+
+**Success** (`200`): `{ "message": "Vehicle was updated successfully." }`
+
+**Not found:** `404` `{ "message": "Vehicle with id=<vehicleId> not found." }`
+
+### Delete – `DELETE /api/vehicle/vehicles/:vehicleId`
+
+**Success** (`200`): `{ "message": "Vehicle was deleted successfully!" }`
+
+The vehicle row, its mileage logs, and its service logs are removed.
+
+**Not found:** `404` `{ "message": "Vehicle with id=<vehicleId> not found." }`
+
+### Log mileage – `POST /api/vehicle/vehicles/:vehicleId/mileage-logs`
+
+**Request body:**
+
+```json
+{
+  "entryDate": "2026-10-01",
+  "currentMileage": 15000
+}
+```
+
+**Success** (`201`):
+
+```json
+{
+  "id": 1,
+  "vehicleId": 1,
+  "entryDate": "2026-10-01",
+  "currentMileage": 15000
+}
+```
+
+**Errors (`400`):**
+
+| Condition | `message` |
+|-----------|-----------|
+| Missing, blank, or invalid `entryDate` | `Date must be a valid date.` |
+| Missing `currentMileage`, or not an integer greater than or equal to 0 | `Current mileage must be zero or greater.` |
+
+**Not found:** `404` `{ "message": "Vehicle with id=<vehicleId> not found." }`
+
+### Log service – `POST /api/vehicle/vehicles/:vehicleId/service-logs`
+
+**Request body:**
+
+```json
+{
+  "entryDate": "2026-09-01",
+  "servicePerformed": "Oil change"
+}
+```
+
+**Success** (`201`):
+
+```json
+{
+  "id": 1,
+  "vehicleId": 1,
+  "entryDate": "2026-09-01",
+  "servicePerformed": "Oil change"
+}
+```
+
+**Errors (`400`):**
+
+| Condition | `message` |
+|-----------|-----------|
+| Missing, blank, or invalid `entryDate` | `Date must be a valid date.` |
+| Missing or blank `servicePerformed` | `Service performed cannot be empty.` |
+| `servicePerformed` not one of the three services | `Service performed must be Repair, Oil change, or Tire replacement.` |
+
+**Not found:** `404` `{ "message": "Vehicle with id=<vehicleId> not found." }`
 
 **Error response (all):** `{ "message": "Human-readable explanation." }`
 
@@ -213,226 +368,470 @@ Mount prefix: `/vehicle` (see `backend/server.js`). Flat JSON; errors `{ "messag
 
 ## Screen Requirements
 
-Follow [ui-style-system.mdc](../.cursor/rules/ui-style-system.mdc) for theme tokens. Labels below match the running Course UI.
+Route name `vehicles`, path `/vehicle`. One view, `Vehicles.vue`. Create, edit, delete, mileage, and service all use `v-dialog` on this view.
 
-### [View: Course list] – route name `courses` (`/courses`)
-
-Feature 1 already specifies who may open this screen and the list navigation. This feature adds signed-in create, edit, and delete actions for `faculty` role.
+### [View: Vehicle list] — route name `vehicles` (`/vehicle`)
 
 **Shell**
 
-- Heading: **Courses**
-- Primary action: **Add Course** (`v-if="user && user.role === 'faculty'"`) – faculty role only
-- **Error:** snackbar with API `message`
-- No empty-state copy in the running view – do not invent one
+- Heading: **Vehicles**
+- Admin primary action: **Add Vehicle** (`v-if` the signed-in role is `admin`)
+- Maintenance users do not see **Add Vehicle**
+- Load failure: `<v-alert type="error">` with the API `message`
+- Empty catalog: **No vehicles yet.**
+- Action success and action failure: a snackbar. Failure snackbars show the API `message`
 
-**Course cards** (`CourseCardComponent`)
+**Vehicle table**
 
-- Show **courseNumber**, **courseName**, **courseTerm** and **courseDescription**
-- Click the card to expand/collapse details. Expanded section rows are display-only here; add/edit/delete of section rows is Feature 5
-- Pencil icon (`mdi-pencil`) opens **Edit Course** modal or navigates to `editCourse` with that course's `id`; `aria-label`: **Edit course**
-- Trash icon (`mdi-delete`) prompts delete confirmation and removes course on success; `aria-label`: **Delete course**
+Columns: **Category**, **Make**, **Model**, **Year**, **License Plate**, **Area**, **Color**, **Passengers**.
 
-**Add Course dialog** (`v-dialog`)
+Click a row to expand it. The expanded area shows **Mileage log** (date and current mileage) and **Service log** (date and service performed). Both lists are display-only.
 
-- Title: **Add Course**
-- Fields: **Course Number**, **Course Name**, **Description**, **courseTerm**
-- Actions: **Close**, **Add Course**
-- On success: close dialog, refresh list, snackbar **`{courseName} added successfully!`**
-- On failure: error snackbar with API `message`
+Admin row actions:
 
-### [View: Edit course] – route name `editCourse` (`/course/:id`)
+- Pencil icon (`mdi-pencil`) opens **Edit Vehicle**. `aria-label`: **Edit vehicle**
+- Trash icon (`mdi-delete`) opens the delete confirmation. `aria-label`: **Delete vehicle**
+- **Log mileage** opens the mileage dialog. `aria-label`: **Log mileage**
+- **Log service** opens the service dialog. `aria-label`: **Log service**
 
-Session required (Feature 1). This feature owns the course **metadata** form only.
+Maintenance row actions are **Log mileage** and **Log service** only. Edit and Delete are not rendered.
 
-- Heading: **Edit Course**
-- Fields: **Course Number**, **Course Name**, **Description**, **courseTerm**
-- Primary action: **Update Course**
-- On success: snackbar **`{courseName} updated successfully!`**, then reload the course
-- On failure: error snackbar with API `message`
-- **Sections** cards, **Add** / pencil / trash on those rows are Feature 5
+**Add Vehicle dialog**
+
+- Title: **Add Vehicle**
+- Fields, in order: **Category**, **Make**, **Model**, **Year**, **VIN**, **Purchased Date**, **Color**, **Number of passengers**, **License Plate Number**, **License Plate Expiration Month**, **Area Assigned**
+- **Category**, **License Plate Expiration Month**, and **Area Assigned** are selects. Month options are 1 through 12. Area options are Athletics, Support Central, and Maintenance.
+- **Make** and **Model** are combo boxes. **Make** suggests the standard makes for the selected category. **Model** suggests the standard models for the selected category and the current make when that make is on the standard list. A typed make or model that is not on the list is accepted. If the typed make is not on the list, **Model** has no suggestions and the admin types the model.
+- The other fields are inputs. **Purchased Date** is a date.
+- A blank required field shows **Required field** and does not call the API.
+- Actions: **Close**, **Add Vehicle**
+- On success: close the dialog, refresh the list, snackbar **`Ford F-150 added successfully!`** using that vehicle's make and model (`{make} {model} added successfully!`)
+- On failure: error snackbar with the API `message`
+
+**Edit Vehicle dialog**
+
+- Title: **Edit Vehicle**
+- Same fields as Add Vehicle, filled with the selected vehicle. A stored make or model that is not on the standard list is shown as the current value.
+- Actions: **Close**, **Update Vehicle**
+- On success: close the dialog, refresh the list, snackbar **`{make} {model} updated successfully!`**
+- On failure: error snackbar with the API `message`
+
+**Delete dialog**
+
+- Title: **Delete this vehicle?**
+- Text: **This removes the vehicle and its mileage and service logs.**
+- Actions: **Cancel**, **Delete**
+- **Cancel** closes the dialog and leaves the row in the table
+- On success: close the dialog, refresh the list, snackbar **`Vehicle deleted successfully!`**
+- On failure: error snackbar with the API `message`
+
+**Log mileage dialog**
+
+- Title: **Log mileage**
+- Fields: **Date**, **Current mileage**
+- Actions: **Close**, **Save**
+- On success: close the dialog, refresh the open vehicle's logs, snackbar **`Mileage logged successfully!`**
+- On failure: error snackbar with the API `message`
+
+**Log service dialog**
+
+- Title: **Log service**
+- Fields: **Date**, **Service performed** (select: Repair, Oil change, Tire replacement)
+- Actions: **Close**, **Save**
+- On success: close the dialog, refresh the open vehicle's logs, snackbar **`Service logged successfully!`**
+- On failure: error snackbar with the API `message`
 
 ### App chrome
 
-- MenuBar **Courses** already routes here (Feature 1). This feature does not add nav items.
+- Add **Vehicle** to the Feature 1 `MenuBar`. Allowed roles: `admin` and `maintenance`. Path: `/vehicle`.
+- Do not add a second `MenuBar`.
+- A signed-out `MenuBar` still does not show **Vehicle**.
+- A `requestor` `MenuBar` does not show **Vehicle**.
+- Feature 1 tests that expect **Vehicle** to be hidden for `admin` and for `maintenance` are updated here so those roles see **Vehicle**. Tests that expect **Vehicle** to be hidden with no session, and hidden for `requestor`, stay as written.
 
 ---
 
 ## Data Model Requirements
 
-### `courses` table
+### Standard make and model list
+
+This list fills the **Make** and **Model** combo boxes. It is not the only data that can be stored. An admin can type any other make and any other model, and the API stores that text.
+
+When the chosen make is on this list, **Model** suggests the models in that row. The same make may appear under more than one category. Ford under Truck suggests F-150 and Ranger. Ford under Car suggests Fusion. Ford under Van suggests Transit and E-Series. Those suggestions do not block a different model.
+
+| Category | Make | Models |
+|----------|------|--------|
+| Golf Cart | Club Car | Onward, Villager |
+| Golf Cart | EZ-GO | Liberty, Express |
+| Golf Cart | Yamaha | Drive2, Concierge |
+| Truck | Ford | F-150, Ranger |
+| Truck | Chevrolet | Silverado, Colorado |
+| Truck | Ram | 1500 |
+| Truck | Toyota | Tacoma, Tundra |
+| Car | Toyota | Camry, Corolla |
+| Car | Honda | Civic, Accord |
+| Car | Chevrolet | Malibu |
+| Car | Ford | Fusion |
+| Van | Ford | Transit, E-Series |
+| Van | Chevrolet | Express |
+| Van | Honda | Odyssey |
+| Van | Ram | ProMaster |
+
+### `vehicles` table
 
 | Field | Type | Rules |
 |-------|------|-------|
 | `id` | INTEGER PK | Auto-increment |
-| `courseNumber` | STRING | Required |
-| `courseName` | STRING | Required |
-| `courseDescription` | STRING | Optional |
-| `courseTerm` | STRING | Required |
+| `category` | STRING | Required. `Golf Cart`, `Truck`, `Car`, or `Van` |
+| `make` | STRING(40) | Required. Any non-blank value. The standard list is a form suggestion, not a stored whitelist. |
+| `model` | STRING(40) | Required. Any non-blank value. The standard list is a form suggestion, not a stored whitelist. |
+| `year` | INTEGER | Required. 1950 through 2027 |
+| `vin` | STRING(20) | Required, unique |
+| `purchasedDate` | DATEONLY | Required. `YYYY-MM-DD` |
+| `color` | STRING(30) | Required |
+| `passengerCapacity` | INTEGER | Required. 1 through 15 |
+| `licensePlateNumber` | STRING(10) | Required, unique |
+| `licensePlateExpirationMonth` | INTEGER | Required. 1 through 12 |
+| `areaAssigned` | STRING | Required. `Athletics`, `Support Central`, or `Maintenance` |
+| `createdAt` | DATE | Set by the ORM |
+| `updatedAt` | DATE | Set by the ORM |
+
+There is no `userId` column.
+
+### `mileage_logs` table
+
+| Field | Type | Rules |
+|-------|------|-------|
+| `id` | INTEGER PK | Auto-increment |
+| `entryDate` | DATEONLY | Required. `YYYY-MM-DD` |
+| `currentMileage` | INTEGER | Required. Integer greater than or equal to 0 |
+| `vehicleId` | INTEGER FK | Required, references `vehicles.id` |
+
+### `service_logs` table
+
+| Field | Type | Rules |
+|-------|------|-------|
+| `id` | INTEGER PK | Auto-increment |
+| `entryDate` | DATEONLY | Required. `YYYY-MM-DD` |
+| `servicePerformed` | STRING | Required. `Repair`, `Oil change`, or `Tire replacement` |
+| `vehicleId` | INTEGER FK | Required, references `vehicles.id` |
 
 ### Associations
 
-- `Course` hasMany `Section` – `onDelete: CASCADE` (child CRUD is Feature 5)
-- `Section` belongsTo `Course`
+- `Vehicle` hasMany `MileageLog` – `onDelete: CASCADE`
+- `Vehicle` hasMany `ServiceLog` – `onDelete: CASCADE`
+- `MileageLog` belongsTo `Vehicle`
+- `ServiceLog` belongsTo `Vehicle`
 
 ---
 
 ## Acceptance Criteria (Gherkin)
 
-### US-3.1 – View Course List Page
+### US-2.1 — View Vehicle List Page
 
-#### Scenario: Signed-in faculty navigates to course page
+#### Scenario: Signed-in admin navigates to the vehicle page
 
-- **Given** I am signed in as a faculty
-- **When** I select **Course** from the navigation menu
-- **Then** I am redirected to the `/course` view
-- **And** the course management screen is displayed
+- **Given** I am signed in as an admin
+- **When** I select **Vehicle** from the navigation menu
+- **Then** I am on `/vehicle`
+- **And** the heading **Vehicles** is displayed
+- **And** **Add Vehicle** is displayed
 
-#### Scenario: Signed-in faculty navigates to course page
+#### Scenario: Signed-in maintenance user navigates to the vehicle page
 
-- **Given** I am signed in as a faculty
-- **When** I select **Course** from the navigation menu
-- **Then** I am redirected to the `/course` view
-- **And** the course management screen is displayed
+- **Given** I am signed in as a maintenance user
+- **When** I select **Vehicle** from the navigation menu
+- **Then** I am on `/vehicle`
+- **And** the heading **Vehicles** is displayed
+- **And** **Add Vehicle** is not displayed
 
-#### Scenario: Signed-in student navigates to course page
+#### Scenario: Requestor does not see Vehicle in the menu
 
-- **Given** I am signed in as a student
-- **When** I select **Course** from the navigation menu
-- **Then** I am redirected to the `/course` view
-- **And** the course management screen is displayed
+- **Given** I am signed in as a requestor
+- **When** I view the navigation menu
+- **Then** **Vehicle** is not shown
 
 ---
 
-### US-3.2 – Create Course
+### US-2.2 — Create Vehicle
 
-#### Scenario: Signed-in faculty creates a new course
+#### Scenario: Signed-in admin creates a new vehicle
 
-- **Given** I am signed in as a faculty on the course page
-- **When** I click **Add Course**
-- **Then** the course modal dialog opens
-- **When** I enter course number `CS101`, course name `Intro to CS`, course description `Basic concepts`, term `Spring`
+- **Given** I am signed in as an admin on the vehicle page
+- **When** I click **Add Vehicle**
+- **Then** the **Add Vehicle** dialog opens
+- **When** I choose category `Truck`, make `Ford`, model `F-150`, year `2022`, VIN `1FTFW1E50NFA00001`, purchased date `2022-06-01`, color `White`, passengers `5`, license plate `OC-1001`, expiration month `6`, and area `Athletics`
+- **And** I click **Add Vehicle**
+- **Then** `POST /api/vehicle/vehicles` returns `201`
+- **And** the saved vehicle has `make` `Ford`, `model` `F-150`, and `category` `Truck`
+- **And** the response has no `userId`
+- **And** `Ford F-150` appears in the vehicle table
+- **And** I see a snackbar **`Ford F-150 added successfully!`**
+
+#### Scenario: Create without VIN is rejected
+
+- **Given** I am signed in as an admin
+- **When** I send `POST /api/vehicle/vehicles` with a valid vehicle body whose `vin` is missing
+- **Then** the API returns `400` with `{ "message": "VIN cannot be empty." }`
+
+#### Scenario: Create with a duplicate VIN is rejected
+
+- **Given** I am signed in as an admin
+- **And** a vehicle already exists with VIN `1FTFW1E50NFA00001`
+- **When** I send `POST /api/vehicle/vehicles` with the same `vin` and a different `licensePlateNumber`
+- **Then** the API returns `400` with `{ "message": "VIN already exists." }`
+
+#### Scenario: Create with a duplicate license plate is rejected
+
+- **Given** I am signed in as an admin
+- **And** a vehicle already exists with license plate `OC-1001`
+- **When** I send `POST /api/vehicle/vehicles` with the same `licensePlateNumber` and a different `vin`
+- **Then** the API returns `400` with `{ "message": "License Plate Number already exists." }`
+
+#### Scenario: Create with a make and model that are not on the standard list
+
+- **Given** I am signed in as an admin
+- **When** I send `POST /api/vehicle/vehicles` with a valid vehicle body whose `category` is `Car`, `make` is `Tesla`, and `model` is `Model 3`
+- **Then** the API returns `201`
+- **And** the saved vehicle has `make` `Tesla` and `model` `Model 3`
+
+#### Scenario: Supplied userId is ignored
+
+- **Given** I am signed in as an admin
+- **When** I send `POST /api/vehicle/vehicles` with a valid vehicle body and `"userId": 99`
+- **Then** the API returns `201`
+- **And** the response has no `userId`
+- **And** the stored vehicle row has no `userId`
+
+#### Scenario: Empty required field shows Required field
+
+- **Given** I am signed in as an admin
+- **And** the **Add Vehicle** dialog is open
+- **When** I leave **VIN** blank
+- **And** I click **Add Vehicle**
+- **Then** I see **Required field**
+- **And** `POST /api/vehicle/vehicles` is not called
+
+---
+
+### US-2.3 — Read Vehicle Catalog
+
+#### Scenario: Signed-in admin views the vehicle catalog
+
+- **Given** I am signed in as an admin
+- **And** a Chevrolet Malibu and a Ford F-150 exist
+- **When** I open the vehicle page
+- **Then** `GET /api/vehicle/vehicles` is called
+- **And** both vehicles are listed in the table
+
+#### Scenario: Vehicle list is sorted by make
+
+- **Given** I am signed in as an admin
+- **And** a Ford F-150 and a Chevrolet Malibu exist
+- **When** I send `GET /api/vehicle/vehicles`
+- **Then** the API returns `200`
+- **And** the Chevrolet Malibu comes before the Ford F-150
+
+#### Scenario: Maintenance views logs for a vehicle
+
+- **Given** I am signed in as a maintenance user
+- **And** vehicle `4` is a Ford F-150 with a mileage log of `15000` on `2026-10-01` and a service log `Oil change` on `2026-09-01`
+- **When** I send `GET /api/vehicle/vehicles/4`
+- **Then** the API returns `200`
+- **And** the body includes that mileage log and that service log
+- **When** I expand the Ford F-150 row
+- **Then** I see mileage `15000` and service **Oil change**
+
+---
+
+### US-2.4 — Row Action Icons
+
+#### Scenario: Row action buttons visible for admin
+
+- **Given** I am signed in as an admin on the vehicle page
+- **And** at least one vehicle is listed
+- **When** I view the vehicle table
+- **Then** I see **Edit vehicle** and **Delete vehicle** on each row
+- **And** I see **Log mileage** and **Log service** on each row
+
+#### Scenario: Maintenance row shows log actions only
+
+- **Given** I am signed in as a maintenance user on the vehicle page
+- **And** at least one vehicle is listed
+- **When** I view the vehicle table
+- **Then** I see **Log mileage** and **Log service** on each row
+- **And** I do not see **Edit vehicle** or **Delete vehicle**
+
+---
+
+### US-2.5 — Edit Vehicle
+
+#### Scenario: Signed-in admin updates vehicle details
+
+- **Given** I am signed in as an admin on the vehicle page
+- **And** a Ford F-150 exists with color `White`
+- **When** I click **Edit vehicle** on that row
+- **Then** the **Edit Vehicle** dialog opens
+- **When** I change color to `Blue`
+- **And** I click **Update Vehicle**
+- **Then** `PUT /api/vehicle/vehicles/:vehicleId` returns `{ "message": "Vehicle was updated successfully." }`
+- **And** the Ford F-150 row shows color `Blue`
+- **And** I see a snackbar **`Ford F-150 updated successfully!`**
+
+#### Scenario: Update of an unknown vehicle is rejected
+
+- **Given** I am signed in as an admin
+- **When** I send `PUT /api/vehicle/vehicles/9999` with a valid vehicle body
+- **Then** the API returns `404` with `{ "message": "Vehicle with id=9999 not found." }`
+
+---
+
+### US-2.6 — Delete Vehicle
+
+#### Scenario: Signed-in admin deletes a vehicle with confirmation
+
+- **Given** I am signed in as an admin on the vehicle page
+- **And** a Ford F-150 exists and has a mileage log and a service log
+- **When** I click **Delete vehicle** on that row
+- **Then** a dialog titled **Delete this vehicle?** is displayed
+- **When** I click **Delete**
+- **Then** `DELETE /api/vehicle/vehicles/:vehicleId` returns `{ "message": "Vehicle was deleted successfully!" }`
+- **And** the Ford F-150 is removed from the table
+- **And** that vehicle's mileage logs and service logs are removed
+- **And** I see a snackbar **`Vehicle deleted successfully!`**
+
+#### Scenario: Cancelled delete leaves the vehicle
+
+- **Given** I am signed in as an admin on the vehicle page
+- **And** a Ford F-150 exists
+- **When** I click **Delete vehicle** on that row
+- **And** I click **Cancel**
+- **Then** the Ford F-150 remains in the table
+- **And** `DELETE /api/vehicle/vehicles/:vehicleId` is not called
+
+---
+
+### US-2.7 — Role-Based Access Control
+
+#### Scenario: Requestor vehicle access is restricted
+
+- **Given** I am signed in as a requestor
+- **When** I view the navigation menu
+- **Then** **Vehicle** is not shown
+- **When** I navigate directly to `/vehicle`
+- **Then** I am redirected to home
+- **When** I send `GET /api/vehicle/vehicles`, `POST /api/vehicle/vehicles`, `PUT /api/vehicle/vehicles/1`, `DELETE /api/vehicle/vehicles/1`, `POST /api/vehicle/vehicles/1/mileage-logs`, or `POST /api/vehicle/vehicles/1/service-logs`
+- **Then** each response is `403` with `{ "message": "Admin role required." }`
+- **And** the catalog is unchanged
+
+#### Scenario: Maintenance cannot create, update, or delete a vehicle
+
+- **Given** I am signed in as a maintenance user
+- **When** I send `POST /api/vehicle/vehicles`, `PUT /api/vehicle/vehicles/1`, or `DELETE /api/vehicle/vehicles/1`
+- **Then** each response is `403` with `{ "message": "Admin role required." }`
+- **And** the catalog is unchanged
+- **When** I send `GET /api/vehicle/vehicles`
+- **Then** the API returns `200`
+
+#### Scenario: Unauthenticated visit to the vehicle page redirects to login
+
+- **Given** I have no session
+- **When** I navigate directly to `/vehicle`
+- **Then** I am redirected to `/login`
+- **When** I send `GET /api/vehicle/vehicles` with no token
+- **Then** the API returns `401` with `{ "message": "Unauthorized! No token provided." }`
+
+---
+
+### US-2.8 — Log Mileage and Service
+
+#### Scenario: Maintenance logs mileage on a vehicle
+
+- **Given** I am signed in as a maintenance user on the vehicle page
+- **And** a Ford F-150 exists
+- **When** I click **Log mileage** on that row
+- **Then** the **Log mileage** dialog opens
+- **When** I enter date `2026-10-01` and current mileage `15000`
 - **And** I click **Save**
-- **Then** `POST /course/courses` returns `201` with a course whose `courseNumber` is `CS101`
-- **And** `Intro to CS` appears in the course table
-- **And** I see a snackbar **`Intro to CS added successfully!`**
+- **Then** `POST /api/vehicle/vehicles/:vehicleId/mileage-logs` returns `201` with `currentMileage` `15000`
+- **And** I see a snackbar **`Mileage logged successfully!`**
+- **And** the expanded row shows mileage `15000`
 
-#### Scenario: Create without course number is rejected
+#### Scenario: Maintenance logs a service on a vehicle
 
-- **Given** I am signed in as a faculty
-- **When** I send `POST /course/courses` with a body missing `courseNumber`
-- **Then** the API returns `400` with `{ "message": "Course Number cannot be empty for course!" }`
+- **Given** I am signed in as a maintenance user on the vehicle page
+- **And** a Ford F-150 exists
+- **When** I click **Log service** on that row
+- **And** I enter date `2026-09-01` and service **Oil change**
+- **And** I click **Save**
+- **Then** `POST /api/vehicle/vehicles/:vehicleId/service-logs` returns `201` with `servicePerformed` `Oil change`
+- **And** I see a snackbar **`Service logged successfully!`**
+- **And** the expanded row shows **Oil change**
 
-#### Scenario: Create without course name is rejected
+#### Scenario: Mileage log without current mileage is rejected
 
-- **Given** I am signed in as a faculty
-- **When** I send `POST /course/courses` with a body missing `courseName`
-- **Then** the API returns `400` with `{ "message": "Course Name cannot be empty for course!" }`
+- **Given** I am signed in as a maintenance user
+- **And** vehicle `4` exists
+- **When** I send `POST /api/vehicle/vehicles/4/mileage-logs` with `entryDate` `2026-10-01` and no `currentMileage`
+- **Then** the API returns `400` with `{ "message": "Current mileage must be zero or greater." }`
 
----
+#### Scenario: Service log with an unknown service is rejected
 
-### US-3.3 – Read Course Catalog
+- **Given** I am signed in as a maintenance user
+- **And** vehicle `4` exists
+- **When** I send `POST /api/vehicle/vehicles/4/service-logs` with `entryDate` `2026-09-01` and `servicePerformed` `Inspection`
+- **Then** the API returns `400` with `{ "message": "Service performed must be Repair, Oil change, or Tire replacement." }`
 
-#### Scenario: Signed-in faculty views courses catalog
+#### Scenario: Mileage log for an unknown vehicle is rejected
 
-- **Given** I am signed in as a faculty
-- **When** I open the course management page
-- **Then** `GET /course/courses` is called
-- **And** all courses returned by the API are listed in the data table
+- **Given** I am signed in as a maintenance user
+- **When** I send `POST /api/vehicle/vehicles/9999/mileage-logs` with `entryDate` `2026-10-01` and `currentMileage` `15000`
+- **Then** the API returns `404` with `{ "message": "Vehicle with id=9999 not found." }`
 
----
+#### Scenario: Requestor cannot log mileage
 
-### US-3.4 – Row Action Icons
-
-#### Scenario: Row action buttons visible for faculty
-
-- **Given** I am signed in as a faculty on the course page
-- **When** I view the course data table
-- **Then** I see **Edit** (pencil icon) and **Delete** (trash icon) buttons rendered on each course row
-
----
-
-### US-3.5 – Edit Course
-
-#### Scenario: Signed-in faculty updates course details
-
-- **Given** I am signed in as a faculty on the course page
-- **And** a course `Intro to CS` exists with term `Spring`
-- **When** I click the **Edit** icon on `Intro to CS`
-- **Then** the edit course modal dialog opens
-- **When** I change term to `Fall`
-- **And** I click **Update Course**
-- **Then** `PUT /course/courses/:courseId` returns `{ "message": "Course was updated successfully." }`
-- **And** `Intro to CS` shows updated term of `Fall` in the data table
-- **And** I see a snackbar **`Intro to CS updated successfully!`**
-
----
-
-### US-3.6 – Delete Course
-
-#### Scenario: Signed-in faculty deletes a course with confirmation
-
-- **Given** I am signed in as a faculty on the course page
-- **And** a course `Intro to CS` exists in the table
-- **When** I click the **Delete** icon on `Intro to CS`
-- **Then** a deletion confirmation dialog appears
-- **When** I confirm the deletion
-- **Then** `DELETE /course/courses/:courseId` returns `200`
-- **And** `Intro to CS` is removed from the course table
-- **And** I see a snackbar **`Course deleted successfully!`**
-
----
-
-### US-3.7 – Role-Based Access Control
-
-#### Scenario: Student user edit access restricted
-
-- **Given** I am signed in as student
-- **When** I view the navigation menu
-- **Then** the **Course** option is there
-- **When** I send a direct `POST /course/courses`, `PUT /course/courses/:id`, or `DELETE /course/courses/:id` request
-- **Then** the API returns `403` Forbidden
-- **And** course catalog data remains unchanged
-
-#### Scenario: Student user GET access 
-
-- **Given** I am signed in as student
-- **When** I view the navigation menu
-- **Then** the **Course** option is there
-- **When** I send a direct `GET /course/courses` or `GET /course/courses/:id` request
-- **Then** the API returns `200` with the data
-- **And** course catalog data remains unchanged
-
-#### Scenario: Student user view list of courses access 
-
-- **Given** I am signed in as student
-- **When** I click the **Course** option on the navigation menu
-- **Then** the list of courses is viewable
-- **When** I send a direct `GET /course/courses` or `GET /course/courses/:id` request
-- **Then** the API returns `200` with the data
-- **And** course catalog data remains unchanged
+- **Given** I am signed in as a requestor
+- **And** vehicle `4` exists
+- **When** I send `POST /api/vehicle/vehicles/4/mileage-logs` with `entryDate` `2026-10-01` and `currentMileage` `15000`
+- **Then** the API returns `403` with `{ "message": "Admin role required." }`
+- **And** no mileage log is stored
 
 ---
 
 ## Test Coverage Map
 
-Each Gherkin scenario above maps to at least one automated test. Faculty creates, updates, and deletes courses. Signed-in students and faculty can open **Course** and read the catalog. A student `POST`, `PUT`, or `DELETE` returns `403`.
+Each Gherkin scenario above maps to at least one automated test. An admin creates, updates, and deletes vehicles. An admin or a maintenance user can read the catalog and append logs. A requestor receives `403` on every vehicle endpoint. A maintenance user receives `403` on vehicle create, update, and delete.
 
 | Story | Scenario | Test file | Test name |
 | ----- | -------- | --------- | --------- |
-| US–3.1 | Signed-in faculty navigates to course page | `frontend/tests/CourseList.test.js` | `Signed-in faculty navigates to course page` |
-| US–3.1 | Signed-in student navigates to course page | `frontend/tests/CourseList.test.js` | `Signed-in student navigates to course page` |
-| US–3.2 | Signed-in faculty creates a new course | `backend/tests/courses.test.js`, `frontend/tests/CourseList.test.js` | `Signed-in faculty creates a new course` |
-| US–3.2 | Create without course number is rejected | `backend/tests/courses.test.js` | `Create without course number is rejected` |
-| US–3.2 | Create without course name is rejected | `backend/tests/courses.test.js` | `Create without course name is rejected` |
-| US–3.3 | Signed-in faculty views courses catalog | `backend/tests/courses.test.js`, `frontend/tests/CourseList.test.js` | `Signed-in faculty views courses catalog` |
-| US–3.4 | Row action buttons visible for faculty | `frontend/tests/CourseList.test.js` | `Row action buttons visible for faculty` |
-| US–3.5 | Signed-in faculty updates course details | `backend/tests/courses.test.js`, `frontend/tests/CourseList.test.js` | `Signed-in faculty updates course details` |
-| US–3.6 | Signed-in faculty deletes a course with confirmation | `backend/tests/courses.test.js`, `frontend/tests/CourseList.test.js` | `Signed-in faculty deletes a course with confirmation` |
-| US–3.7 | Student user edit access restricted | `backend/tests/courses.test.js`, `frontend/tests/CourseList.test.js` | `Student user edit access restricted` |
-| US–3.7 | Student user GET access | `backend/tests/courses.test.js` | `Student user GET access` |
-| US–3.7 | Student user view list of courses access | `backend/tests/courses.test.js`, `frontend/tests/CourseList.test.js` | `Student user view list of courses access` |
-
+| US-2.1 | Signed-in admin navigates to the vehicle page | `frontend/tests/VehicleList.test.js` | `Signed-in admin navigates to the vehicle page` |
+| US-2.1 | Signed-in maintenance user navigates to the vehicle page | `frontend/tests/VehicleList.test.js` | `Signed-in maintenance user navigates to the vehicle page` |
+| US-2.1 | Requestor does not see Vehicle in the menu | `frontend/tests/MenuBar.test.js` | `Requestor does not see Vehicle in the menu` |
+| US-2.2 | Signed-in admin creates a new vehicle | `backend/tests/vehicles.test.js`, `frontend/tests/VehicleList.test.js` | `Signed-in admin creates a new vehicle` |
+| US-2.2 | Create without VIN is rejected | `backend/tests/vehicles.test.js` | `Create without VIN is rejected` |
+| US-2.2 | Create with a duplicate VIN is rejected | `backend/tests/vehicles.test.js` | `Create with a duplicate VIN is rejected` |
+| US-2.2 | Create with a duplicate license plate is rejected | `backend/tests/vehicles.test.js` | `Create with a duplicate license plate is rejected` |
+| US-2.2 | Create with a make and model that are not on the standard list | `backend/tests/vehicles.test.js` | `Create with a make and model that are not on the standard list` |
+| US-2.2 | Supplied userId is ignored | `backend/tests/vehicles.test.js` | `Supplied userId is ignored` |
+| US-2.2 | Empty required field shows Required field | `frontend/tests/VehicleList.test.js` | `Empty required field shows Required field` |
+| US-2.3 | Signed-in admin views the vehicle catalog | `backend/tests/vehicles.test.js`, `frontend/tests/VehicleList.test.js` | `Signed-in admin views the vehicle catalog` |
+| US-2.3 | Vehicle list is sorted by make | `backend/tests/vehicles.test.js` | `Vehicle list is sorted by make` |
+| US-2.3 | Maintenance views logs for a vehicle | `backend/tests/vehicles.test.js`, `frontend/tests/VehicleList.test.js` | `Maintenance views logs for a vehicle` |
+| US-2.4 | Row action buttons visible for admin | `frontend/tests/VehicleList.test.js` | `Row action buttons visible for admin` |
+| US-2.4 | Maintenance row shows log actions only | `frontend/tests/VehicleList.test.js` | `Maintenance row shows log actions only` |
+| US-2.5 | Signed-in admin updates vehicle details | `backend/tests/vehicles.test.js`, `frontend/tests/VehicleList.test.js` | `Signed-in admin updates vehicle details` |
+| US-2.5 | Update of an unknown vehicle is rejected | `backend/tests/vehicles.test.js` | `Update of an unknown vehicle is rejected` |
+| US-2.6 | Signed-in admin deletes a vehicle with confirmation | `backend/tests/vehicles.test.js`, `frontend/tests/VehicleList.test.js` | `Signed-in admin deletes a vehicle with confirmation` |
+| US-2.6 | Cancelled delete leaves the vehicle | `frontend/tests/VehicleList.test.js` | `Cancelled delete leaves the vehicle` |
+| US-2.7 | Requestor vehicle access is restricted | `backend/tests/vehicles.test.js`, `frontend/tests/VehicleList.test.js`, `frontend/tests/MenuBar.test.js` | `Requestor vehicle access is restricted` |
+| US-2.7 | Maintenance cannot create, update, or delete a vehicle | `backend/tests/vehicles.test.js` | `Maintenance cannot create, update, or delete a vehicle` |
+| US-2.7 | Unauthenticated visit to the vehicle page redirects to login | `backend/tests/vehicles.test.js`, `frontend/tests/router.test.js` | `Unauthenticated visit to the vehicle page redirects to login` |
+| US-2.8 | Maintenance logs mileage on a vehicle | `backend/tests/vehicles.test.js`, `frontend/tests/VehicleList.test.js` | `Maintenance logs mileage on a vehicle` |
+| US-2.8 | Maintenance logs a service on a vehicle | `backend/tests/vehicles.test.js`, `frontend/tests/VehicleList.test.js` | `Maintenance logs a service on a vehicle` |
+| US-2.8 | Mileage log without current mileage is rejected | `backend/tests/vehicles.test.js` | `Mileage log without current mileage is rejected` |
+| US-2.8 | Service log with an unknown service is rejected | `backend/tests/vehicles.test.js` | `Service log with an unknown service is rejected` |
+| US-2.8 | Mileage log for an unknown vehicle is rejected | `backend/tests/vehicles.test.js` | `Mileage log for an unknown vehicle is rejected` |
+| US-2.8 | Requestor cannot log mileage | `backend/tests/vehicles.test.js` | `Requestor cannot log mileage` |
 
 ---
 
@@ -441,7 +840,7 @@ Each Gherkin scenario above maps to at least one automated test. Faculty creates
 Copy when asking Cursor to implement this feature (`@` this file):
 
 ```text
-Implement Feature 3 from @features/feature-3-course-management.md on branch `feature/3-course-management`.
+Implement Feature 2 from @features/feature-2-vehicle-management.md on branch `feature/2-vehicle-management`.
 
 Follow layer order in @features/framework.md (models → routes → backend tests → frontend → frontend tests).
 Map every Gherkin scenario in the Test Coverage Map; run `npm test` before finishing.
@@ -468,20 +867,21 @@ Do not implement behavior not in this spec.
 
 ## Out of Scope
 
-- Faculty CRUD / **Faculty** nav item ([Feature 4](feature-4-faculty-management.md))
-- Section CRUD / **Section** nav item ([Feature 5](feature-5-section-management.md))
-- Enrollment CRUD / **Enrollment** nav item ([Feature 6](feature-6-enrollment-management.md))
-- Student course listing / **Student Course Listing** nav item ([Feature 7](feature-7-student-course-listing.md))
-- Section student listing / **Section Student Listing** nav item ([Feature 8](feature-8-section-student-listing.md))
+- Driver records and the approved-to-drive list ([Feature 3](feature-3-driver-management.md))
+- Destination CRUD ([Feature 4](feature-4-destination-management.md))
+- Area name, logo, and notification email CRUD ([Feature 5](feature-5-area-management.md))
+- Reservation requests and assigning a vehicle to a trip ([Feature 6](feature-6-reservation-management.md))
+- Requestor trip notices such as Low Gas, Dirty, and Maintenance needed ([Feature 6](feature-6-reservation-management.md))
+- Reservation email ([Feature 7](feature-7-email-management.md))
+- The admin weekly schedule and the queue of requests that need a vehicle or a check-in ([Feature 8](feature-8-admin-page.md))
+- Editing or deleting a single mileage log or service log row
 
 ---
 
 ## Delivered to later features
 
-- A course is a shared catalog row (`courseNumber`, `courseName`, `courseDescription`, `courseTerm`) with no `userId`. Faculty create, update, and delete it. Any signed-in student or faculty can read it.
-- **Course** in `MenuBar` routes signed-in students and faculty to `/course`. This feature does not add a second `MenuBar`.
-- Feature 4 adds **Faculty** (allowed role `faculty`) to this `MenuBar`.
-- Feature 5 adds **Section** (allowed role `faculty`) to this `MenuBar` and owns section rows on a course.
-- Feature 6 adds **Enrollment** (allowed role `faculty` and `student`) to this `MenuBar`.
-- Feature 7 adds **Student Course Listing** (allowed role `faculty`) to this `MenuBar`.
-- Feature 8 adds **Section Student Listing** (allowed role `faculty`) to this `MenuBar`.
+- A vehicle is a shared catalog row with `category`, `make`, `model`, `year`, `vin`, `purchasedDate`, `color`, `passengerCapacity`, `licensePlateNumber`, `licensePlateExpirationMonth`, and `areaAssigned`. It has no `userId`.
+- `category` is exactly one of `Golf Cart`, `Truck`, `Car`, or `Van`. Feature 3 uses those four values for what a driver is approved to drive.
+- `areaAssigned` is `Athletics`, `Support Central`, or `Maintenance`. Feature 5 may replace that string with an area id. Until then, the vehicle stores the name.
+- Mileage logs and service logs belong to a vehicle and are removed when the vehicle is deleted. Feature 6 can reference `vehicleId` when a reservation is assigned a vehicle.
+- **Vehicle** in the existing `MenuBar` routes `admin` and `maintenance` users to `/vehicle`. This feature does not add a second `MenuBar`.
