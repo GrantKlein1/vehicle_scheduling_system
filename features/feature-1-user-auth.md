@@ -125,7 +125,7 @@ Feature 1 establishes identity. Later features decide which data a signed-in use
 
 - Every authenticated request resolves to exactly one user (`req.user.id`).
 - No API in this feature returns another user's profile or session.
-- This feature does not scope semesters, courses, or other catalog data. Those features define their own access rules.
+- This feature does not scope vehicles, drivers, or other catalog data. Those features define their own access rules.
 
 ---
 
