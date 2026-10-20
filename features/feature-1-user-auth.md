@@ -163,9 +163,11 @@ Feature 1 establishes identity. Later features decide which data a signed-in use
 
 ### [View: Login Page] — route name `login`
 
-- Auth form with `MenuBar` visible (this feature introduces `MenuBar`; do not hide it on login).
-- Primary action: Google's official **Sign in with Google** button (`google.accounts.id.renderButton`). A progress indicator is shown while the login request is in flight. There is no separate register screen and no link that switches between sign-in and registration. The first successful Google sign-in creates the account.
-- Inline error via `<v-alert type="error">` on failed login.
+- Auth form with `MenuBar` visible (this feature introduces `MenuBar`; do not hide it on login). The app bar stays empty when nobody is signed in. The product name lives on this page, not in `MenuBar`.
+- Centered `v-card` (max width about 440px) on the theme surface, filling the space under the app bar. No split panel, email form, or register link.
+- Card contents, top to bottom: an `mdi-car` icon in a `primary-container` avatar; eyebrow **Oklahoma Christian**; title **Vehicle Scheduling**; body **Sign in with your OC Google account.**; the Google sign-in action; footnote **Use an @eagles.oc.edu account. The first sign-in creates your account.**
+- Primary action: Google's official **Sign in with Google** button (`google.accounts.id.renderButton`). A progress indicator is shown while the login request is in flight. There is no separate register screen and no link that switches between sign-in and registration. The first successful Google sign-in creates the account. The button is not placed in `v-card-title`.
+- Inline error via `<v-alert type="error" class="w-100">` on failed login, above the Google button and spanning the card.
 
 ### [View: Home placeholder] — route name `home`
 

@@ -9,7 +9,7 @@ import GoogleSignIn from "../components/GoogleSignIn.vue";
         <v-card class="pa-6 pa-sm-10">
           <div class="d-flex flex-column text-center">
             <v-avatar color="primary-container" size="64" class="align-self-center mb-6">
-              <v-icon icon="mdi-bus" color="primary" size="32" />
+              <v-icon icon="mdi-car" color="primary" size="32" />
             </v-avatar>
             <p class="text-overline text-medium-emphasis mb-1">Oklahoma Christian</p>
             <h1 class="text-h4 mb-3">Vehicle Scheduling</h1>
