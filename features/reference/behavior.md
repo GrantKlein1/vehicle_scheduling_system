@@ -1,6 +1,6 @@
 # Behavior & Rules Reference
 
-**Living snapshot** of product rules currently implemented for Feature 1.
+**Living snapshot** of product rules currently implemented through Feature 2.
 
 These files answer: *"What rules does the app enforce right now?"*  
 They do **not** authorize new scope — implement only from `features/feature-*.md`.
@@ -35,7 +35,7 @@ They do **not** authorize new scope — implement only from `features/feature-*.
 | Lifetime is 24 hours from creation | `expirationDate` and JWT `expiresIn` | Feature 1 |
 | Login reuses a non-expired session for the same `userId` | `getOrCreateSession` | Feature 1 |
 | Authenticated requests send `Authorization: Bearer <token>` | Axios request interceptor | Feature 1 |
-| Every authenticated request resolves `req.user.id` | `authenticate` | Feature 1 |
+| Every authenticated request resolves `req.user.id` and `req.user.role` | `authenticate` | Feature 1, role added in Feature 2 |
 | Missing bearer token is `401` `{ "message": "Unauthorized! No token provided." }` | `authenticate` | Feature 1 |
 | Expired, revoked, or invalid token is `401` `{ "message": "Unauthorized! Invalid or expired token." }` | `authenticate` | Feature 1 |
 | That `401` clears `localStorage` `user` and sends the user to `login` | Axios response interceptor, except the login request itself | Feature 1 |
@@ -47,10 +47,37 @@ They do **not** authorize new scope — implement only from `features/feature-*.
 |------|-------------|------------|
 | `MenuBar` is mounted above `<v-main>` and is visible on `login` and `home` | `App.vue` | Feature 1 |
 | No session: `MenuBar` has no **Sign out** and no catalog links | `MenuBar` | Feature 1 |
-| Session on `home`: `MenuBar` shows the user's name and **Sign out** | `MenuBar` | Feature 1 |
-| Feature 1 has no catalog nav items | `navItems` is empty; items are shown only when `user.role` is allowed | Feature 1 |
+| A signed-in session shows the user's name and **Sign out** on every page | `MenuBar` | Feature 1 |
+| Nav items share one size and sit in a centered group with the same gap; the name and **Sign out** stay on the right | `MenuBar` | Feature 1 |
+| Catalog nav items are shown only when `user.role` is allowed | `MenuBar` `navItems` | Feature 1 |
 | A signed-in user who opens `login` is redirected to `home` | Router `beforeEach` | Feature 1 |
 | `home` without a session redirects to `login` | Router `beforeEach` | Feature 1 |
 | Home shows `Welcome, {first name}.` | `Home.vue` | Feature 1 |
 | Failed Google sign-in stays on the login page and shows `<v-alert type="error">` | `GoogleSignIn.vue` | Feature 1 |
 | Login shows Google's **Sign in with Google** button. A progress indicator is shown while the login request is in flight | `GoogleSignIn.vue` | Feature 1 |
+| **Vehicle** is in `MenuBar` for `admin` and `maintenance` and opens `/vehicle` | `MenuBar` | Feature 2 |
+| A signed-out menu and a `requestor` menu do not show **Vehicle** | `MenuBar` | Feature 2 |
+| `/vehicle` without a session redirects to `login` | Router `beforeEach` | Feature 2 |
+| A signed-in `requestor` who opens `/vehicle` is redirected to `home` | Router `beforeEach` | Feature 2 |
+
+## Vehicles
+
+| Rule | Enforcement | Introduced |
+|------|-------------|------------|
+| Vehicles are one shared catalog and have no `userId` | `vehicles` table and create/update ignore `userId` | Feature 2 |
+| `admin` can list, fetch, create, update, and delete vehicles | Vehicle routes | Feature 2 |
+| `maintenance` can list, fetch, and append logs, and cannot create, update, or delete a vehicle | `requireFleetAccess` and `requireAdmin` | Feature 2 |
+| A `requestor` receives `403` `{ "message": "Admin role required." }` on every vehicle route | `requireFleetAccess` | Feature 2 |
+| Catalog writes by `maintenance` return `403` `{ "message": "Admin role required." }` | `requireAdmin` | Feature 2 |
+| The vehicle list is ordered by make, then model, then id | `GET /api/vehicle/vehicles` | Feature 2 |
+| Mileage and service logs are append-only and ordered by date, then id | Log create routes and `GET` one vehicle | Feature 2 |
+| Deleting a vehicle deletes its mileage logs and service logs | Delete handler and `onDelete: CASCADE` | Feature 2 |
+| `make` and `model` may be values outside the standard suggestion list | API stores any non-blank make and model | Feature 2 |
+| The vehicle screen shows **Add Vehicle**, **Edit vehicle**, and **Delete vehicle** for `admin` only | `Vehicles.vue` | Feature 2 |
+| The vehicle screen shows a searchable list and a detail panel for the selected vehicle (first vehicle auto-selected). Mileage and service are logged inline in the panel. | `Vehicles.vue` | Feature 2 |
+| **Log mileage** and **Log service** are available to `admin` and `maintenance` | `Vehicles.vue` | Feature 2 |
+| A blank required field shows **Required field** and does not call the API | Vehicle dialogs and inline log forms | Feature 2 |
+| Choosing **Golf Cart** hides **VIN**, **License Plate Number**, and **License Plate Expiration Month**. The API stores those fields as `null` | `Vehicles.vue` and vehicle create/update | Feature 2 |
+| Leaving a field shows that field's validation message under the field. A year outside 1950 through 2027 shows **Year must be from 1950 through 2027.** The same field messages apply to make, model, VIN, date, color, passengers, license plate, expiration month, area, mileage, and service | Vehicle dialogs and inline log forms | Feature 2 |
+| An empty catalog shows **No vehicles yet.** A load failure shows the API message in an error alert | `Vehicles.vue` | Feature 2 |
+| Create, update, delete, and log success use the snackbar text from the Feature 2 screen spec. Failures show the API `message` | `Vehicles.vue` | Feature 2 |

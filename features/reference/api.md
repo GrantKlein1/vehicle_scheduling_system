@@ -1,6 +1,6 @@
 # API Reference
 
-**Status:** Feature 1 authentication is implemented.
+**Status:** Feature 1 authentication and Feature 2 vehicle catalog are implemented.
 
 API health stays on `/api/health`. Authentication routes are mounted at `/vehicleScheduling`.
 
@@ -11,6 +11,13 @@ API health stays on `/api/health`. Authentication routes are mounted at `/vehicl
 | `GET` | `/api/health` | No | Process health check | Starter |
 | `POST` | `/vehicleScheduling/login` | No | Verify a Google credential and return a session | Feature 1 |
 | `POST` | `/vehicleScheduling/logout` | Yes | Invalidate the current session token | Feature 1 |
+| `POST` | `/api/vehicle/vehicles` | `admin` | Create a shared catalog vehicle | Feature 2 |
+| `GET` | `/api/vehicle/vehicles` | `admin`, `maintenance` | List vehicles by make, model, then id | Feature 2 |
+| `GET` | `/api/vehicle/vehicles/:vehicleId` | `admin`, `maintenance` | Fetch one vehicle with mileage and service logs | Feature 2 |
+| `PUT` | `/api/vehicle/vehicles/:vehicleId` | `admin` | Update a vehicle | Feature 2 |
+| `DELETE` | `/api/vehicle/vehicles/:vehicleId` | `admin` | Delete a vehicle and its logs | Feature 2 |
+| `POST` | `/api/vehicle/vehicles/:vehicleId/mileage-logs` | `admin`, `maintenance` | Append a mileage log | Feature 2 |
+| `POST` | `/api/vehicle/vehicles/:vehicleId/service-logs` | `admin`, `maintenance` | Append a service log | Feature 2 |
 
 ## Conventions
 
@@ -66,4 +73,68 @@ Header: `Authorization: Bearer <token>`
 | `401` | `{ "message": "Unauthorized! Invalid or expired token." }` | JWT invalid, session missing, or `expirationDate` in the past |
 | `500` | `{ "message": "Sign-out could not be completed." }` | Unexpected server error |
 
-Authenticated handlers set `req.user.id` from the session's user.
+Authenticated handlers set `req.user.id` and `req.user.role` from the session's user.
+
+## Vehicles
+
+Vehicle routes are mounted at `/api/vehicle`. Every vehicle route uses `authenticate`. A `requestor` receives `403` `{ "message": "Admin role required." }` on every vehicle route. A `maintenance` user receives that same `403` on `POST`, `PUT`, and `DELETE` `/api/vehicle/vehicles`. List, fetch, mileage logs, and service logs are allowed for `admin` and `maintenance`.
+
+A `userId` in a create or update body is ignored. Responses do not include `userId`.
+
+### Create – `POST /api/vehicle/vehicles`
+
+**201** returns the saved vehicle: `id`, `category`, `make`, `model`, `year`, `vin`, `purchasedDate`, `color`, `passengerCapacity`, `licensePlateNumber`, `licensePlateExpirationMonth`, `areaAssigned`, `createdAt`, and `updatedAt`. Logs are not included.
+
+`category` is `Golf Cart`, `Truck`, `Car`, or `Van`. `areaAssigned` is `Athletics`, `Support Central`, or `Maintenance`. `make` and `model` are required strings of at most 40 characters and are not limited to the suggestion list. For `Truck`, `Car`, and `Van`, `vin` is required, unique, and at most 20 characters, `licensePlateNumber` is required, unique, and at most 10 characters, and `licensePlateExpirationMonth` is an integer from 1 through 12. A `Golf Cart` stores those three fields as `null`; values sent for them are discarded, and the nulls are not treated as duplicates. Uniqueness is exact after trim and is case-sensitive. `year` is an integer from 1950 through 2027. `passengerCapacity` is an integer from 1 through 15. `purchasedDate` is a real `YYYY-MM-DD` date. `color` is required and at most 30 characters.
+
+**400** messages match the Feature 2 create error table, including `"VIN cannot be empty."`, `"VIN already exists."`, and `"License Plate Number already exists."`.
+
+### List – `GET /api/vehicle/vehicles`
+
+**200** returns a JSON array ordered by `make` ascending, then `model` ascending, then `id` ascending. Each item has the create fields. Logs are not included.
+
+### Fetch one – `GET /api/vehicle/vehicles/:vehicleId`
+
+**200** returns one vehicle plus `mileageLogs` and `serviceLogs`, each ordered by `entryDate` ascending, then `id` ascending.
+
+**404** `{ "message": "Vehicle with id=<vehicleId> not found." }`
+
+### Update – `PUT /api/vehicle/vehicles/:vehicleId`
+
+The body requires the same fields as create. A duplicate `vin` or `licensePlateNumber` is reported only when another vehicle already has that value.
+
+**200** `{ "message": "Vehicle was updated successfully." }`
+
+**404** `{ "message": "Vehicle with id=<vehicleId> not found." }`
+
+### Delete – `DELETE /api/vehicle/vehicles/:vehicleId`
+
+**200** `{ "message": "Vehicle was deleted successfully!" }`
+
+The vehicle, its mileage logs, and its service logs are removed.
+
+**404** `{ "message": "Vehicle with id=<vehicleId> not found." }`
+
+### Mileage log – `POST /api/vehicle/vehicles/:vehicleId/mileage-logs`
+
+```json
+{ "entryDate": "2026-10-01", "currentMileage": 15000 }
+```
+
+**201** returns `id`, `vehicleId`, `entryDate`, and `currentMileage`. `currentMileage` is an integer greater than or equal to 0. `entryDate` is a real `YYYY-MM-DD` date.
+
+**400** `{ "message": "Date must be a valid date." }` or `{ "message": "Current mileage must be zero or greater." }`
+
+**404** `{ "message": "Vehicle with id=<vehicleId> not found." }`
+
+### Service log – `POST /api/vehicle/vehicles/:vehicleId/service-logs`
+
+```json
+{ "entryDate": "2026-09-01", "servicePerformed": "Oil change" }
+```
+
+**201** returns `id`, `vehicleId`, `entryDate`, and `servicePerformed`. `servicePerformed` is `Repair`, `Oil change`, or `Tire replacement`.
+
+**400** `{ "message": "Date must be a valid date." }`, `{ "message": "Service performed cannot be empty." }`, or `{ "message": "Service performed must be Repair, Oil change, or Tire replacement." }`
+
+**404** `{ "message": "Vehicle with id=<vehicleId> not found." }`

@@ -85,7 +85,7 @@
 - **FR-007**: Allowed roles are `requestor`, `admin`, and `maintenance`. The database seed inserts exactly two users when those emails are not already present: `admin@eagles.oc.edu` (`fName` `Admin`, `lName` `User`, `role` `admin`, `googleSub` null) and `maint@eagles.oc.edu` (`fName` `Maintenance`, `lName` `User`, `role` `maintenance`, `googleSub` null). Sign-in does not change `role`. This feature has no screen for changing a role. Automated tests insert the users they need and do not depend on these two rows.
 - **FR-008**: Every authenticated request MUST resolve to exactly one user via `req.user.id` from the session token (foundation for later features that need the signed-in user).
 - **FR-010**: This feature MUST **introduce** `MenuBar` in `App.vue` (`<MenuBar />` above `<v-main>`). `MenuBar` MUST be visible on `login` and `home`.
-- **FR-011**: `MenuBar` MUST show **Sign out** when a session exists and the user is on a page they are allowed to stay on (`home`). When there is no session, **Sign out** MUST be hidden. A signed-in user who opens `login` MUST be redirected to `home`.
+- **FR-011**: `MenuBar` MUST show the signed-in user's name and **Sign out** on every page while a session exists, for every role. When there is no session, the name and **Sign out** MUST be hidden. A signed-in user who opens `login` MUST be redirected to `home`.
 - **FR-012**: `MenuBar` nav items MUST be filtered by the signed-in user's `role` from the `users` table / `localStorage` `user` payload. An item is shown only when `user.role` is in that item's allowed roles. Feature 1 ships **Sign out** for every authenticated role and no catalog links.
 - **FR-013**: Sign-in finds a user by `googleSub`. If none exists, it finds a user by email. A found row is reused and its `role` is kept. If that row's `googleSub` is null, it is set from the Google credential. If no row is found, a new user is created with `role` `requestor`.
 - **FR-014**: On sign-in, `fName` and `lName` come from the Google profile. A new user's email comes from the Google profile. A seeded user's email is the match key and is not replaced.
@@ -178,7 +178,7 @@ Feature 1 establishes identity. Later features decide which data a signed-in use
 - **Introduce** `MenuBar` in this feature. Mount it in `App.vue` (`<MenuBar />` above `<v-main>`).
 - `MenuBar` is visible on `login` and `home`.
 - No session: `MenuBar` shows with no catalog items and no **Sign out**.
-- Session exists on `home`: `MenuBar` shows the signed-in user's name, **Sign out**, and only nav items allowed for `user.role`.
+- A session shows the signed-in user's name and **Sign out** on every page, plus only the nav items allowed for `user.role`. Nav items share one size and sit in a centered group with the same gap. The name and **Sign out** stay on the right.
 - Feature 1 catalog items: none. Later features add one item each: **Vehicle** (Feature 2, `admin` and `maintenance`), **Driver** (Feature 3, `admin`), **Destination** (Feature 4, `admin`), **Area** (Feature 5, `admin`), **Reservation** (Feature 6, `requestor` and `admin`). Feature 8 adds the admin schedule for `admin`. Feature 7 sends email and adds no nav item.
 
 ---
