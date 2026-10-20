@@ -11,7 +11,6 @@
 ## User Stories
 
 ### US-1.1: Register a new account with Google OAuth
-
 **As a** new user  
 **I want to** create an account via Google with my OC email and password  
 **So that** I can sign in and do the activities allowed for my role
@@ -21,7 +20,6 @@
 **Acceptance scenarios:** see ### US-1.1 under Acceptance Criteria
 
 ### US-1.2: An existing user signs in with Google
-
 **As a** registered user  
 **I want to** sign in with via Google with my OC email and password  
 **So that** I can access the application dashboard securely
@@ -31,7 +29,6 @@
 **Acceptance scenarios:** see ### US-1.2 under Acceptance Criteria
 
 ### US-1.3: Stay signed in across page loads
-
 **As a** signed-in user  
 **I want** my session to persist in the browser  
 **So that** I do not have to sign in again every time I refresh the page
@@ -41,7 +38,6 @@
 **Acceptance scenarios:** see ### US-1.3 under Acceptance Criteria
 
 ### US-1.4: Sign out
-
 **As a** signed-in user  
 **I want to** sign out  
 **So that** no one else can use my account on a shared device
@@ -51,7 +47,6 @@
 **Acceptance scenarios:** see ### US-1.4 under Acceptance Criteria
 
 ### US-1.5: Block unauthenticated access
-
 **As the** application  
 **I want to** require a valid session for all non-auth screens  
 **So that** protected screens and APIs are only available with a valid session
@@ -61,7 +56,6 @@
 **Acceptance scenarios:** see ### US-1.5 under Acceptance Criteria
 
 ### US-1.6: Role-based MenuBar
-
 **As a** signed-in user  
 **I want** the `MenuBar` to show **Sign out** and only the nav items allowed for my `role`  
 **So that** I can leave the session and I do not see tools for other roles
@@ -163,13 +157,15 @@ Feature 1 establishes identity. Later features decide which data a signed-in use
 
 ### [View: Login Page] — route name `login`
 
-- Auth form with `MenuBar` visible (this feature introduces `MenuBar`; do not hide it on login).
-- Primary action: Google's official **Sign in with Google** button (`google.accounts.id.renderButton`). A progress indicator is shown while the login request is in flight. There is no separate register screen and no link that switches between sign-in and registration. The first successful Google sign-in creates the account.
-- Inline error via `<v-alert type="error">` on failed login.
+- Auth form with `MenuBar` visible (this feature introduces `MenuBar`; do not hide it on login). The app bar stays empty when nobody is signed in. The product name lives on this page, not in `MenuBar`.
+- Centered `v-card` (max width about 440px) on the theme surface, filling the space under the app bar. No split panel, email form, or register link.
+- Card contents, top to bottom: an `mdi-car` icon in a `primary-container` avatar; eyebrow **Oklahoma Christian**; title **Vehicle Scheduling**; body **Sign in with your OC Google account.**; the Google sign-in action; footnote **Use an @eagles.oc.edu account. The first sign-in creates your account.**
+- Primary action: Google's official **Sign in with Google** button (`google.accounts.id.renderButton`). A progress indicator is shown while the login request is in flight. There is no separate register screen and no link that switches between sign-in and registration. The first successful Google sign-in creates the account. The button is not placed in `v-card-title`.
+- Inline error via `<v-alert type="error" class="w-100">` on failed login, above the Google button and spanning the card.
 
 ### [View: Home placeholder] — route name `home`
 
-- Minimal protected landing page shown after successful login or registration. This is **not** the semester list (`/semester` is Feature 2) or the courses list (`/course` is Feature 3).
+- Minimal protected landing page shown after successful login or registration. This is **not** the vehicle list (`/vehicle` is Feature 2) or the driver list (`/driver` is Feature 3).
 - Displays **"Welcome, {first name}."** using the signed-in user's first name.
 - No on-page **Sign out** button — sign-out is only in `MenuBar`.
 

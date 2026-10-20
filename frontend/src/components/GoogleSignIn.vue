@@ -91,8 +91,8 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="d-flex flex-column align-center">
-    <v-alert v-if="errorMessage" type="error" class="mb-4">
+  <div class="d-flex flex-column align-center w-100">
+    <v-alert v-if="errorMessage" type="error" class="mb-4 w-100">
       {{ errorMessage }}
     </v-alert>
     <div ref="buttonHost" :class="{ 'google-sign-in-busy': loading }"></div>
