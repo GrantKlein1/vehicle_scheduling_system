@@ -28,7 +28,7 @@
 **So that** it is added to the shared catalog
 
 **Priority:** P1
-**Independent test:** Open the dialog, submit a valid vehicle, and confirm it appears in the table
+**Independent test:** Open the dialog, submit a valid vehicle, and confirm it appears in the vehicle list
 **Acceptance scenarios:** see ### US-2.2 under Acceptance Criteria
 
 ### US-2.3: Read Vehicle Catalog
@@ -38,17 +38,17 @@
 **So that** I can review the fleet
 
 **Priority:** P1
-**Independent test:** Confirm the table lists the vehicles returned by the API, in make order
+**Independent test:** Confirm the vehicle list shows the vehicles returned by the API, in make order
 **Acceptance scenarios:** see ### US-2.3 under Acceptance Criteria
 
 ### US-2.4: Row Action Icons
 
 **As a** signed-in admin
-**I want to** see Edit and Delete on each vehicle row
+**I want to** see Edit and Delete on the selected vehicle
 **So that** I can change or remove that vehicle
 
 **Priority:** P1
-**Independent test:** Confirm every admin row shows Edit and Delete, and a maintenance row does not
+**Independent test:** Confirm the selected vehicle's detail panel shows Edit and Delete for an admin, and does not for maintenance
 **Acceptance scenarios:** see ### US-2.4 under Acceptance Criteria
 
 ### US-2.5: Edit Vehicle
@@ -58,7 +58,7 @@
 **So that** the catalog stays accurate
 
 **Priority:** P2
-**Independent test:** Change a vehicle and confirm the table shows the new values
+**Independent test:** Change a vehicle and confirm the detail panel shows the new values
 **Acceptance scenarios:** see ### US-2.5 under Acceptance Criteria
 
 ### US-2.6: Delete Vehicle
@@ -68,7 +68,7 @@
 **So that** a vehicle that is no longer in the fleet is removed
 
 **Priority:** P2
-**Independent test:** Confirm delete and verify the vehicle is gone from the table
+**Independent test:** Confirm delete and verify the vehicle is gone from the vehicle list
 **Acceptance scenarios:** see ### US-2.6 under Acceptance Criteria
 
 ### US-2.7: Role-Based Access Control
@@ -106,8 +106,8 @@
 - **FR-007:** Every input string MUST be trimmed. A required string that is missing, empty, or whitespace-only MUST be rejected with HTTP `400`.
 - **FR-008:** A request with no token MUST return HTTP `401` with `{ "message": "Unauthorized! No token provided." }`. A request with an invalid or expired token MUST return HTTP `401` with `{ "message": "Unauthorized! Invalid or expired token." }`. A visitor with no session who opens `/vehicle` MUST be redirected to `/login`. A signed-in `requestor` who opens `/vehicle` MUST be redirected to home.
 - **FR-009:** `GET /api/vehicle/vehicles` MUST return vehicles ordered by `make` ascending, then `model` ascending, then `id` ascending.
-- **FR-010:** `licensePlateNumber` MUST be required, unique, and at most 10 characters. A duplicate or longer value MUST return HTTP `400`.
-- **FR-011:** `vin` MUST be required, unique, and at most 20 characters. A duplicate or longer value MUST return HTTP `400`.
+- **FR-010:** For `Truck`, `Car`, and `Van`, `licensePlateNumber` MUST be required, unique, and at most 10 characters, and `licensePlateExpirationMonth` MUST be an integer from 1 through 12. A duplicate plate, a longer plate, or a missing plate or month MUST return HTTP `400`. A `Golf Cart` MUST store both fields as `null`.
+- **FR-011:** For `Truck`, `Car`, and `Van`, `vin` MUST be required, unique, and at most 20 characters. A duplicate or longer value MUST return HTTP `400`. A `Golf Cart` MUST store `vin` as `null`. Values sent for `vin`, `licensePlateNumber`, or `licensePlateExpirationMonth` on a golf cart MUST be discarded.
 - **FR-012:** `category` MUST be exactly one of `Golf Cart`, `Truck`, `Car`, or `Van`. `make` and `model` MUST be required strings of at most 40 characters. They are not limited to the standard list. The standard list is the suggestion list in the Make and Model combo boxes.
 - **FR-013:** `areaAssigned` MUST be exactly one of `Athletics`, `Support Central`, or `Maintenance`.
 - **FR-014:** `servicePerformed` MUST be exactly one of `Repair`, `Oil change`, or `Tire replacement`. Mileage and service rows are append-only in this feature.
@@ -130,8 +130,9 @@
 ## Edge Cases
 
 - A required field left blank on the form shows **Required field** and does not call the API.
-- Duplicate `vin`: HTTP `400` with `"VIN already exists."`.
-- Duplicate `licensePlateNumber`: HTTP `400` with `"License Plate Number already exists."`.
+- Duplicate `vin`: HTTP `400` with `"VIN already exists."`. Empty `vin` values on golf carts do not count as duplicates.
+- Duplicate `licensePlateNumber`: HTTP `400` with `"License Plate Number already exists."`. Empty plate values on golf carts do not count as duplicates.
+- A `Golf Cart` is stored with `vin`, `licensePlateNumber`, and `licensePlateExpirationMonth` set to `null`, even when the request includes those fields.
 - A `make` or `model` that is not on the standard list is stored. The API does not reject it for being off the list.
 - `year`, `passengerCapacity`, `licensePlateExpirationMonth`, `purchasedDate`, `color`, or `areaAssigned` outside the rules in the API error table: HTTP `400`.
 - Update, delete, or log for an id that does not exist: HTTP `404` with `"Vehicle with id=<vehicleId> not found."`.
@@ -226,21 +227,21 @@ A `userId` property in the body is ignored.
 | Missing or blank `model` | `Model cannot be empty.` |
 | `model` longer than 40 characters | `Model cannot exceed 40 characters.` |
 | Missing `year`, or `year` not an integer from 1950 through 2027 | `Year must be from 1950 through 2027.` |
-| Missing or blank `vin` | `VIN cannot be empty.` |
-| `vin` longer than 20 characters | `VIN cannot exceed 20 characters.` |
+| Missing or blank `vin` when `category` is not `Golf Cart` | `VIN cannot be empty.` |
+| `vin` longer than 20 characters when `category` is not `Golf Cart` | `VIN cannot exceed 20 characters.` |
 | Duplicate `vin` | `VIN already exists.` |
 | Missing, blank, or invalid `purchasedDate` | `Purchased Date must be a valid date.` |
 | Missing or blank `color` | `Color cannot be empty.` |
 | `color` longer than 30 characters | `Color cannot exceed 30 characters.` |
 | Missing `passengerCapacity`, or not an integer from 1 through 15 | `Number of passengers must be from 1 through 15.` |
-| Missing or blank `licensePlateNumber` | `License Plate Number cannot be empty.` |
-| `licensePlateNumber` longer than 10 characters | `License Plate Number cannot exceed 10 characters.` |
+| Missing or blank `licensePlateNumber` when `category` is not `Golf Cart` | `License Plate Number cannot be empty.` |
+| `licensePlateNumber` longer than 10 characters when `category` is not `Golf Cart` | `License Plate Number cannot exceed 10 characters.` |
 | Duplicate `licensePlateNumber` | `License Plate Number already exists.` |
-| Missing `licensePlateExpirationMonth`, or not an integer from 1 through 12 | `License Plate Expiration Month must be from 1 through 12.` |
+| Missing `licensePlateExpirationMonth`, or not an integer from 1 through 12, when `category` is not `Golf Cart` | `License Plate Expiration Month must be from 1 through 12.` |
 | Missing or blank `areaAssigned` | `Area Assigned cannot be empty.` |
 | `areaAssigned` not one of the three area names | `Area Assigned must be Athletics, Support Central, or Maintenance.` |
 
-`purchasedDate` MUST be a real calendar date in `YYYY-MM-DD` form. Uniqueness of `vin` and `licensePlateNumber` is exact after trim, and it is case-sensitive.
+`purchasedDate` MUST be a real calendar date in `YYYY-MM-DD` form. Uniqueness of `vin` and `licensePlateNumber` is exact after trim, and it is case-sensitive. A `Golf Cart` stores `vin`, `licensePlateNumber`, and `licensePlateExpirationMonth` as `null`. Those nulls are not unique values, so more than one golf cart can omit them. Any values sent for those three fields on a golf cart are discarded.
 
 **Forbidden:** `403` `{ "message": "Admin role required." }` when the caller is `maintenance` or `requestor`.
 
@@ -368,7 +369,7 @@ The vehicle row, its mileage logs, and its service logs are removed.
 
 ## Screen Requirements
 
-Route name `vehicles`, path `/vehicle`. One view, `Vehicles.vue`. Create, edit, delete, mileage, and service all use `v-dialog` on this view.
+Route name `vehicles`, path `/vehicle`. One view, `Vehicles.vue`. Create, edit, and delete use `v-dialog` on this view. Mileage and service use inline forms in the detail panel.
 
 ### [View: Vehicle list] — route name `vehicles` (`/vehicle`)
 
@@ -378,29 +379,47 @@ Route name `vehicles`, path `/vehicle`. One view, `Vehicles.vue`. Create, edit, 
 - Admin primary action: **Add Vehicle** (`v-if` the signed-in role is `admin`)
 - Maintenance users do not see **Add Vehicle**
 - Load failure: `<v-alert type="error">` with the API `message`
-- Empty catalog: **No vehicles yet.**
 - Action success and action failure: a snackbar. Failure snackbars show the API `message`
+- Empty catalog: **No vehicles yet.** is a single outlined card with centered text, in place of the two panes
+- When vehicles exist, the page is a two-pane row: the vehicle list (`cols="12" md="4"`) and the vehicle detail panel (`cols="12" md="8"`). Below `md`, the list stacks above the detail panel at full width.
 
-**Vehicle table**
+**Vehicle list**
 
-Columns: **Category**, **Make**, **Model**, **Year**, **License Plate**, **Area**, **Color**, **Passengers**.
+- Search field labeled **Search vehicles**. It matches, case-insensitively, against year, make, model, category, license plate, area, and color.
+- Caption under the search field: `{n} vehicles`, the filtered count.
+- One list item per vehicle, in API order. Each item shows a category icon, the title `{year} {make} {model}`, and the subtitle `{licensePlateNumber or "No plate"} - {areaAssigned}`.
+- The selected item is highlighted. Selecting an item loads that vehicle's detail panel. The first vehicle is selected automatically when the page loads.
+- No search matches: **No vehicles match your search.**
 
-Click a row to expand it. The expanded area shows **Mileage log** (date and current mileage) and **Service log** (date and service performed). Both lists are display-only.
+**Vehicle detail panel**
 
-Admin row actions:
+- One outlined card for the selected vehicle. If nothing is selected: **Select a vehicle to see its details, mileage, and service.**
+- Header: category icon, title `{year} {make} {model}`, chips for the category and the area assigned.
+- Admin header actions: pencil icon (`mdi-pencil`) opens **Edit Vehicle** (`aria-label`: **Edit vehicle**) and trash icon (`mdi-delete`) opens the delete confirmation (`aria-label`: **Delete vehicle**). Maintenance users do not see these.
+- Summary tiles:
+  - **Current mileage**: the latest mileage reading as `{formatted mileage} mi`, with caption `as of {formatted date}`. No readings: **No readings yet**.
+  - **Last service**: the latest service, with caption `on {formatted date}`. No services: **No services yet**.
+- **Details** grid: Color, Passengers, Purchased, VIN, License plate, Plate expires. A Golf Cart shows **Not applicable** for VIN, License plate, and Plate expires.
+- **Mileage log**: newest first, columns **Date** and **Mileage**. No rows: **No mileage readings yet.**
+- **Service log**: newest first, columns **Date** and **Service**. No rows: **No services logged yet.**
 
-- Pencil icon (`mdi-pencil`) opens **Edit Vehicle**. `aria-label`: **Edit vehicle**
-- Trash icon (`mdi-delete`) opens the delete confirmation. `aria-label`: **Delete vehicle**
-- **Log mileage** opens the mileage dialog. `aria-label`: **Log mileage**
-- **Log service** opens the service dialog. `aria-label`: **Log service**
+**Inline log forms**
 
-Maintenance row actions are **Log mileage** and **Log service** only. Edit and Delete are not rendered.
+Both forms sit in the detail panel, above their history tables. Admin and maintenance both see them.
+
+- Mileage fields: **Mileage date** (date, defaults to today), **Current mileage**. Action: **Log mileage** (`aria-label`: **Log mileage**).
+- Service fields: **Service date** (date, defaults to today), **Service performed** (select: Repair, Oil change, Tire replacement). Action: **Log service** (`aria-label`: **Log service**).
+- A blank required field shows **Required field** and does not call the API. Leaving a field shows that field's validation message under the field.
+- On mileage success: refresh the selected vehicle's logs, reset the mileage form, snackbar **`Mileage logged successfully!`**.
+- On service success: refresh the selected vehicle's logs, reset the service form, snackbar **`Service logged successfully!`**.
+- On failure: error snackbar with the API `message`.
 
 **Add Vehicle dialog**
 
 - Title: **Add Vehicle**
-- Fields, in order: **Category**, **Make**, **Model**, **Year**, **VIN**, **Purchased Date**, **Color**, **Number of passengers**, **License Plate Number**, **License Plate Expiration Month**, **Area Assigned**
-- **Category**, **License Plate Expiration Month**, and **Area Assigned** are selects. Month options are 1 through 12. Area options are Athletics, Support Central, and Maintenance.
+- Fields stay the same and are grouped. **Vehicle**: **Category** and **Year**, **Make** and **Model**, **Color** and **Number of passengers**. **Registration**: **VIN** (full width), **License Plate Number** and **License Plate Expiration Month**. **Assignment**: **Area Assigned** and **Purchased Date**.
+- When **Category** is **Golf Cart**, the **Registration** group is replaced by the note **Golf carts don't need a VIN or license plate.** Those three fields are hidden and are not required. Choosing **Golf Cart** clears any values already entered in those fields. The saved golf cart sends those three fields as `null`.
+- **Category**, **License Plate Expiration Month**, and **Area Assigned** are selects. Month options are 1 through 12. Area options are Athletics, Support Central, and Maintenance. **License Plate Expiration Month** is shown only when the category is not **Golf Cart**.
 - **Make** and **Model** are combo boxes. **Make** suggests the standard makes for the selected category. **Model** suggests the standard models for the selected category and the current make when that make is on the standard list. A typed make or model that is not on the list is accepted. If the typed make is not on the list, **Model** has no suggestions and the admin types the model.
 - The other fields are inputs. **Purchased Date** is a date.
 - A blank required field shows **Required field** and does not call the API.
@@ -421,24 +440,8 @@ Maintenance row actions are **Log mileage** and **Log service** only. Edit and D
 - Title: **Delete this vehicle?**
 - Text: **This removes the vehicle and its mileage and service logs.**
 - Actions: **Cancel**, **Delete**
-- **Cancel** closes the dialog and leaves the row in the table
+- **Cancel** closes the dialog and leaves the vehicle in the list
 - On success: close the dialog, refresh the list, snackbar **`Vehicle deleted successfully!`**
-- On failure: error snackbar with the API `message`
-
-**Log mileage dialog**
-
-- Title: **Log mileage**
-- Fields: **Date**, **Current mileage**
-- Actions: **Close**, **Save**
-- On success: close the dialog, refresh the open vehicle's logs, snackbar **`Mileage logged successfully!`**
-- On failure: error snackbar with the API `message`
-
-**Log service dialog**
-
-- Title: **Log service**
-- Fields: **Date**, **Service performed** (select: Repair, Oil change, Tire replacement)
-- Actions: **Close**, **Save**
-- On success: close the dialog, refresh the open vehicle's logs, snackbar **`Service logged successfully!`**
 - On failure: error snackbar with the API `message`
 
 ### App chrome
@@ -486,12 +489,12 @@ When the chosen make is on this list, **Model** suggests the models in that row.
 | `make` | STRING(40) | Required. Any non-blank value. The standard list is a form suggestion, not a stored whitelist. |
 | `model` | STRING(40) | Required. Any non-blank value. The standard list is a form suggestion, not a stored whitelist. |
 | `year` | INTEGER | Required. 1950 through 2027 |
-| `vin` | STRING(20) | Required, unique |
+| `vin` | STRING(20) | Required and unique for `Truck`, `Car`, and `Van`. `null` for `Golf Cart` |
 | `purchasedDate` | DATEONLY | Required. `YYYY-MM-DD` |
 | `color` | STRING(30) | Required |
 | `passengerCapacity` | INTEGER | Required. 1 through 15 |
-| `licensePlateNumber` | STRING(10) | Required, unique |
-| `licensePlateExpirationMonth` | INTEGER | Required. 1 through 12 |
+| `licensePlateNumber` | STRING(10) | Required and unique for `Truck`, `Car`, and `Van`. `null` for `Golf Cart` |
+| `licensePlateExpirationMonth` | INTEGER | Required, 1 through 12, for `Truck`, `Car`, and `Van`. `null` for `Golf Cart` |
 | `areaAssigned` | STRING | Required. `Athletics`, `Support Central`, or `Maintenance` |
 | `createdAt` | DATE | Set by the ORM |
 | `updatedAt` | DATE | Set by the ORM |
@@ -565,8 +568,19 @@ There is no `userId` column.
 - **Then** `POST /api/vehicle/vehicles` returns `201`
 - **And** the saved vehicle has `make` `Ford`, `model` `F-150`, and `category` `Truck`
 - **And** the response has no `userId`
-- **And** `Ford F-150` appears in the vehicle table
+- **And** `Ford F-150` appears in the vehicle list
 - **And** I see a snackbar **`Ford F-150 added successfully!`**
+
+#### Scenario: Golf cart is stored without VIN or license plate
+
+- **Given** I am signed in as an admin
+- **When** I send `POST /api/vehicle/vehicles` for a `Golf Cart`, including a `vin` and a license plate
+- **Then** the API returns `201`
+- **And** the saved vehicle has `vin`, `licensePlateNumber`, and `licensePlateExpirationMonth` set to `null`
+- **And** a second golf cart with those fields omitted also returns `201`
+- **When** I open **Add Vehicle** and choose category `Golf Cart`
+- **Then** **VIN**, **License Plate Number**, and **License Plate Expiration Month** are not shown
+- **And** I can add the golf cart without those fields
 
 #### Scenario: Create without VIN is rejected
 
@@ -622,7 +636,7 @@ There is no `userId` column.
 - **And** a Chevrolet Malibu and a Ford F-150 exist
 - **When** I open the vehicle page
 - **Then** `GET /api/vehicle/vehicles` is called
-- **And** both vehicles are listed in the table
+- **And** both vehicles are listed in the vehicle list
 
 #### Scenario: Vehicle list is sorted by make
 
@@ -639,8 +653,8 @@ There is no `userId` column.
 - **When** I send `GET /api/vehicle/vehicles/4`
 - **Then** the API returns `200`
 - **And** the body includes that mileage log and that service log
-- **When** I expand the Ford F-150 row
-- **Then** I see mileage `15000` and service **Oil change**
+- **When** I select the Ford F-150 in the vehicle list
+- **Then** the detail panel shows mileage `15,000 mi` and service **Oil change**
 
 ---
 
@@ -650,16 +664,16 @@ There is no `userId` column.
 
 - **Given** I am signed in as an admin on the vehicle page
 - **And** at least one vehicle is listed
-- **When** I view the vehicle table
-- **Then** I see **Edit vehicle** and **Delete vehicle** on each row
-- **And** I see **Log mileage** and **Log service** on each row
+- **When** I view the selected vehicle's detail panel
+- **Then** I see **Edit vehicle** and **Delete vehicle**
+- **And** I see **Log mileage** and **Log service**
 
 #### Scenario: Maintenance row shows log actions only
 
 - **Given** I am signed in as a maintenance user on the vehicle page
 - **And** at least one vehicle is listed
-- **When** I view the vehicle table
-- **Then** I see **Log mileage** and **Log service** on each row
+- **When** I view the selected vehicle's detail panel
+- **Then** I see **Log mileage** and **Log service**
 - **And** I do not see **Edit vehicle** or **Delete vehicle**
 
 ---
@@ -670,12 +684,12 @@ There is no `userId` column.
 
 - **Given** I am signed in as an admin on the vehicle page
 - **And** a Ford F-150 exists with color `White`
-- **When** I click **Edit vehicle** on that row
+- **When** I click **Edit vehicle** in that vehicle's detail panel
 - **Then** the **Edit Vehicle** dialog opens
 - **When** I change color to `Blue`
 - **And** I click **Update Vehicle**
 - **Then** `PUT /api/vehicle/vehicles/:vehicleId` returns `{ "message": "Vehicle was updated successfully." }`
-- **And** the Ford F-150 row shows color `Blue`
+- **And** the Ford F-150 detail panel shows color `Blue`
 - **And** I see a snackbar **`Ford F-150 updated successfully!`**
 
 #### Scenario: Update of an unknown vehicle is rejected
@@ -692,11 +706,11 @@ There is no `userId` column.
 
 - **Given** I am signed in as an admin on the vehicle page
 - **And** a Ford F-150 exists and has a mileage log and a service log
-- **When** I click **Delete vehicle** on that row
+- **When** I click **Delete vehicle** in that vehicle's detail panel
 - **Then** a dialog titled **Delete this vehicle?** is displayed
 - **When** I click **Delete**
 - **Then** `DELETE /api/vehicle/vehicles/:vehicleId` returns `{ "message": "Vehicle was deleted successfully!" }`
-- **And** the Ford F-150 is removed from the table
+- **And** the Ford F-150 is removed from the vehicle list
 - **And** that vehicle's mileage logs and service logs are removed
 - **And** I see a snackbar **`Vehicle deleted successfully!`**
 
@@ -704,9 +718,9 @@ There is no `userId` column.
 
 - **Given** I am signed in as an admin on the vehicle page
 - **And** a Ford F-150 exists
-- **When** I click **Delete vehicle** on that row
+- **When** I click **Delete vehicle** in that vehicle's detail panel
 - **And** I click **Cancel**
-- **Then** the Ford F-150 remains in the table
+- **Then** the Ford F-150 remains in the vehicle list
 - **And** `DELETE /api/vehicle/vehicles/:vehicleId` is not called
 
 ---
@@ -749,24 +763,21 @@ There is no `userId` column.
 
 - **Given** I am signed in as a maintenance user on the vehicle page
 - **And** a Ford F-150 exists
-- **When** I click **Log mileage** on that row
-- **Then** the **Log mileage** dialog opens
-- **When** I enter date `2026-10-01` and current mileage `15000`
-- **And** I click **Save**
+- **When** I enter Mileage date `2026-10-01` and Current mileage `15000`
+- **And** I click **Log mileage**
 - **Then** `POST /api/vehicle/vehicles/:vehicleId/mileage-logs` returns `201` with `currentMileage` `15000`
 - **And** I see a snackbar **`Mileage logged successfully!`**
-- **And** the expanded row shows mileage `15000`
+- **And** the Mileage log shows `15,000 mi`
 
 #### Scenario: Maintenance logs a service on a vehicle
 
 - **Given** I am signed in as a maintenance user on the vehicle page
 - **And** a Ford F-150 exists
-- **When** I click **Log service** on that row
-- **And** I enter date `2026-09-01` and service **Oil change**
-- **And** I click **Save**
+- **When** I enter Service date `2026-09-01` and service **Oil change**
+- **And** I click **Log service**
 - **Then** `POST /api/vehicle/vehicles/:vehicleId/service-logs` returns `201` with `servicePerformed` `Oil change`
 - **And** I see a snackbar **`Service logged successfully!`**
-- **And** the expanded row shows **Oil change**
+- **And** the Service log shows **Oil change**
 
 #### Scenario: Mileage log without current mileage is rejected
 
@@ -808,6 +819,7 @@ Each Gherkin scenario above maps to at least one automated test. An admin create
 | US-2.1 | Signed-in maintenance user navigates to the vehicle page | `frontend/tests/VehicleList.test.js` | `Signed-in maintenance user navigates to the vehicle page` |
 | US-2.1 | Requestor does not see Vehicle in the menu | `frontend/tests/MenuBar.test.js` | `Requestor does not see Vehicle in the menu` |
 | US-2.2 | Signed-in admin creates a new vehicle | `backend/tests/vehicles.test.js`, `frontend/tests/VehicleList.test.js` | `Signed-in admin creates a new vehicle` |
+| US-2.2 | Golf cart is stored without VIN or license plate | `backend/tests/vehicles.test.js`, `frontend/tests/VehicleList.test.js` | `Golf cart is stored without VIN or license plate`, `Golf cart form omits VIN and license plate` |
 | US-2.2 | Create without VIN is rejected | `backend/tests/vehicles.test.js` | `Create without VIN is rejected` |
 | US-2.2 | Create with a duplicate VIN is rejected | `backend/tests/vehicles.test.js` | `Create with a duplicate VIN is rejected` |
 | US-2.2 | Create with a duplicate license plate is rejected | `backend/tests/vehicles.test.js` | `Create with a duplicate license plate is rejected` |
@@ -855,13 +867,13 @@ Do not implement behavior not in this spec.
 
 ## Definition of Done
 
-- [ ] Backend and frontend implemented per this spec (**FR-00N** satisfied)
-- [ ] **Success Criteria (SC-00N)** met
-- [ ] All mapped tests pass (`npm test`)
-- [ ] Test Coverage Map complete
-- [ ] `features/reference/data-model.md` updated (if schema changed)
-- [ ] `features/reference/api.md` updated (if API changed)
-- [ ] `features/reference/behavior.md` updated (if product rules changed)
+- [x] Backend and frontend implemented per this spec (**FR-00N** satisfied)
+- [x] **Success Criteria (SC-00N)** met
+- [x] All mapped tests pass (`npm test`)
+- [x] Test Coverage Map complete
+- [x] `features/reference/data-model.md` updated (if schema changed)
+- [x] `features/reference/api.md` updated (if API changed)
+- [x] `features/reference/behavior.md` updated (if product rules changed)
 
 ---
 
