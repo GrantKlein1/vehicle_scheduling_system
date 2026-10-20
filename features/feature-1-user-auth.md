@@ -82,13 +82,13 @@
 - **FR-004**: Sessions MUST use a **JWT + Session table** pattern: token stored server-side; client sends `Authorization: Bearer <token>`. Successful registration MUST create a session and return the same payload as login, with HTTP `201`.
 - **FR-005**: Session lifetime MUST be **24 hours** from creation.
 - **FR-006**: Login MUST reuse a non-expired session for the same user (`userId`) when one already exists.
-- **FR-007**: Allowed roles are `requestor`, `admin`, and `maintenance`. The client cannot send a role. On every successful Google sign-in the backend sets `users.role` from the Google email: an address listed in `ADMIN_EMAILS` is `admin`; otherwise an address listed in `MAINTENANCE_EMAILS` is `maintenance`; otherwise the role is `requestor`. An address listed in both is `admin`. `ADMIN_EMAILS` and `MAINTENANCE_EMAILS` are environment variables. Their addresses are never written into this spec. This feature has no screen for changing a role.
+- **FR-007**: Allowed roles are `requestor`, `admin`, and `maintenance`. The database seed inserts exactly two users when those emails are not already present: `admin@eagles.oc.edu` (`fName` `Admin`, `lName` `User`, `role` `admin`, `googleSub` null) and `maint@eagles.oc.edu` (`fName` `Maintenance`, `lName` `User`, `role` `maintenance`, `googleSub` null). Sign-in does not change `role`. This feature has no screen for changing a role. Automated tests insert the users they need and do not depend on these two rows.
 - **FR-008**: Every authenticated request MUST resolve to exactly one user via `req.user.id` from the session token (foundation for later features that need the signed-in user).
 - **FR-010**: This feature MUST **introduce** `MenuBar` in `App.vue` (`<MenuBar />` above `<v-main>`). `MenuBar` MUST be visible on `login`, `register`, and `home`.
 - **FR-011**: `MenuBar` MUST show **Sign out** when a session exists and the user is on a page they are allowed to stay on (`home`). When there is no session, **Sign out** MUST be hidden. A signed-in user who opens `login` MUST be redirected to `home`.
 - **FR-012**: `MenuBar` nav items MUST be filtered by the signed-in user's `role` from the `users` table / `localStorage` `user` payload. An item is shown only when `user.role` is in that item's allowed roles. Feature 1 ships **Sign out** for every authenticated role and no catalog links.
-- **FR-013**: If a Google identity is new then create a new user. If user already exists then use that row.
-- **FR-014**: Name and email on the user come from the Google profile, not from a form.
+- **FR-013**: Sign-in finds a user by `googleSub`. If none exists, it finds a user by email. A found row is reused and its `role` is kept. If that row's `googleSub` is null, it is set from the Google credential. If no row is found, a new user is created with `role` `requestor`.
+- **FR-014**: On sign-in, `fName` and `lName` come from the Google profile. A new user's email comes from the Google profile. A seeded user's email is the match key and is not replaced.
 ---
 
 ## Assumptions
@@ -96,8 +96,9 @@
 - Google is the only way to sign in with an OC account.
 - Single browser `localStorage` session per device (no multi-tab sync beyond shared storage).
 - Product roles are `requestor`, `admin`, and `maintenance`. The same Google sign-in is used for every role.
-- `ADMIN_EMAILS` and `MAINTENANCE_EMAILS` live in the environment. Tests set those variables to addresses they control.
-- A Google account on neither list is a `requestor`. That is the person who books a vehicle.
+- Exactly one `admin` and one `maintenance` user are seeded, with `googleSub` null until that person signs in. Their OC emails are `admin@eagles.oc.edu` and `maint@eagles.oc.edu`.
+- A Google account that matches no existing `googleSub` or email is created as a `requestor`.
+- `role` stays whatever is stored on the user row. Changing who is `admin` or `maintenance` is a database change.
 - An approved driver is a Feature 3 record, not a login role.
 - Feature 1 delivers auth, a minimal protected home, and `MenuBar` (**Sign out** only). Later features add their own nav items.
 
@@ -105,9 +106,10 @@
 
 - Missing token on a protected API → API returns `401` with `{ "message": "Google sign-in could not be verified." }. Expired or revoked token → `API returns `401` with `{ "message": "Google sign-in could not be verified." }`. The frontend clears `localStorage` key `user` and redirects to login.
 - Backend rejects the credential given by Google results in user being redirected to login page.
-- Second or many sign ins with the same Google identity does NOT result in another user being created.
-- Adding or removing an email from `ADMIN_EMAILS` or `MAINTENANCE_EMAILS` changes that user's role on the next successful sign-in.
-- A `role` sent by the client is ignored. The allowlists decide the stored role.
+- Second or many sign-ins with the same Google subject or the same email do not create another user.
+- A seeded admin or maintenance user signing in for the first time binds `googleSub` on the existing row and keeps the seeded `role`.
+- A `role` sent by the client is ignored. The stored row decides the role. A new row is always `requestor`.
+- A later sign-in does not change `role`.
 - Closing or canceling Google sign in results in no credential being sent, no API call is made and no user is created or logged in and the user stays on login.
 
 ## Success Criteria
@@ -131,10 +133,10 @@ Feature 1 establishes identity. Later features decide which data a signed-in use
 
 ## API Requirements
 
-| Method | Endpoint            | Auth | Purpose                                 |
-| ------ | ------------------- | ---- | --------------------------------------- |
-| `POST` | `/courses/login`    | No   | Authenticate and return session payload |
-| `POST` | `/courses/logout`   | Yes  | Invalidate current session token        |
+| Method | Endpoint                      | Auth | Purpose                                 |
+| ------ | ----------------------------- | ---- | --------------------------------------- |
+| `POST` | `/vehicleScheduling/login`    | No   | Authenticate and return session payload |
+| `POST` | `/vehicleScheduling/logout`   | Yes  | Invalidate current session token        |
 
 **Login / register success response from Google** (flat JSON, no envelope):
 
@@ -149,10 +151,10 @@ Feature 1 establishes identity. Later features decide which data a signed-in use
 }
 ```
 
-**First successful sign in for a user:** 201
-**Subsequent successful logins for a user:** 200
+**Creating a new user:** 201
+**Signing in as an existing user, including a seeded user's first Google sign-in:** 200
 
-`role` is `requestor`, `admin`, or `maintenance`, using the **FR-007** allowlist rule.
+`role` is the value stored on that user row: `requestor`, `admin`, or `maintenance`.
 **Error response:** `{ "message": "Human-readable explanation." }` with appropriate HTTP status.
 
 ---
@@ -184,7 +186,7 @@ Feature 1 establishes identity. Later features decide which data a signed-in use
 
 ## Key Entities
 
-- **User**: account identified by Google subject, with name, email, and role (`requestor`, `admin`, or `maintenance`).
+- **User**: account with name, email, and role (`requestor`, `admin`, or `maintenance`). A seeded admin or maintenance user exists before a Google subject. After the first successful sign-in, the account is identified by Google subject.
 - **Session**: server-side record tying a JWT token to a user; expires after 24 hours.
 
 ---
@@ -199,8 +201,8 @@ Feature 1 establishes identity. Later features decide which data a signed-in use
 | `fName`       | STRING      | Required                           |
 | `lName`       | STRING      | Required                           |
 | `email`       | STRING      | Required, unique                   |
-| `googleSub`   | STRING(255) | Required, unique;                  |
-| `role`        | STRING(20)  | `requestor`, `admin`, or `maintenance`. Set from `ADMIN_EMAILS` and `MAINTENANCE_EMAILS` on every successful sign-in. Default `requestor`. A client-supplied role is ignored |
+| `googleSub`   | STRING(255) | Unique, nullable until the first successful sign-in. Required after `googleSub` is bound. Seed rows start as null. |
+| `role`        | STRING(20)  | `requestor`, `admin`, or `maintenance`. Seeded rows keep `admin` or `maintenance`. A user created at sign-in is `requestor`. Sign-in does not change `role`. A client-supplied role is ignored. |
 
 ### `sessions` table
 
@@ -222,7 +224,7 @@ Feature 1 establishes identity. Later features decide which data a signed-in use
 
 - **Given** I am on the login page
 - **And** no user exists with Google subject `google-sub-jane`
-- **And** `jdoe@eagles.oc.edu` is on neither `ADMIN_EMAILS` nor `MAINTENANCE_EMAILS`
+- **And** `jdoe@eagles.oc.edu` 
 - **When** I complete **Google Sign in** with and OC account whose `sub` is `google-sub-jane`, email is `jdoe@eagles.oc.edu`, and name is Jane Doe
 - **Then** the API returns `201` with a user payload including `userId`, `email`, `fname`, `lname`, `token`, and `role`
 - **And** `role` is `requestor`
@@ -231,42 +233,37 @@ Feature 1 establishes identity. Later features decide which data a signed-in use
 - **And** I am redirected to the home page
 - **And** my session is stored in `localStorage` under the key `user`
 
-#### Scenario: First Google sign-in for an admin email
+#### Scenario: Seeded admin sign-in binds Google subject
 
 - **Given** I am on the login page
+- **And** a user exists with email `admin@eagles.oc.edu`, `fName` `Admin`, `lName` `User`, `role` `admin`, and `googleSub` null
 - **And** no user exists with Google subject `google-sub-admin`
-- **And** `ADMIN_EMAILS` includes `admin@eagles.oc.edu`
-- **And** `MAINTENANCE_EMAILS` does not include `admin@eagles.oc.edu`
-- **When** I complete **Google Sign in** with an OC account whose `sub` is `google-sub-admin` and email is `admin@eagles.oc.edu`
-- **Then** the API returns `201`
+- **When** I complete **Google Sign in** with an OC account whose `sub` is `google-sub-admin`, email is `admin@eagles.oc.edu`, and name is Alex Admin
+- **Then** the API returns `200`
+- **And** the existing user row is reused
+- **And** `googleSub` is `google-sub-admin`
 - **And** `role` is `admin`
-- **And** one user row is stored with `googleSub` `google-sub-admin` and `role` `admin`
+- **And** `fName` is `Alex` and `lName` is `Admin`
+- **And** no second user row is inserted
 
-#### Scenario: First Google sign-in for a maintenance email
+#### Scenario: Seeded maintenance sign-in binds Google subject
 
 - **Given** I am on the login page
+- **And** a user exists with email `maint@eagles.oc.edu`, `fName` `Maintenance`, `lName` `User`, `role` `maintenance`, and `googleSub` null
 - **And** no user exists with Google subject `google-sub-maint`
-- **And** `MAINTENANCE_EMAILS` includes `maint@eagles.oc.edu`
-- **And** `ADMIN_EMAILS` does not include `maint@eagles.oc.edu`
-- **When** I complete **Google Sign in** with an OC account whose `sub` is `google-sub-maint` and email is `maint@eagles.oc.edu`
-- **Then** the API returns `201`
+- **When** I complete **Google Sign in** with an OC account whose `sub` is `google-sub-maint`, email is `maint@eagles.oc.edu`, and name is Morgan Maint
+- **Then** the API returns `200`
+- **And** the existing user row is reused
+- **And** `googleSub` is `google-sub-maint`
 - **And** `role` is `maintenance`
-- **And** one user row is stored with `googleSub` `google-sub-maint` and `role` `maintenance`
-
-#### Scenario: Email on both allowlists is stored as admin
-
-- **Given** I am on the login page
-- **And** no user exists with Google subject `google-sub-both`
-- **And** `ADMIN_EMAILS` and `MAINTENANCE_EMAILS` both include `both@eagles.oc.edu`
-- **When** I complete **Google Sign in** with an OC account whose `sub` is `google-sub-both` and email is `both@eagles.oc.edu`
-- **Then** the API returns `201`
-- **And** `role` is `admin`
+- **And** `fName` is `Morgan` and `lName` is `Maint`
+- **And** no second user row is inserted
 
 #### Scenario: Client-supplied role is ignored
 
 - **Given** I am on the login page
 - **And** no user exists with Google subject `google-sub-jane`
-- **And** `jdoe@eagles.oc.edu` is on neither `ADMIN_EMAILS` nor `MAINTENANCE_EMAILS`
+- **And** `jdoe@eagles.oc.edu`
 - **When** I complete **Google Sign in** for that account and the login request includes `"role": "admin"`
 - **Then** the API returns `201`
 - **And** the stored `role` is `requestor`
@@ -278,7 +275,6 @@ Feature 1 establishes identity. Later features decide which data a signed-in use
 
 - **Given** I am on the login page
 - **And** a user already exists with `googleSub` `google-sub-jane` and `role` `requestor`
-- **And** `jdoe@eagles.oc.edu` is on neither `ADMIN_EMAILS` nor `MAINTENANCE_EMAILS`
 - **When** I complete **Google Sign in** with that same Google subject
 - **Then** the API returns `200` with `userId`, `email`, `fname`, `lname`, `token`, and `role`
 - **And** `role` is `requestor`
@@ -288,10 +284,9 @@ Feature 1 establishes identity. Later features decide which data a signed-in use
 - **And** I am redirected to the home page
 - **And** my session is stored in `localStorage` under the key `user`
 
-#### Scenario: Returning sign-in applies the allowlist
+#### Scenario: Returning sign-in keeps the stored role
 
-- **Given** a user already exists with `googleSub` `google-sub-jane`, email `jdoe@eagles.oc.edu`, and `role` `requestor`
-- **And** `ADMIN_EMAILS` includes `jdoe@eagles.oc.edu`
+- **Given** a user already exists with `googleSub` `google-sub-admin`, email `admin@eagles.oc.edu`, and `role` `admin`
 - **When** I complete **Google Sign in** with that same Google subject
 - **Then** the API returns `200`
 - **And** the existing user row is reused
@@ -419,12 +414,11 @@ Each scenario above must map to at least one automated test.
 | Story  | Scenario                                                            | Test file                                                             | Test name                                                            |
 | ------ | ------------------------------------------------------------------- | --------------------------------------------------------------------- | -------------------------------------------------------------------- |
 | US-1.1 | First Google Sign in                                                | `backend/tests/auth.test.js`, `frontend/tests/Login.test.js`          | `First Google Sign in`                                               |
-| US-1.1 | First Google sign-in for an admin email                             | `backend/tests/auth.test.js`                                          | `First Google sign-in for an admin email`                            |
-| US-1.1 | First Google sign-in for a maintenance email                        | `backend/tests/auth.test.js`                                          | `First Google sign-in for a maintenance email`                       |
-| US-1.1 | Email on both allowlists is stored as admin                         | `backend/tests/auth.test.js`                                          | `Email on both allowlists is stored as admin`                        |
+| US-1.1 | Seeded admin sign-in binds Google subject                            | `backend/tests/auth.test.js`                                          | `Seeded admin sign-in binds Google subject`                           |
+| US-1.1 | Seeded maintenance sign-in binds Google subject                      | `backend/tests/auth.test.js`                                          | `Seeded maintenance sign-in binds Google subject`                     |
 | US-1.1 | Client-supplied role is ignored                                     | `backend/tests/auth.test.js`                                          | `Client-supplied role is ignored`                                    |
 | US-1.2 | Returning Google sign-in reuses the user                            | `backend/tests/auth.test.js`                                          | `Returning Google sign-in reuses the user`                           |
-| US-1.2 | Returning sign-in applies the allowlist                             | `backend/tests/auth.test.js`                                          | `Returning sign-in applies the allowlist`                            |
+| US-1.2 | Returning sign-in keeps the stored role                             | `backend/tests/auth.test.js`                                          | `Returning sign-in keeps the stored role`                            |
 | US-1.2 | Invalid Google credential stays on login                            | `backend/tests/auth.test.js`, `frontend/tests/Login.test.js`          | `Invalid Google credential stays on login`                           |
 | US-1.3 | Signed-in user visits login page                                    | `frontend/tests/router.test.js`                                       | `Signed-in user visits login page`                                    |
 | US-1.3 | API request includes session token                                  | `backend/tests/authenticate.test.js`                                  | `API request includes session token`                                  |
