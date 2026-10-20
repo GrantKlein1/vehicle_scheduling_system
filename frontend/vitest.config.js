@@ -7,6 +7,9 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     globals: true,
+    env: {
+      VITE_GOOGLE_CLIENT_ID: "test-client-id",
+    },
     setupFiles: ["./tests/setup.js"],
     server: {
       deps: {
