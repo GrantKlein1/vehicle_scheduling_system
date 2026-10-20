@@ -28,7 +28,7 @@
 **So that** it is added to the shared catalog
 
 **Priority:** P1
-**Independent test:** Open the dialog, submit a valid vehicle, and confirm it appears in the vehicle list
+**Independent test:** Open the dialog, submit a valid vehicle, and confirm it appears in the vehicle list. An invalid VIN or license plate is rejected.
 **Acceptance scenarios:** see ### US-2.2 under Acceptance Criteria
 
 ### US-2.3: Read Vehicle Catalog
@@ -88,7 +88,7 @@
 **So that** the fleet's mileage and service history stays current
 
 **Priority:** P1
-**Independent test:** Log a mileage reading and an oil change on a vehicle and confirm both appear on that vehicle
+**Independent test:** Log a mileage reading and an oil change on a vehicle and confirm both appear on that vehicle. A future mileage date or service date is rejected.
 **Acceptance scenarios:** see ### US-2.8 under Acceptance Criteria
 
 ---
@@ -106,13 +106,16 @@
 - **FR-007:** Every input string MUST be trimmed. A required string that is missing, empty, or whitespace-only MUST be rejected with HTTP `400`.
 - **FR-008:** A request with no token MUST return HTTP `401` with `{ "message": "Unauthorized! No token provided." }`. A request with an invalid or expired token MUST return HTTP `401` with `{ "message": "Unauthorized! Invalid or expired token." }`. A visitor with no session who opens `/vehicle` MUST be redirected to `/login`. A signed-in `requestor` who opens `/vehicle` MUST be redirected to home.
 - **FR-009:** `GET /api/vehicle/vehicles` MUST return vehicles ordered by `make` ascending, then `model` ascending, then `id` ascending.
-- **FR-010:** For `Truck`, `Car`, and `Van`, `licensePlateNumber` MUST be required, unique, and at most 10 characters, and `licensePlateExpirationMonth` MUST be an integer from 1 through 12. A duplicate plate, a longer plate, or a missing plate or month MUST return HTTP `400`. A `Golf Cart` MUST store both fields as `null`.
-- **FR-011:** For `Truck`, `Car`, and `Van`, `vin` MUST be required, unique, and at most 20 characters. A duplicate or longer value MUST return HTTP `400`. A `Golf Cart` MUST store `vin` as `null`. Values sent for `vin`, `licensePlateNumber`, or `licensePlateExpirationMonth` on a golf cart MUST be discarded.
-- **FR-012:** `category` MUST be exactly one of `Golf Cart`, `Truck`, `Car`, or `Van`. `make` and `model` MUST be required strings of at most 40 characters. They are not limited to the standard list. The standard list is the suggestion list in the Make and Model combo boxes.
+- **FR-010:** For `Truck`, `Car`, and `Van`, `licensePlateNumber` MUST be required, unique, and match **FR-018**, and `licensePlateExpirationMonth` MUST be an integer from 1 through 12. A duplicate plate, a plate that does not match **FR-018**, or a missing plate or month MUST return HTTP `400`. A `Golf Cart` MUST store both fields as `null`.
+- **FR-011:** For `Truck`, `Car`, and `Van`, `vin` MUST be required, unique, and match **FR-017**. A duplicate or a VIN that does not match **FR-017** MUST return HTTP `400`. A `Golf Cart` MUST store `vin` as `null`. Values sent for `vin`, `licensePlateNumber`, or `licensePlateExpirationMonth` on a golf cart MUST be discarded. The golf-cart path does not apply **FR-017** or **FR-018**.
+- **FR-012:** `category` MUST be exactly one of `Golf Cart`, `Truck`, `Car`, or `Van`. `make` and `model` MUST be required strings of at most 40 characters. They are not limited to the standard list. The standard list is the suggestion list in the Make and Model combo boxes. 
 - **FR-013:** `areaAssigned` MUST be exactly one of `Athletics`, `Support Central`, or `Maintenance`.
-- **FR-014:** `servicePerformed` MUST be exactly one of `Repair`, `Oil change`, or `Tire replacement`. Mileage and service rows are append-only in this feature.
+- **FR-014:** `servicePerformed` MUST be exactly one of `Repair`, `Oil change`, or `Tire replacement`. Mileage and service rows are append-only in this feature. A service `entryDate` MUST be the current day or a past date. A future service date MUST return HTTP `400`.
 - **FR-015:** Deleting a vehicle MUST delete that vehicle's mileage logs and service logs.
 - **FR-016:** This feature MUST add **Vehicle** to the existing `MenuBar` for `admin` and `maintenance` only. It MUST NOT create a second `MenuBar`.
+- **FR-017:** For `Truck`, `Car`, and `Van`, `vin` MUST match `^[A-HJ-NPR-Z0-9]{17}$`. A value that does not match MUST return HTTP `400`.
+- **FR-018:** For `Truck`, `Car`, and `Van`, `licensePlateNumber` MUST match `^[A-Z0-9]{2,8}$`. A value that does not match MUST return HTTP `400`.
+- **FR-019:** A mileage `entryDate` MUST be the current day or a past date. A future mileage date MUST return HTTP `400`.
 
 ## Assumptions
 
@@ -131,7 +134,10 @@
 
 - A required field left blank on the form shows **Required field** and does not call the API.
 - Duplicate `vin`: HTTP `400` with `"VIN already exists."`. Empty `vin` values on golf carts do not count as duplicates.
+- A `vin` on a `Truck`, `Car`, or `Van` that does not match `^[A-HJ-NPR-Z0-9]{17}$`: HTTP `400` with `"VIN must be a valid 17-character VIN."`. This includes the wrong length, a lowercase letter, or `I`, `O`, or `Q`.
 - Duplicate `licensePlateNumber`: HTTP `400` with `"License Plate Number already exists."`. Empty plate values on golf carts do not count as duplicates.
+- A `licensePlateNumber` on a `Truck`, `Car`, or `Van` that does not match `^[A-Z0-9]{2,8}$`: HTTP `400` with `"License Plate Number must be 2 to 8 letters or digits."`. This includes a hyphen, a space, a lowercase letter, fewer than 2 characters, or more than 8 characters.
+- A mileage or service `entryDate` after the current calendar date: HTTP `400` with `"Date cannot be in the future."`. The current day is allowed.
 - A `Golf Cart` is stored with `vin`, `licensePlateNumber`, and `licensePlateExpirationMonth` set to `null`, even when the request includes those fields.
 - A `make` or `model` that is not on the standard list is stored. The API does not reject it for being off the list.
 - `year`, `passengerCapacity`, `licensePlateExpirationMonth`, `purchasedDate`, `color`, or `areaAssigned` outside the rules in the API error table: HTTP `400`.
@@ -169,9 +175,9 @@ Vehicles belong to one shared catalog. There is no `userId` on a vehicle. Admins
 
 ## Key Entities
 
-- **Vehicle**: one shared catalog row (no `userId`). Fields: category, make, model, year, VIN, purchased date, color, passenger capacity, license plate number, license plate expiration month, area assigned. Category is exactly one of Golf Cart, Truck, Car, or Van.
-- **Mileage log**: a date and a current mileage for one vehicle.
-- **Service log**: a date and a service performed for one vehicle. The service is Repair, Oil change, or Tire replacement.
+- **Vehicle**: one shared catalog row (no `userId`). Fields: category, make, model, year, VIN, purchased date, color, passenger capacity, license plate number, license plate expiration month, area assigned. Category is exactly one of Golf Cart, Truck, Car, or Van. On a Truck, Car, or Van, the VIN is a 17-character VIN and the license plate is 2 to 8 letters or digits. A Golf Cart has neither.
+- **Mileage log**: a date and a current mileage for one vehicle. The date is the current day or a past date.
+- **Service log**: a date and a service performed for one vehicle. The service is Repair, Oil change, or Tire replacement. The date is the current day or a past date.
 - **User / Session**: required for navigation and API calls. Roles are `admin`, `maintenance`, and `requestor` (Feature 1).
 
 ---
@@ -206,7 +212,7 @@ The error tables in this section are normative for HTTP `400` responses. Gherkin
   "purchasedDate": "2022-06-01",
   "color": "White",
   "passengerCapacity": 5,
-  "licensePlateNumber": "OC-1001",
+  "licensePlateNumber": "OC1001",
   "licensePlateExpirationMonth": 6,
   "areaAssigned": "Athletics",
 }
@@ -228,20 +234,20 @@ A `userId` property in the body is ignored.
 | `model` longer than 40 characters | `Model cannot exceed 40 characters.` |
 | Missing `year`, or `year` not an integer from 1950 through 2027 | `Year must be from 1950 through 2027.` |
 | Missing or blank `vin` when `category` is not `Golf Cart` | `VIN cannot be empty.` |
-| `vin` longer than 20 characters when `category` is not `Golf Cart` | `VIN cannot exceed 20 characters.` |
+| `vin` does not match `^[A-HJ-NPR-Z0-9]{17}$` when `category` is not `Golf Cart` | `VIN must be a valid 17-character VIN.` |
 | Duplicate `vin` | `VIN already exists.` |
 | Missing, blank, or invalid `purchasedDate` | `Purchased Date must be a valid date.` |
 | Missing or blank `color` | `Color cannot be empty.` |
 | `color` longer than 30 characters | `Color cannot exceed 30 characters.` |
 | Missing `passengerCapacity`, or not an integer from 1 through 15 | `Number of passengers must be from 1 through 15.` |
 | Missing or blank `licensePlateNumber` when `category` is not `Golf Cart` | `License Plate Number cannot be empty.` |
-| `licensePlateNumber` longer than 10 characters when `category` is not `Golf Cart` | `License Plate Number cannot exceed 10 characters.` |
+| `licensePlateNumber` does not match `^[A-Z0-9]{2,8}$` when `category` is not `Golf Cart` | `License Plate Number must be 2 to 8 letters or digits.` |
 | Duplicate `licensePlateNumber` | `License Plate Number already exists.` |
 | Missing `licensePlateExpirationMonth`, or not an integer from 1 through 12, when `category` is not `Golf Cart` | `License Plate Expiration Month must be from 1 through 12.` |
 | Missing or blank `areaAssigned` | `Area Assigned cannot be empty.` |
 | `areaAssigned` not one of the three area names | `Area Assigned must be Athletics, Support Central, or Maintenance.` |
 
-`purchasedDate` MUST be a real calendar date in `YYYY-MM-DD` form. Uniqueness of `vin` and `licensePlateNumber` is exact after trim, and it is case-sensitive. A `Golf Cart` stores `vin`, `licensePlateNumber`, and `licensePlateExpirationMonth` as `null`. Those nulls are not unique values, so more than one golf cart can omit them. Any values sent for those three fields on a golf cart are discarded.
+`purchasedDate` MUST be a real calendar date in `YYYY-MM-DD` form. For `Truck`, `Car`, and `Van`, `vin` MUST match `^[A-HJ-NPR-Z0-9]{17}$` and `licensePlateNumber` MUST match `^[A-Z0-9]{2,8}$`. The API does not change case to make a value match. Uniqueness of `vin` and `licensePlateNumber` is exact after trim, and it is case-sensitive. A `Golf Cart` stores `vin`, `licensePlateNumber`, and `licensePlateExpirationMonth` as `null`. Those nulls are not unique values, so more than one golf cart can omit them. Any values sent for those three fields on a golf cart are discarded, including values that would fail **FR-017** or **FR-018**.
 
 **Forbidden:** `403` `{ "message": "Admin role required." }` when the caller is `maintenance` or `requestor`.
 
@@ -266,7 +272,7 @@ A `userId` property in the body is ignored.
   "purchasedDate": "2022-06-01",
   "color": "White",
   "passengerCapacity": 5,
-  "licensePlateNumber": "OC-1001",
+  "licensePlateNumber": "OC1001",
   "licensePlateExpirationMonth": 6,
   "areaAssigned": "Athletics",
   "mileageLogs": [
@@ -327,7 +333,10 @@ The vehicle row, its mileage logs, and its service logs are removed.
 | Condition | `message` |
 |-----------|-----------|
 | Missing, blank, or invalid `entryDate` | `Date must be a valid date.` |
+| `entryDate` after the current calendar date | `Date cannot be in the future.` |
 | Missing `currentMileage`, or not an integer greater than or equal to 0 | `Current mileage must be zero or greater.` |
+
+`entryDate` MUST be a real calendar date in `YYYY-MM-DD` form. The current day is the server's local calendar date. That day and every earlier day are accepted. A later day returns `Date cannot be in the future.` The same date rule applies to service logs.
 
 **Not found:** `404` `{ "message": "Vehicle with id=<vehicleId> not found." }`
 
@@ -358,6 +367,7 @@ The vehicle row, its mileage logs, and its service logs are removed.
 | Condition | `message` |
 |-----------|-----------|
 | Missing, blank, or invalid `entryDate` | `Date must be a valid date.` |
+| `entryDate` after the current calendar date | `Date cannot be in the future.` |
 | Missing or blank `servicePerformed` | `Service performed cannot be empty.` |
 | `servicePerformed` not one of the three services | `Service performed must be Repair, Oil change, or Tire replacement.` |
 
@@ -410,6 +420,7 @@ Both forms sit in the detail panel, above their history tables. Admin and mainte
 - Mileage fields: **Mileage date** (date, defaults to today), **Current mileage**. Action: **Log mileage** (`aria-label`: **Log mileage**).
 - Service fields: **Service date** (date, defaults to today), **Service performed** (select: Repair, Oil change, Tire replacement). Action: **Log service** (`aria-label`: **Log service**).
 - A blank required field shows **Required field** and does not call the API. Leaving a field shows that field's validation message under the field.
+- A **Mileage date** or **Service date** after today shows **Date cannot be in the future.** and does not call the API. Today is accepted.
 - On mileage success: refresh the selected vehicle's logs, reset the mileage form, snackbar **`Mileage logged successfully!`**.
 - On service success: refresh the selected vehicle's logs, reset the service form, snackbar **`Service logged successfully!`**.
 - On failure: error snackbar with the API `message`.
@@ -423,6 +434,8 @@ Both forms sit in the detail panel, above their history tables. Admin and mainte
 - **Make** and **Model** are combo boxes. **Make** suggests the standard makes for the selected category. **Model** suggests the standard models for the selected category and the current make when that make is on the standard list. A typed make or model that is not on the list is accepted. If the typed make is not on the list, **Model** has no suggestions and the admin types the model.
 - The other fields are inputs. **Purchased Date** is a date.
 - A blank required field shows **Required field** and does not call the API.
+- A **VIN** that does not match `^[A-HJ-NPR-Z0-9]{17}$` shows **VIN must be a valid 17-character VIN.** and does not call the API.
+- A **License Plate Number** that does not match `^[A-Z0-9]{2,8}$` shows **License Plate Number must be 2 to 8 letters or digits.** and does not call the API.
 - Actions: **Close**, **Add Vehicle**
 - On success: close the dialog, refresh the list, snackbar **`Ford F-150 added successfully!`** using that vehicle's make and model (`{make} {model} added successfully!`)
 - On failure: error snackbar with the API `message`
@@ -430,7 +443,7 @@ Both forms sit in the detail panel, above their history tables. Admin and mainte
 **Edit Vehicle dialog**
 
 - Title: **Edit Vehicle**
-- Same fields as Add Vehicle, filled with the selected vehicle. A stored make or model that is not on the standard list is shown as the current value.
+- Same fields as Add Vehicle, filled with the selected vehicle, including the VIN and license plate format checks. A stored make or model that is not on the standard list is shown as the current value.
 - Actions: **Close**, **Update Vehicle**
 - On success: close the dialog, refresh the list, snackbar **`{make} {model} updated successfully!`**
 - On failure: error snackbar with the API `message`
@@ -489,11 +502,11 @@ When the chosen make is on this list, **Model** suggests the models in that row.
 | `make` | STRING(40) | Required. Any non-blank value. The standard list is a form suggestion, not a stored whitelist. |
 | `model` | STRING(40) | Required. Any non-blank value. The standard list is a form suggestion, not a stored whitelist. |
 | `year` | INTEGER | Required. 1950 through 2027 |
-| `vin` | STRING(20) | Required and unique for `Truck`, `Car`, and `Van`. `null` for `Golf Cart` |
+| `vin` | STRING(17) | Required and unique for `Truck`, `Car`, and `Van`. Must match `^[A-HJ-NPR-Z0-9]{17}$`. `null` for `Golf Cart` |
 | `purchasedDate` | DATEONLY | Required. `YYYY-MM-DD` |
 | `color` | STRING(30) | Required |
 | `passengerCapacity` | INTEGER | Required. 1 through 15 |
-| `licensePlateNumber` | STRING(10) | Required and unique for `Truck`, `Car`, and `Van`. `null` for `Golf Cart` |
+| `licensePlateNumber` | STRING(8) | Required and unique for `Truck`, `Car`, and `Van`. Must match `^[A-Z0-9]{2,8}$`. `null` for `Golf Cart` |
 | `licensePlateExpirationMonth` | INTEGER | Required, 1 through 12, for `Truck`, `Car`, and `Van`. `null` for `Golf Cart` |
 | `areaAssigned` | STRING | Required. `Athletics`, `Support Central`, or `Maintenance` |
 | `createdAt` | DATE | Set by the ORM |
@@ -506,7 +519,7 @@ There is no `userId` column.
 | Field | Type | Rules |
 |-------|------|-------|
 | `id` | INTEGER PK | Auto-increment |
-| `entryDate` | DATEONLY | Required. `YYYY-MM-DD` |
+| `entryDate` | DATEONLY | Required. `YYYY-MM-DD`. The current day or a past date |
 | `currentMileage` | INTEGER | Required. Integer greater than or equal to 0 |
 | `vehicleId` | INTEGER FK | Required, references `vehicles.id` |
 
@@ -515,7 +528,7 @@ There is no `userId` column.
 | Field | Type | Rules |
 |-------|------|-------|
 | `id` | INTEGER PK | Auto-increment |
-| `entryDate` | DATEONLY | Required. `YYYY-MM-DD` |
+| `entryDate` | DATEONLY | Required. `YYYY-MM-DD`. The current day or a past date |
 | `servicePerformed` | STRING | Required. `Repair`, `Oil change`, or `Tire replacement` |
 | `vehicleId` | INTEGER FK | Required, references `vehicles.id` |
 
@@ -563,7 +576,7 @@ There is no `userId` column.
 - **Given** I am signed in as an admin on the vehicle page
 - **When** I click **Add Vehicle**
 - **Then** the **Add Vehicle** dialog opens
-- **When** I choose category `Truck`, make `Ford`, model `F-150`, year `2022`, VIN `1FTFW1E50NFA00001`, purchased date `2022-06-01`, color `White`, passengers `5`, license plate `OC-1001`, expiration month `6`, and area `Athletics`
+- **When** I choose category `Truck`, make `Ford`, model `F-150`, year `2022`, VIN `1FTFW1E50NFA00001`, purchased date `2022-06-01`, color `White`, passengers `5`, license plate `OC1001`, expiration month `6`, and area `Athletics`
 - **And** I click **Add Vehicle**
 - **Then** `POST /api/vehicle/vehicles` returns `201`
 - **And** the saved vehicle has `make` `Ford`, `model` `F-150`, and `category` `Truck`
@@ -598,9 +611,41 @@ There is no `userId` column.
 #### Scenario: Create with a duplicate license plate is rejected
 
 - **Given** I am signed in as an admin
-- **And** a vehicle already exists with license plate `OC-1001`
+- **And** a vehicle already exists with license plate `OC1001`
 - **When** I send `POST /api/vehicle/vehicles` with the same `licensePlateNumber` and a different `vin`
 - **Then** the API returns `400` with `{ "message": "License Plate Number already exists." }`
+
+#### Scenario: Create with an invalid VIN is rejected
+
+- **Given** I am signed in as an admin
+- **When** I send `POST /api/vehicle/vehicles` with a valid vehicle body whose `vin` is `1FTFW1E50NFA0000I`
+- **Then** the API returns `400` with `{ "message": "VIN must be a valid 17-character VIN." }`
+- **And** no vehicle is stored
+
+#### Scenario: Invalid VIN shows the format message
+
+- **Given** I am signed in as an admin
+- **And** the **Add Vehicle** dialog is open with category `Truck`
+- **When** I enter VIN `1FTFW1E50NFA0000I`
+- **And** I click **Add Vehicle**
+- **Then** I see **VIN must be a valid 17-character VIN.**
+- **And** `POST /api/vehicle/vehicles` is not called
+
+#### Scenario: Create with an invalid license plate is rejected
+
+- **Given** I am signed in as an admin
+- **When** I send `POST /api/vehicle/vehicles` with a valid vehicle body whose `licensePlateNumber` is `OC-1001`
+- **Then** the API returns `400` with `{ "message": "License Plate Number must be 2 to 8 letters or digits." }`
+- **And** no vehicle is stored
+
+#### Scenario: Invalid license plate shows the format message
+
+- **Given** I am signed in as an admin
+- **And** the **Add Vehicle** dialog is open with category `Truck`
+- **When** I enter license plate `OC-1001`
+- **And** I click **Add Vehicle**
+- **Then** I see **License Plate Number must be 2 to 8 letters or digits.**
+- **And** `POST /api/vehicle/vehicles` is not called
 
 #### Scenario: Create with a make and model that are not on the standard list
 
@@ -793,6 +838,56 @@ There is no `userId` column.
 - **When** I send `POST /api/vehicle/vehicles/4/service-logs` with `entryDate` `2026-09-01` and `servicePerformed` `Inspection`
 - **Then** the API returns `400` with `{ "message": "Service performed must be Repair, Oil change, or Tire replacement." }`
 
+#### Scenario: Mileage log with a future date is rejected
+
+- **Given** I am signed in as a maintenance user
+- **And** vehicle `4` exists
+- **When** I send `POST /api/vehicle/vehicles/4/mileage-logs` with `entryDate` `2099-01-01` and `currentMileage` `15000`
+- **Then** the API returns `400` with `{ "message": "Date cannot be in the future." }`
+- **And** no mileage log is stored
+
+#### Scenario: Mileage log for the current day is accepted
+
+- **Given** I am signed in as a maintenance user
+- **And** vehicle `4` exists
+- **When** I send `POST /api/vehicle/vehicles/4/mileage-logs` with `entryDate` set to the current calendar date and `currentMileage` `15000`
+- **Then** the API returns `201`
+- **And** the saved log's `entryDate` is that date
+
+#### Scenario: Future mileage date shows the date message
+
+- **Given** I am signed in as a maintenance user on the vehicle page
+- **And** a Ford F-150 exists
+- **When** I enter Mileage date `2099-01-01` and Current mileage `15000`
+- **And** I click **Log mileage**
+- **Then** I see **Date cannot be in the future.**
+- **And** `POST /api/vehicle/vehicles/:vehicleId/mileage-logs` is not called
+
+#### Scenario: Service log with a future date is rejected
+
+- **Given** I am signed in as a maintenance user
+- **And** vehicle `4` exists
+- **When** I send `POST /api/vehicle/vehicles/4/service-logs` with `entryDate` `2099-01-01` and `servicePerformed` `Oil change`
+- **Then** the API returns `400` with `{ "message": "Date cannot be in the future." }`
+- **And** no service log is stored
+
+#### Scenario: Service log for the current day is accepted
+
+- **Given** I am signed in as a maintenance user
+- **And** vehicle `4` exists
+- **When** I send `POST /api/vehicle/vehicles/4/service-logs` with `entryDate` set to the current calendar date and `servicePerformed` `Oil change`
+- **Then** the API returns `201`
+- **And** the saved log's `entryDate` is that date
+
+#### Scenario: Future service date shows the date message
+
+- **Given** I am signed in as a maintenance user on the vehicle page
+- **And** a Ford F-150 exists
+- **When** I enter Service date `2099-01-01` and service **Oil change**
+- **And** I click **Log service**
+- **Then** I see **Date cannot be in the future.**
+- **And** `POST /api/vehicle/vehicles/:vehicleId/service-logs` is not called
+
 #### Scenario: Mileage log for an unknown vehicle is rejected
 
 - **Given** I am signed in as a maintenance user
@@ -823,6 +918,10 @@ Each Gherkin scenario above maps to at least one automated test. An admin create
 | US-2.2 | Create without VIN is rejected | `backend/tests/vehicles.test.js` | `Create without VIN is rejected` |
 | US-2.2 | Create with a duplicate VIN is rejected | `backend/tests/vehicles.test.js` | `Create with a duplicate VIN is rejected` |
 | US-2.2 | Create with a duplicate license plate is rejected | `backend/tests/vehicles.test.js` | `Create with a duplicate license plate is rejected` |
+| US-2.2 | Create with an invalid VIN is rejected | `backend/tests/vehicles.test.js` | `Create with an invalid VIN is rejected` |
+| US-2.2 | Invalid VIN shows the format message | `frontend/tests/VehicleList.test.js` | `Invalid VIN shows the format message` |
+| US-2.2 | Create with an invalid license plate is rejected | `backend/tests/vehicles.test.js` | `Create with an invalid license plate is rejected` |
+| US-2.2 | Invalid license plate shows the format message | `frontend/tests/VehicleList.test.js` | `Invalid license plate shows the format message` |
 | US-2.2 | Create with a make and model that are not on the standard list | `backend/tests/vehicles.test.js` | `Create with a make and model that are not on the standard list` |
 | US-2.2 | Supplied userId is ignored | `backend/tests/vehicles.test.js` | `Supplied userId is ignored` |
 | US-2.2 | Empty required field shows Required field | `frontend/tests/VehicleList.test.js` | `Empty required field shows Required field` |
@@ -842,6 +941,12 @@ Each Gherkin scenario above maps to at least one automated test. An admin create
 | US-2.8 | Maintenance logs a service on a vehicle | `backend/tests/vehicles.test.js`, `frontend/tests/VehicleList.test.js` | `Maintenance logs a service on a vehicle` |
 | US-2.8 | Mileage log without current mileage is rejected | `backend/tests/vehicles.test.js` | `Mileage log without current mileage is rejected` |
 | US-2.8 | Service log with an unknown service is rejected | `backend/tests/vehicles.test.js` | `Service log with an unknown service is rejected` |
+| US-2.8 | Mileage log with a future date is rejected | `backend/tests/vehicles.test.js` | `Mileage log with a future date is rejected` |
+| US-2.8 | Mileage log for the current day is accepted | `backend/tests/vehicles.test.js` | `Mileage log for the current day is accepted` |
+| US-2.8 | Future mileage date shows the date message | `frontend/tests/VehicleList.test.js` | `Future mileage date shows the date message` |
+| US-2.8 | Service log with a future date is rejected | `backend/tests/vehicles.test.js` | `Service log with a future date is rejected` |
+| US-2.8 | Service log for the current day is accepted | `backend/tests/vehicles.test.js` | `Service log for the current day is accepted` |
+| US-2.8 | Future service date shows the date message | `frontend/tests/VehicleList.test.js` | `Future service date shows the date message` |
 | US-2.8 | Mileage log for an unknown vehicle is rejected | `backend/tests/vehicles.test.js` | `Mileage log for an unknown vehicle is rejected` |
 | US-2.8 | Requestor cannot log mileage | `backend/tests/vehicles.test.js` | `Requestor cannot log mileage` |
 
@@ -892,7 +997,8 @@ Do not implement behavior not in this spec.
 
 ## Delivered to later features
 
-- A vehicle is a shared catalog row with `category`, `make`, `model`, `year`, `vin`, `purchasedDate`, `color`, `passengerCapacity`, `licensePlateNumber`, `licensePlateExpirationMonth`, and `areaAssigned`. It has no `userId`.
+- A vehicle is a shared catalog row with `category`, `make`, `model`, `year`, `vin`, `purchasedDate`, `color`, `passengerCapacity`, `licensePlateNumber`, `licensePlateExpirationMonth`, and `areaAssigned`. It has no `userId`. On a Truck, Car, or Van, `vin` matches `^[A-HJ-NPR-Z0-9]{17}$` and `licensePlateNumber` matches `^[A-Z0-9]{2,8}$`. A Golf Cart stores those fields as `null`.
+- A mileage log and a service log each have an `entryDate` of the current day or a past date.
 - `category` is exactly one of `Golf Cart`, `Truck`, `Car`, or `Van`. Feature 3 uses those four values for what a driver is approved to drive.
 - `areaAssigned` is `Athletics`, `Support Central`, or `Maintenance`. Feature 5 may replace that string with an area id. Until then, the vehicle stores the name.
 - Mileage logs and service logs belong to a vehicle and are removed when the vehicle is deleted. Feature 6 can reference `vehicleId` when a reservation is assigned a vehicle.
