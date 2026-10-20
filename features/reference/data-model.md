@@ -49,11 +49,11 @@ The spec names `expirationDate` as `DATE`. The column is a datetime so the 24-ho
 | `make` | STRING(40) | Required. Any non-blank value |
 | `model` | STRING(40) | Required. Any non-blank value |
 | `year` | INTEGER | Required. 1950 through 2027 |
-| `vin` | STRING(20) | Required and unique for `Truck`, `Car`, and `Van`. `null` for `Golf Cart`. Case-sensitive after trim |
+| `vin` | STRING(17) | Required and unique for `Truck`, `Car`, and `Van`. Must match `^[A-HJ-NPR-Z0-9]{17}$`. `null` for `Golf Cart`. Case-sensitive after trim |
 | `purchasedDate` | DATEONLY | Required. `YYYY-MM-DD` |
 | `color` | STRING(30) | Required |
 | `passengerCapacity` | INTEGER | Required. 1 through 15 |
-| `licensePlateNumber` | STRING(10) | Required and unique for `Truck`, `Car`, and `Van`. `null` for `Golf Cart`. Case-sensitive after trim |
+| `licensePlateNumber` | STRING(8) | Required and unique for `Truck`, `Car`, and `Van`. Must match `^[A-Z0-9]{2,8}$`. `null` for `Golf Cart`. Case-sensitive after trim |
 | `licensePlateExpirationMonth` | INTEGER | Required, 1 through 12, for `Truck`, `Car`, and `Van`. `null` for `Golf Cart` |
 | `areaAssigned` | STRING | Required. `Athletics`, `Support Central`, or `Maintenance` |
 | `createdAt` | DATE | Set by Sequelize |
@@ -66,7 +66,7 @@ There is no `userId` column. Introduced in Feature 2.
 | Field | Type | Rules |
 |-------|------|-------|
 | `id` | INTEGER PK | Auto-increment |
-| `entryDate` | DATEONLY | Required. `YYYY-MM-DD` |
+| `entryDate` | DATEONLY | Required. `YYYY-MM-DD`. The current day or a past date |
 | `currentMileage` | INTEGER | Required. Integer greater than or equal to 0 |
 | `vehicleId` | INTEGER FK | Required, references `vehicles.id` |
 
@@ -77,7 +77,7 @@ No `createdAt` or `updatedAt`. Introduced in Feature 2.
 | Field | Type | Rules |
 |-------|------|-------|
 | `id` | INTEGER PK | Auto-increment |
-| `entryDate` | DATEONLY | Required. `YYYY-MM-DD` |
+| `entryDate` | DATEONLY | Required. `YYYY-MM-DD`. The current day or a past date |
 | `servicePerformed` | STRING | Required. `Repair`, `Oil change`, or `Tire replacement` |
 | `vehicleId` | INTEGER FK | Required, references `vehicles.id` |
 

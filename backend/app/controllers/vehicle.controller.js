@@ -4,6 +4,8 @@ const CATEGORIES = ["Golf Cart", "Truck", "Car", "Van"];
 const AREAS = ["Athletics", "Support Central", "Maintenance"];
 const SERVICES = ["Repair", "Oil change", "Tire replacement"];
 const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
+const VIN_PATTERN = /^[A-HJ-NPR-Z0-9]{17}$/;
+const PLATE_PATTERN = /^[A-Z0-9]{2,8}$/;
 
 function isIntegerInRange(value, min, max) {
   return typeof value === "number" && Number.isInteger(value) && value >= min && value <= max;
@@ -30,6 +32,13 @@ function validDateOnly(value) {
 
 function trimmedString(value) {
   return typeof value === "string" ? value.trim() : "";
+}
+
+function localToday() {
+  const now = new Date();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${now.getFullYear()}-${month}-${day}`;
 }
 
 function validateVehicle(body) {
@@ -68,8 +77,8 @@ function validateVehicle(body) {
     if (!vin) {
       return { error: "VIN cannot be empty." };
     }
-    if (vin.length > 20) {
-      return { error: "VIN cannot exceed 20 characters." };
+    if (!VIN_PATTERN.test(vin)) {
+      return { error: "VIN must be a valid 17-character VIN." };
     }
   }
 
@@ -97,8 +106,8 @@ function validateVehicle(body) {
     if (!licensePlateNumber) {
       return { error: "License Plate Number cannot be empty." };
     }
-    if (licensePlateNumber.length > 10) {
-      return { error: "License Plate Number cannot exceed 10 characters." };
+    if (!PLATE_PATTERN.test(licensePlateNumber)) {
+      return { error: "License Plate Number must be 2 to 8 letters or digits." };
     }
 
     if (!isIntegerInRange(body?.licensePlateExpirationMonth, 1, 12)) {
@@ -132,11 +141,23 @@ function validateVehicle(body) {
   };
 }
 
-function validateMileage(body) {
-  const entryDate = validDateOnly(body?.entryDate);
+function validateLogDate(value) {
+  const entryDate = validDateOnly(value);
   if (!entryDate) {
     return { error: "Date must be a valid date." };
   }
+  if (entryDate > localToday()) {
+    return { error: "Date cannot be in the future." };
+  }
+  return { value: entryDate };
+}
+
+function validateMileage(body) {
+  const dated = validateLogDate(body?.entryDate);
+  if (dated.error) {
+    return dated;
+  }
+  const entryDate = dated.value;
   if (
     typeof body?.currentMileage !== "number" ||
     !Number.isInteger(body.currentMileage) ||
@@ -149,10 +170,11 @@ function validateMileage(body) {
 }
 
 function validateService(body) {
-  const entryDate = validDateOnly(body?.entryDate);
-  if (!entryDate) {
-    return { error: "Date must be a valid date." };
+  const dated = validateLogDate(body?.entryDate);
+  if (dated.error) {
+    return dated;
   }
+  const entryDate = dated.value;
 
   const servicePerformed = trimmedString(body?.servicePerformed);
   if (!servicePerformed) {

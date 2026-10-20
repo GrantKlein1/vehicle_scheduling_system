@@ -19,7 +19,7 @@ export default (sequelize, Sequelize) => {
         allowNull: false,
       },
       vin: {
-        type: Sequelize.STRING(20),
+        type: Sequelize.STRING(17),
         allowNull: true,
         unique: true,
       },
@@ -36,7 +36,7 @@ export default (sequelize, Sequelize) => {
         allowNull: false,
       },
       licensePlateNumber: {
-        type: Sequelize.STRING(10),
+        type: Sequelize.STRING(8),
         allowNull: true,
         unique: true,
       },

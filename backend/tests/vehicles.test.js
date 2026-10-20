@@ -17,7 +17,7 @@ function vehicleBody(overrides = {}) {
     purchasedDate: "2022-06-01",
     color: "White",
     passengerCapacity: 5,
-    licensePlateNumber: "OC-1001",
+    licensePlateNumber: "OC1001",
     licensePlateExpirationMonth: 6,
     areaAssigned: "Athletics",
     ...overrides,
@@ -32,6 +32,22 @@ async function signIn(role) {
   });
   const session = await createSession(user);
   return session.token;
+}
+
+function localToday() {
+  const now = new Date();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${now.getFullYear()}-${month}-${day}`;
+}
+
+async function seedVehicleFour() {
+  await db.vehicle.bulkCreate([
+    vehicleBody({ vin: "1FTFW1E50NFA00002", licensePlateNumber: "P1" }),
+    vehicleBody({ vin: "1FTFW1E50NFA00003", licensePlateNumber: "P2" }),
+    vehicleBody({ vin: "1FTFW1E50NFA00004", licensePlateNumber: "P3" }),
+    vehicleBody(),
+  ]);
 }
 
 function authed(token) {
@@ -83,7 +99,7 @@ describe("Feature 2 — Vehicle Management", () => {
 
       const response = await authed(token)
         .post("/api/vehicle/vehicles")
-        .send(vehicleBody({ licensePlateNumber: "OC-2002" }));
+        .send(vehicleBody({ licensePlateNumber: "OC2002" }));
 
       expect(response.status).toBe(400);
       expect(response.body).toEqual({ message: "VIN already exists." });
@@ -140,6 +156,32 @@ describe("Feature 2 — Vehicle Management", () => {
       expect(response.body).toEqual({ message: "License Plate Number already exists." });
     });
 
+    it("Create with an invalid VIN is rejected", async () => {
+      const token = await signIn("admin");
+
+      const response = await authed(token)
+        .post("/api/vehicle/vehicles")
+        .send(vehicleBody({ vin: "1FTFW1E50NFA0000I" }));
+
+      expect(response.status).toBe(400);
+      expect(response.body).toEqual({ message: "VIN must be a valid 17-character VIN." });
+      expect(await db.vehicle.count()).toBe(0);
+    });
+
+    it("Create with an invalid license plate is rejected", async () => {
+      const token = await signIn("admin");
+
+      const response = await authed(token)
+        .post("/api/vehicle/vehicles")
+        .send(vehicleBody({ licensePlateNumber: "OC-1001" }));
+
+      expect(response.status).toBe(400);
+      expect(response.body).toEqual({
+        message: "License Plate Number must be 2 to 8 letters or digits.",
+      });
+      expect(await db.vehicle.count()).toBe(0);
+    });
+
     it("Create with a make and model that are not on the standard list", async () => {
       const token = await signIn("admin");
 
@@ -151,7 +193,7 @@ describe("Feature 2 — Vehicle Management", () => {
             make: "Tesla",
             model: "Model 3",
             vin: "5YJ3E1EA7KF000001",
-            licensePlateNumber: "OC-3003",
+            licensePlateNumber: "OC3003",
           })
         );
 
@@ -186,7 +228,7 @@ describe("Feature 2 — Vehicle Management", () => {
           make: "Chevrolet",
           model: "Malibu",
           vin: "1G1ZD5ST5NF000001",
-          licensePlateNumber: "OC-4004",
+          licensePlateNumber: "OC4004",
         })
       );
       await db.vehicle.create(vehicleBody());
@@ -207,7 +249,7 @@ describe("Feature 2 — Vehicle Management", () => {
           make: "Chevrolet",
           model: "Malibu",
           vin: "1G1ZD5ST5NF000001",
-          licensePlateNumber: "OC-4004",
+          licensePlateNumber: "OC4004",
         })
       );
 
@@ -222,12 +264,7 @@ describe("Feature 2 — Vehicle Management", () => {
 
     it("Maintenance views logs for a vehicle", async () => {
       const token = await signIn("maintenance");
-      await db.vehicle.bulkCreate([
-        vehicleBody({ vin: "VIN000000000000001", licensePlateNumber: "P-1" }),
-        vehicleBody({ vin: "VIN000000000000002", licensePlateNumber: "P-2" }),
-        vehicleBody({ vin: "VIN000000000000003", licensePlateNumber: "P-3" }),
-        vehicleBody(),
-      ]);
+      await seedVehicleFour();
       await db.mileageLog.create({
         vehicleId: 4,
         entryDate: "2026-10-01",
@@ -317,7 +354,7 @@ describe("Feature 2 — Vehicle Management", () => {
 
       const calls = [
         authed(token).get("/api/vehicle/vehicles"),
-        authed(token).post("/api/vehicle/vehicles").send(vehicleBody({ vin: "NEWVIN000000000001", licensePlateNumber: "NEW-1" })),
+        authed(token).post("/api/vehicle/vehicles").send(vehicleBody({ vin: "1FTFW1E50NFA00009", licensePlateNumber: "NEW1" })),
         authed(token).put(`/api/vehicle/vehicles/${vehicle.id}`).send(vehicleBody({ color: "Blue" })),
         authed(token).delete(`/api/vehicle/vehicles/${vehicle.id}`),
         authed(token)
@@ -347,7 +384,7 @@ describe("Feature 2 — Vehicle Management", () => {
       const before = vehicle.toJSON();
 
       const writes = [
-        authed(token).post("/api/vehicle/vehicles").send(vehicleBody({ vin: "NEWVIN000000000001", licensePlateNumber: "NEW-1" })),
+        authed(token).post("/api/vehicle/vehicles").send(vehicleBody({ vin: "1FTFW1E50NFA00009", licensePlateNumber: "NEW1" })),
         authed(token).put(`/api/vehicle/vehicles/${vehicle.id}`).send(vehicleBody({ color: "Blue" })),
         authed(token).delete(`/api/vehicle/vehicles/${vehicle.id}`),
       ];
@@ -405,12 +442,7 @@ describe("Feature 2 — Vehicle Management", () => {
 
     it("Mileage log without current mileage is rejected", async () => {
       const token = await signIn("maintenance");
-      await db.vehicle.bulkCreate([
-        vehicleBody({ vin: "VIN000000000000001", licensePlateNumber: "P-1" }),
-        vehicleBody({ vin: "VIN000000000000002", licensePlateNumber: "P-2" }),
-        vehicleBody({ vin: "VIN000000000000003", licensePlateNumber: "P-3" }),
-        vehicleBody(),
-      ]);
+      await seedVehicleFour();
 
       const response = await authed(token)
         .post("/api/vehicle/vehicles/4/mileage-logs")
@@ -422,12 +454,7 @@ describe("Feature 2 — Vehicle Management", () => {
 
     it("Service log with an unknown service is rejected", async () => {
       const token = await signIn("maintenance");
-      await db.vehicle.bulkCreate([
-        vehicleBody({ vin: "VIN000000000000001", licensePlateNumber: "P-1" }),
-        vehicleBody({ vin: "VIN000000000000002", licensePlateNumber: "P-2" }),
-        vehicleBody({ vin: "VIN000000000000003", licensePlateNumber: "P-3" }),
-        vehicleBody(),
-      ]);
+      await seedVehicleFour();
 
       const response = await authed(token)
         .post("/api/vehicle/vehicles/4/service-logs")
@@ -437,6 +464,58 @@ describe("Feature 2 — Vehicle Management", () => {
       expect(response.body).toEqual({
         message: "Service performed must be Repair, Oil change, or Tire replacement.",
       });
+    });
+
+    it("Mileage log with a future date is rejected", async () => {
+      const token = await signIn("maintenance");
+      await seedVehicleFour();
+
+      const response = await authed(token)
+        .post("/api/vehicle/vehicles/4/mileage-logs")
+        .send({ entryDate: "2099-01-01", currentMileage: 15000 });
+
+      expect(response.status).toBe(400);
+      expect(response.body).toEqual({ message: "Date cannot be in the future." });
+      expect(await db.mileageLog.count()).toBe(0);
+    });
+
+    it("Mileage log for the current day is accepted", async () => {
+      const token = await signIn("maintenance");
+      await seedVehicleFour();
+      const today = localToday();
+
+      const response = await authed(token)
+        .post("/api/vehicle/vehicles/4/mileage-logs")
+        .send({ entryDate: today, currentMileage: 15000 });
+
+      expect(response.status).toBe(201);
+      expect(response.body.entryDate).toBe(today);
+    });
+
+    it("Service log with a future date is rejected", async () => {
+      const token = await signIn("maintenance");
+      await seedVehicleFour();
+
+      const response = await authed(token)
+        .post("/api/vehicle/vehicles/4/service-logs")
+        .send({ entryDate: "2099-01-01", servicePerformed: "Oil change" });
+
+      expect(response.status).toBe(400);
+      expect(response.body).toEqual({ message: "Date cannot be in the future." });
+      expect(await db.serviceLog.count()).toBe(0);
+    });
+
+    it("Service log for the current day is accepted", async () => {
+      const token = await signIn("maintenance");
+      await seedVehicleFour();
+      const today = localToday();
+
+      const response = await authed(token)
+        .post("/api/vehicle/vehicles/4/service-logs")
+        .send({ entryDate: today, servicePerformed: "Oil change" });
+
+      expect(response.status).toBe(201);
+      expect(response.body.entryDate).toBe(today);
     });
 
     it("Mileage log for an unknown vehicle is rejected", async () => {
@@ -452,12 +531,7 @@ describe("Feature 2 — Vehicle Management", () => {
 
     it("Requestor cannot log mileage", async () => {
       const token = await signIn("requestor");
-      await db.vehicle.bulkCreate([
-        vehicleBody({ vin: "VIN000000000000001", licensePlateNumber: "P-1" }),
-        vehicleBody({ vin: "VIN000000000000002", licensePlateNumber: "P-2" }),
-        vehicleBody({ vin: "VIN000000000000003", licensePlateNumber: "P-3" }),
-        vehicleBody(),
-      ]);
+      await seedVehicleFour();
 
       const response = await authed(token)
         .post("/api/vehicle/vehicles/4/mileage-logs")

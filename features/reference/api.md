@@ -85,9 +85,9 @@ A `userId` in a create or update body is ignored. Responses do not include `user
 
 **201** returns the saved vehicle: `id`, `category`, `make`, `model`, `year`, `vin`, `purchasedDate`, `color`, `passengerCapacity`, `licensePlateNumber`, `licensePlateExpirationMonth`, `areaAssigned`, `createdAt`, and `updatedAt`. Logs are not included.
 
-`category` is `Golf Cart`, `Truck`, `Car`, or `Van`. `areaAssigned` is `Athletics`, `Support Central`, or `Maintenance`. `make` and `model` are required strings of at most 40 characters and are not limited to the suggestion list. For `Truck`, `Car`, and `Van`, `vin` is required, unique, and at most 20 characters, `licensePlateNumber` is required, unique, and at most 10 characters, and `licensePlateExpirationMonth` is an integer from 1 through 12. A `Golf Cart` stores those three fields as `null`; values sent for them are discarded, and the nulls are not treated as duplicates. Uniqueness is exact after trim and is case-sensitive. `year` is an integer from 1950 through 2027. `passengerCapacity` is an integer from 1 through 15. `purchasedDate` is a real `YYYY-MM-DD` date. `color` is required and at most 30 characters.
+`category` is `Golf Cart`, `Truck`, `Car`, or `Van`. `areaAssigned` is `Athletics`, `Support Central`, or `Maintenance`. `make` and `model` are required strings of at most 40 characters and are not limited to the suggestion list. For `Truck`, `Car`, and `Van`, `vin` is required, unique, and must match `^[A-HJ-NPR-Z0-9]{17}$`, `licensePlateNumber` is required, unique, and must match `^[A-Z0-9]{2,8}$`, and `licensePlateExpirationMonth` is an integer from 1 through 12. The API does not change case to make a value match. A `Golf Cart` stores those three fields as `null`; values sent for them are discarded, including values that would fail the VIN or plate pattern, and the nulls are not treated as duplicates. Uniqueness is exact after trim and is case-sensitive. `year` is an integer from 1950 through 2027. `passengerCapacity` is an integer from 1 through 15. `purchasedDate` is a real `YYYY-MM-DD` date. `color` is required and at most 30 characters.
 
-**400** messages match the Feature 2 create error table, including `"VIN cannot be empty."`, `"VIN already exists."`, and `"License Plate Number already exists."`.
+**400** messages match the Feature 2 create error table, including `"VIN cannot be empty."`, `"VIN must be a valid 17-character VIN."`, `"VIN already exists."`, `"License Plate Number must be 2 to 8 letters or digits."`, and `"License Plate Number already exists."`.
 
 ### List – `GET /api/vehicle/vehicles`
 
@@ -121,9 +121,9 @@ The vehicle, its mileage logs, and its service logs are removed.
 { "entryDate": "2026-10-01", "currentMileage": 15000 }
 ```
 
-**201** returns `id`, `vehicleId`, `entryDate`, and `currentMileage`. `currentMileage` is an integer greater than or equal to 0. `entryDate` is a real `YYYY-MM-DD` date.
+**201** returns `id`, `vehicleId`, `entryDate`, and `currentMileage`. `currentMileage` is an integer greater than or equal to 0. `entryDate` is a real `YYYY-MM-DD` date on or before the server's local calendar date.
 
-**400** `{ "message": "Date must be a valid date." }` or `{ "message": "Current mileage must be zero or greater." }`
+**400** `{ "message": "Date must be a valid date." }`, `{ "message": "Date cannot be in the future." }`, or `{ "message": "Current mileage must be zero or greater." }`
 
 **404** `{ "message": "Vehicle with id=<vehicleId> not found." }`
 
@@ -133,8 +133,8 @@ The vehicle, its mileage logs, and its service logs are removed.
 { "entryDate": "2026-09-01", "servicePerformed": "Oil change" }
 ```
 
-**201** returns `id`, `vehicleId`, `entryDate`, and `servicePerformed`. `servicePerformed` is `Repair`, `Oil change`, or `Tire replacement`.
+**201** returns `id`, `vehicleId`, `entryDate`, and `servicePerformed`. `servicePerformed` is `Repair`, `Oil change`, or `Tire replacement`. `entryDate` is a real `YYYY-MM-DD` date on or before the server's local calendar date.
 
-**400** `{ "message": "Date must be a valid date." }`, `{ "message": "Service performed cannot be empty." }`, or `{ "message": "Service performed must be Repair, Oil change, or Tire replacement." }`
+**400** `{ "message": "Date must be a valid date." }`, `{ "message": "Date cannot be in the future." }`, `{ "message": "Service performed cannot be empty." }`, or `{ "message": "Service performed must be Repair, Oil change, or Tire replacement." }`
 
 **404** `{ "message": "Vehicle with id=<vehicleId> not found." }`

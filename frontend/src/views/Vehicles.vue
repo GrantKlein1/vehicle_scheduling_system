@@ -124,6 +124,8 @@ function logTableBind(count) {
 }
 
 const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
+const VIN_PATTERN = /^[A-HJ-NPR-Z0-9]{17}$/;
+const PLATE_PATTERN = /^[A-Z0-9]{2,8}$/;
 
 const VEHICLE_FIELDS = [
   "category",
@@ -200,8 +202,8 @@ function vehicleFieldMessage(key, value) {
   if (key === "year" && !integerInRange(value, 1950, 2027)) {
     return "Year must be from 1950 through 2027.";
   }
-  if (key === "vin") {
-    return textLimit(value, 20, "VIN cannot exceed 20 characters.");
+  if (key === "vin" && !VIN_PATTERN.test(String(value).trim())) {
+    return "VIN must be a valid 17-character VIN.";
   }
   if (key === "purchasedDate" && !isRealDate(value)) {
     return "Purchased Date must be a valid date.";
@@ -212,8 +214,8 @@ function vehicleFieldMessage(key, value) {
   if (key === "passengerCapacity" && !integerInRange(value, 1, 15)) {
     return "Number of passengers must be from 1 through 15.";
   }
-  if (key === "licensePlateNumber") {
-    return textLimit(value, 10, "License Plate Number cannot exceed 10 characters.");
+  if (key === "licensePlateNumber" && !PLATE_PATTERN.test(String(value).trim())) {
+    return "License Plate Number must be 2 to 8 letters or digits.";
   }
   if (key === "licensePlateExpirationMonth" && !integerInRange(value, 1, 12)) {
     return "License Plate Expiration Month must be from 1 through 12.";
@@ -224,12 +226,22 @@ function vehicleFieldMessage(key, value) {
   return "";
 }
 
+function logDateMessage(value) {
+  if (!isRealDate(value)) {
+    return "Date must be a valid date.";
+  }
+  if (value.trim() > todayIso()) {
+    return "Date cannot be in the future.";
+  }
+  return "";
+}
+
 function mileageFieldMessage(key, value) {
   if (isBlank(value)) {
     return "Required field";
   }
-  if (key === "entryDate" && !isRealDate(value)) {
-    return "Date must be a valid date.";
+  if (key === "entryDate") {
+    return logDateMessage(value);
   }
   if (key === "currentMileage" && !integerInRange(value, 0, Number.MAX_SAFE_INTEGER)) {
     return "Current mileage must be zero or greater.";
@@ -241,8 +253,8 @@ function serviceFieldMessage(key, value) {
   if (isBlank(value)) {
     return "Required field";
   }
-  if (key === "entryDate" && !isRealDate(value)) {
-    return "Date must be a valid date.";
+  if (key === "entryDate") {
+    return logDateMessage(value);
   }
   if (key === "servicePerformed" && !SERVICE_OPTIONS.includes(value)) {
     return "Service performed must be Repair, Oil change, or Tire replacement.";

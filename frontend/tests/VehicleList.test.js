@@ -39,7 +39,7 @@ const ford = {
   purchasedDate: "2022-06-01",
   color: "White",
   passengerCapacity: 5,
-  licensePlateNumber: "OC-1001",
+  licensePlateNumber: "OC1001",
   licensePlateExpirationMonth: 6,
   areaAssigned: "Athletics",
   createdAt: "2026-10-15T12:00:00.000Z",
@@ -53,7 +53,7 @@ const malibu = {
   make: "Chevrolet",
   model: "Malibu",
   vin: "1G1ZD5ST5NF000001",
-  licensePlateNumber: "OC-4004",
+  licensePlateNumber: "OC4004",
   color: "Black",
 };
 
@@ -222,7 +222,7 @@ describe("Feature 2 — Vehicle Management", () => {
       await setLabeled(wrapper, "Purchased Date", "2022-06-01");
       await setLabeled(wrapper, "Color", "White");
       await setLabeled(wrapper, "Number of passengers", "5");
-      await setLabeled(wrapper, "License Plate Number", "OC-1001");
+      await setLabeled(wrapper, "License Plate Number", "OC1001");
       await setLabeled(wrapper, "License Plate Expiration Month", 6);
       await setLabeled(wrapper, "Area Assigned", "Athletics");
       await clickDialogButton("Add Vehicle");
@@ -256,7 +256,7 @@ describe("Feature 2 — Vehicle Management", () => {
       await clickControl("Add Vehicle");
       await setLabeled(wrapper, "Category", "Truck");
       await setLabeled(wrapper, "VIN", "1FTFW1E50NFA00001");
-      await setLabeled(wrapper, "License Plate Number", "OC-1001");
+      await setLabeled(wrapper, "License Plate Number", "OC1001");
       await setLabeled(wrapper, "License Plate Expiration Month", 6);
       await setLabeled(wrapper, "Category", "Golf Cart");
 
@@ -284,6 +284,32 @@ describe("Feature 2 — Vehicle Management", () => {
         })
       );
       expect(pageText()).toContain("Club Car Onward added successfully!");
+    });
+
+    it("Invalid VIN shows the format message", async () => {
+      setCurrentUser(userWithRole("admin"));
+      const { wrapper } = await mountVehicles();
+
+      await clickControl("Add Vehicle");
+      await setLabeled(wrapper, "Category", "Truck");
+      await setLabeled(wrapper, "VIN", "1FTFW1E50NFA0000I");
+      await clickDialogButton("Add Vehicle");
+
+      expect(pageText()).toContain("VIN must be a valid 17-character VIN.");
+      expect(createVehicle).not.toHaveBeenCalled();
+    });
+
+    it("Invalid license plate shows the format message", async () => {
+      setCurrentUser(userWithRole("admin"));
+      const { wrapper } = await mountVehicles();
+
+      await clickControl("Add Vehicle");
+      await setLabeled(wrapper, "Category", "Truck");
+      await setLabeled(wrapper, "License Plate Number", "OC-1001");
+      await clickDialogButton("Add Vehicle");
+
+      expect(pageText()).toContain("License Plate Number must be 2 to 8 letters or digits.");
+      expect(createVehicle).not.toHaveBeenCalled();
     });
 
     it("Empty required field shows Required field", async () => {
@@ -493,6 +519,32 @@ describe("Feature 2 — Vehicle Management", () => {
       });
       expect(pageText()).toContain("Service logged successfully!");
       expect(pageText()).toContain("Oil change");
+    });
+
+    it("Future mileage date shows the date message", async () => {
+      setCurrentUser(userWithRole("maintenance"));
+      catalog = [ford];
+      const { wrapper } = await mountVehicles();
+
+      await setLabeled(wrapper, "Mileage date", "2099-01-01");
+      await setLabeled(wrapper, "Current mileage", "15000");
+      await clickControl("Log mileage");
+
+      expect(pageText()).toContain("Date cannot be in the future.");
+      expect(logMileage).not.toHaveBeenCalled();
+    });
+
+    it("Future service date shows the date message", async () => {
+      setCurrentUser(userWithRole("maintenance"));
+      catalog = [ford];
+      const { wrapper } = await mountVehicles();
+
+      await setLabeled(wrapper, "Service date", "2099-01-01");
+      await setLabeled(wrapper, "Service performed", "Oil change");
+      await clickControl("Log service");
+
+      expect(pageText()).toContain("Date cannot be in the future.");
+      expect(logService).not.toHaveBeenCalled();
     });
   });
 });
