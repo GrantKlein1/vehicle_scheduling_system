@@ -1,4 +1,4 @@
-import routes from "./app/routes/index.js";
+import { apiRouter, vehicleSchedulingRouter } from "./app/routes/index.js";
 import express from "express";
 import cors from "cors";
 import morgan from "morgan";
@@ -15,7 +15,8 @@ const syncOptions = shouldAlterSchema ? { alter: true } : {};
 if (process.env.NODE_ENV !== "test") {
   db.sequelize
     .sync(syncOptions)
-    .then(() => {
+    .then(async () => {
+      await db.seedRoleUsers();
       if (syncOptions.alter) {
         logger.info("Database sync completed with alter: true.");
       }
@@ -40,7 +41,8 @@ app.use(
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-app.use("/api", routes);
+app.use("/api", apiRouter);
+app.use("/vehicleScheduling", vehicleSchedulingRouter);
 
 const PORT = process.env.PORT || 3200;
 

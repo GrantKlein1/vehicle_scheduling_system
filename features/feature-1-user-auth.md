@@ -84,7 +84,7 @@
 - **FR-006**: Login MUST reuse a non-expired session for the same user (`userId`) when one already exists.
 - **FR-007**: Allowed roles are `requestor`, `admin`, and `maintenance`. The database seed inserts exactly two users when those emails are not already present: `admin@eagles.oc.edu` (`fName` `Admin`, `lName` `User`, `role` `admin`, `googleSub` null) and `maint@eagles.oc.edu` (`fName` `Maintenance`, `lName` `User`, `role` `maintenance`, `googleSub` null). Sign-in does not change `role`. This feature has no screen for changing a role. Automated tests insert the users they need and do not depend on these two rows.
 - **FR-008**: Every authenticated request MUST resolve to exactly one user via `req.user.id` from the session token (foundation for later features that need the signed-in user).
-- **FR-010**: This feature MUST **introduce** `MenuBar` in `App.vue` (`<MenuBar />` above `<v-main>`). `MenuBar` MUST be visible on `login`, `register`, and `home`.
+- **FR-010**: This feature MUST **introduce** `MenuBar` in `App.vue` (`<MenuBar />` above `<v-main>`). `MenuBar` MUST be visible on `login` and `home`.
 - **FR-011**: `MenuBar` MUST show **Sign out** when a session exists and the user is on a page they are allowed to stay on (`home`). When there is no session, **Sign out** MUST be hidden. A signed-in user who opens `login` MUST be redirected to `home`.
 - **FR-012**: `MenuBar` nav items MUST be filtered by the signed-in user's `role` from the `users` table / `localStorage` `user` payload. An item is shown only when `user.role` is in that item's allowed roles. Feature 1 ships **Sign out** for every authenticated role and no catalog links.
 - **FR-013**: Sign-in finds a user by `googleSub`. If none exists, it finds a user by email. A found row is reused and its `role` is kept. If that row's `googleSub` is null, it is set from the Google credential. If no row is found, a new user is created with `role` `requestor`.
@@ -164,8 +164,7 @@ Feature 1 establishes identity. Later features decide which data a signed-in use
 ### [View: Login Page] — route name `login`
 
 - Auth form with `MenuBar` visible (this feature introduces `MenuBar`; do not hide it on login).
-- Primary action: **Google Sign in** (`v-btn`, shows `:loading` while request is in flight).
-- Link or button to navigate to registration.
+- Primary action: Google's official **Sign in with Google** button (`google.accounts.id.renderButton`). A progress indicator is shown while the login request is in flight. There is no separate register screen and no link that switches between sign-in and registration. The first successful Google sign-in creates the account.
 - Inline error via `<v-alert type="error">` on failed login.
 
 ### [View: Home placeholder] — route name `home`
@@ -177,7 +176,7 @@ Feature 1 establishes identity. Later features decide which data a signed-in use
 **App chrome**
 
 - **Introduce** `MenuBar` in this feature. Mount it in `App.vue` (`<MenuBar />` above `<v-main>`).
-- `MenuBar` is visible on `login`, `register`, and `home`.
+- `MenuBar` is visible on `login` and `home`.
 - No session: `MenuBar` shows with no catalog items and no **Sign out**.
 - Session exists on `home`: `MenuBar` shows the signed-in user's name, **Sign out**, and only nav items allowed for `user.role`.
 - Feature 1 catalog items: none. Later features add one item each: **Vehicle** (Feature 2, `admin` and `maintenance`), **Driver** (Feature 3, `admin`), **Destination** (Feature 4, `admin`), **Area** (Feature 5, `admin`), **Reservation** (Feature 6, `requestor` and `admin`). Feature 8 adds the admin schedule for `admin`. Feature 7 sends email and adds no nav item.
@@ -453,13 +452,13 @@ Do not implement behavior not in this spec.
 
 ## Definition of Done
 
-- [ ] Backend and frontend implemented per this spec (**FR-00N** satisfied)
+- [x] Backend and frontend implemented per this spec (**FR-00N** satisfied)
 - [ ] **Success Criteria (SC-00N)** met
-- [ ] All mapped tests pass (`npm test`)
-- [ ] Test Coverage Map complete
-- [ ] `features/reference/data-model.md` updated (if schema changed)
-- [ ] `features/reference/api.md` updated (if API changed)
-- [ ] `features/reference/behavior.md` updated (if product rules changed)
+- [x] All mapped tests pass (`npm test`)
+- [x] Test Coverage Map complete
+- [x] `features/reference/data-model.md` updated (if schema changed)
+- [x] `features/reference/api.md` updated (if API changed)
+- [x] `features/reference/behavior.md` updated (if product rules changed)
 
 ---
 
@@ -480,7 +479,7 @@ Do not implement behavior not in this spec.
 
 ## Delivered to Feature 2
 
-- `MenuBar` exists in `App.vue`, visible on `login`, `register`, and `home`, with **Sign out** when a session exists and items filtered by `user.role`.
+- `MenuBar` exists in `App.vue`, visible on `login` and `home`, with **Sign out** when a session exists and items filtered by `user.role`.
 - Feature 2 adds **Vehicle** (allowed roles `admin` and `maintenance`) to this `MenuBar`; it MUST NOT create a second `MenuBar`.
 - Feature 3 adds **Driver** (allowed role `admin`) to this `MenuBar`.
 - Feature 4 adds **Destination** (allowed role `admin`) to this `MenuBar`.
