@@ -1,8 +1,40 @@
-/**
- * Authorization helpers — implement when Feature auth is specified.
- * See .cursor/rules/auth-patterns.mdc and security.mdc.
- */
+import jwt from "jsonwebtoken";
+import db from "../models/index.js";
+import authConfig from "../config/auth.config.js";
 
-export function authenticate() {
-  throw new Error("authenticate() not implemented — add per feature auth spec");
+export async function authenticate(req, res, next) {
+  const header = req.headers.authorization;
+
+  if (!header || !header.startsWith("Bearer ")) {
+    return res.status(401).json({ message: "Unauthorized! No token provided." });
+  }
+
+  const token = header.slice("Bearer ".length).trim();
+  if (!token) {
+    return res.status(401).json({ message: "Unauthorized! No token provided." });
+  }
+
+  let decoded;
+  try {
+    decoded = jwt.verify(token, authConfig.secret);
+  } catch {
+    return res.status(401).json({ message: "Unauthorized! Invalid or expired token." });
+  }
+
+  const session = await db.session.findOne({ where: { token } });
+  if (!session || new Date(session.expirationDate).getTime() <= Date.now()) {
+    return res.status(401).json({ message: "Unauthorized! Invalid or expired token." });
+  }
+
+  if (Number(decoded?.id) !== Number(session.userId)) {
+    return res.status(401).json({ message: "Unauthorized! Invalid or expired token." });
+  }
+
+  const user = await db.user.findByPk(session.userId);
+  if (!user) {
+    return res.status(401).json({ message: "Unauthorized! Invalid or expired token." });
+  }
+
+  req.user = { id: user.id };
+  return next();
 }
