@@ -12,7 +12,6 @@
 ## User Stories
 
 ### US-2.1: View Vehicle List Page
-
 **As a** signed-in admin or maintenance user
 **I want to** select **Vehicle** from the navigation menu
 **So that** I can open the vehicle screen
@@ -22,7 +21,6 @@
 **Acceptance scenarios:** see ### US-2.1 under Acceptance Criteria
 
 ### US-2.2: Create Vehicle
-
 **As a** signed-in admin
 **I want to** create a vehicle in a dialog
 **So that** it is added to the shared catalog
@@ -32,7 +30,6 @@
 **Acceptance scenarios:** see ### US-2.2 under Acceptance Criteria
 
 ### US-2.3: Read Vehicle Catalog
-
 **As a** signed-in admin or maintenance user
 **I want to** see every vehicle in the catalog
 **So that** I can review the fleet
@@ -42,7 +39,6 @@
 **Acceptance scenarios:** see ### US-2.3 under Acceptance Criteria
 
 ### US-2.4: Row Action Icons
-
 **As a** signed-in admin
 **I want to** see Edit and Delete on the selected vehicle
 **So that** I can change or remove that vehicle
@@ -52,7 +48,6 @@
 **Acceptance scenarios:** see ### US-2.4 under Acceptance Criteria
 
 ### US-2.5: Edit Vehicle
-
 **As a** signed-in admin
 **I want to** update a vehicle's details
 **So that** the catalog stays accurate
@@ -62,7 +57,6 @@
 **Acceptance scenarios:** see ### US-2.5 under Acceptance Criteria
 
 ### US-2.6: Delete Vehicle
-
 **As a** signed-in admin
 **I want to** delete a vehicle after I confirm
 **So that** a vehicle that is no longer in the fleet is removed
@@ -72,7 +66,6 @@
 **Acceptance scenarios:** see ### US-2.6 under Acceptance Criteria
 
 ### US-2.7: Role-Based Access Control
-
 **As the** application
 **I want to** keep catalog create, update, and delete limited to admins, and keep the vehicle screen limited to admins and maintenance users
 **So that** a requestor cannot see or change the fleet, and a maintenance user cannot add, edit, or remove a vehicle
@@ -82,7 +75,6 @@
 **Acceptance scenarios:** see ### US-2.7 under Acceptance Criteria
 
 ### US-2.8: Log Mileage and Service
-
 **As a** signed-in maintenance user
 **I want to** record a mileage reading and a service on a vehicle
 **So that** the fleet's mileage and service history stays current
@@ -546,7 +538,6 @@ There is no `userId` column.
 ### US-2.1 — View Vehicle List Page
 
 #### Scenario: Signed-in admin navigates to the vehicle page
-
 - **Given** I am signed in as an admin
 - **When** I select **Vehicle** from the navigation menu
 - **Then** I am on `/vehicle`
@@ -554,7 +545,6 @@ There is no `userId` column.
 - **And** **Add Vehicle** is displayed
 
 #### Scenario: Signed-in maintenance user navigates to the vehicle page
-
 - **Given** I am signed in as a maintenance user
 - **When** I select **Vehicle** from the navigation menu
 - **Then** I am on `/vehicle`
@@ -562,7 +552,6 @@ There is no `userId` column.
 - **And** **Add Vehicle** is not displayed
 
 #### Scenario: Requestor does not see Vehicle in the menu
-
 - **Given** I am signed in as a requestor
 - **When** I view the navigation menu
 - **Then** **Vehicle** is not shown
@@ -572,7 +561,6 @@ There is no `userId` column.
 ### US-2.2 — Create Vehicle
 
 #### Scenario: Signed-in admin creates a new vehicle
-
 - **Given** I am signed in as an admin on the vehicle page
 - **When** I click **Add Vehicle**
 - **Then** the **Add Vehicle** dialog opens
@@ -585,7 +573,6 @@ There is no `userId` column.
 - **And** I see a snackbar **`Ford F-150 added successfully!`**
 
 #### Scenario: Golf cart is stored without VIN or license plate
-
 - **Given** I am signed in as an admin
 - **When** I send `POST /api/vehicle/vehicles` for a `Golf Cart`, including a `vin` and a license plate
 - **Then** the API returns `201`
@@ -596,34 +583,29 @@ There is no `userId` column.
 - **And** I can add the golf cart without those fields
 
 #### Scenario: Create without VIN is rejected
-
 - **Given** I am signed in as an admin
 - **When** I send `POST /api/vehicle/vehicles` with a valid vehicle body whose `vin` is missing
 - **Then** the API returns `400` with `{ "message": "VIN cannot be empty." }`
 
 #### Scenario: Create with a duplicate VIN is rejected
-
 - **Given** I am signed in as an admin
 - **And** a vehicle already exists with VIN `1FTFW1E50NFA00001`
 - **When** I send `POST /api/vehicle/vehicles` with the same `vin` and a different `licensePlateNumber`
 - **Then** the API returns `400` with `{ "message": "VIN already exists." }`
 
 #### Scenario: Create with a duplicate license plate is rejected
-
 - **Given** I am signed in as an admin
 - **And** a vehicle already exists with license plate `OC1001`
 - **When** I send `POST /api/vehicle/vehicles` with the same `licensePlateNumber` and a different `vin`
 - **Then** the API returns `400` with `{ "message": "License Plate Number already exists." }`
 
 #### Scenario: Create with an invalid VIN is rejected
-
 - **Given** I am signed in as an admin
 - **When** I send `POST /api/vehicle/vehicles` with a valid vehicle body whose `vin` is `1FTFW1E50NFA0000I`
 - **Then** the API returns `400` with `{ "message": "VIN must be a valid 17-character VIN." }`
 - **And** no vehicle is stored
 
 #### Scenario: Invalid VIN shows the format message
-
 - **Given** I am signed in as an admin
 - **And** the **Add Vehicle** dialog is open with category `Truck`
 - **When** I enter VIN `1FTFW1E50NFA0000I`
@@ -632,14 +614,12 @@ There is no `userId` column.
 - **And** `POST /api/vehicle/vehicles` is not called
 
 #### Scenario: Create with an invalid license plate is rejected
-
 - **Given** I am signed in as an admin
 - **When** I send `POST /api/vehicle/vehicles` with a valid vehicle body whose `licensePlateNumber` is `OC-1001`
 - **Then** the API returns `400` with `{ "message": "License Plate Number must be 2 to 8 letters or digits." }`
 - **And** no vehicle is stored
 
 #### Scenario: Invalid license plate shows the format message
-
 - **Given** I am signed in as an admin
 - **And** the **Add Vehicle** dialog is open with category `Truck`
 - **When** I enter license plate `OC-1001`
@@ -648,14 +628,12 @@ There is no `userId` column.
 - **And** `POST /api/vehicle/vehicles` is not called
 
 #### Scenario: Create with a make and model that are not on the standard list
-
 - **Given** I am signed in as an admin
 - **When** I send `POST /api/vehicle/vehicles` with a valid vehicle body whose `category` is `Car`, `make` is `Tesla`, and `model` is `Model 3`
 - **Then** the API returns `201`
 - **And** the saved vehicle has `make` `Tesla` and `model` `Model 3`
 
 #### Scenario: Supplied userId is ignored
-
 - **Given** I am signed in as an admin
 - **When** I send `POST /api/vehicle/vehicles` with a valid vehicle body and `"userId": 99`
 - **Then** the API returns `201`
@@ -663,7 +641,6 @@ There is no `userId` column.
 - **And** the stored vehicle row has no `userId`
 
 #### Scenario: Empty required field shows Required field
-
 - **Given** I am signed in as an admin
 - **And** the **Add Vehicle** dialog is open
 - **When** I leave **VIN** blank
@@ -676,7 +653,6 @@ There is no `userId` column.
 ### US-2.3 — Read Vehicle Catalog
 
 #### Scenario: Signed-in admin views the vehicle catalog
-
 - **Given** I am signed in as an admin
 - **And** a Chevrolet Malibu and a Ford F-150 exist
 - **When** I open the vehicle page
@@ -684,7 +660,6 @@ There is no `userId` column.
 - **And** both vehicles are listed in the vehicle list
 
 #### Scenario: Vehicle list is sorted by make
-
 - **Given** I am signed in as an admin
 - **And** a Ford F-150 and a Chevrolet Malibu exist
 - **When** I send `GET /api/vehicle/vehicles`
@@ -692,7 +667,6 @@ There is no `userId` column.
 - **And** the Chevrolet Malibu comes before the Ford F-150
 
 #### Scenario: Maintenance views logs for a vehicle
-
 - **Given** I am signed in as a maintenance user
 - **And** vehicle `4` is a Ford F-150 with a mileage log of `15000` on `2026-10-01` and a service log `Oil change` on `2026-09-01`
 - **When** I send `GET /api/vehicle/vehicles/4`
@@ -706,7 +680,6 @@ There is no `userId` column.
 ### US-2.4 — Row Action Icons
 
 #### Scenario: Row action buttons visible for admin
-
 - **Given** I am signed in as an admin on the vehicle page
 - **And** at least one vehicle is listed
 - **When** I view the selected vehicle's detail panel
@@ -714,7 +687,6 @@ There is no `userId` column.
 - **And** I see **Log mileage** and **Log service**
 
 #### Scenario: Maintenance row shows log actions only
-
 - **Given** I am signed in as a maintenance user on the vehicle page
 - **And** at least one vehicle is listed
 - **When** I view the selected vehicle's detail panel
@@ -726,7 +698,6 @@ There is no `userId` column.
 ### US-2.5 — Edit Vehicle
 
 #### Scenario: Signed-in admin updates vehicle details
-
 - **Given** I am signed in as an admin on the vehicle page
 - **And** a Ford F-150 exists with color `White`
 - **When** I click **Edit vehicle** in that vehicle's detail panel
@@ -738,7 +709,6 @@ There is no `userId` column.
 - **And** I see a snackbar **`Ford F-150 updated successfully!`**
 
 #### Scenario: Update of an unknown vehicle is rejected
-
 - **Given** I am signed in as an admin
 - **When** I send `PUT /api/vehicle/vehicles/9999` with a valid vehicle body
 - **Then** the API returns `404` with `{ "message": "Vehicle with id=9999 not found." }`
@@ -748,7 +718,6 @@ There is no `userId` column.
 ### US-2.6 — Delete Vehicle
 
 #### Scenario: Signed-in admin deletes a vehicle with confirmation
-
 - **Given** I am signed in as an admin on the vehicle page
 - **And** a Ford F-150 exists and has a mileage log and a service log
 - **When** I click **Delete vehicle** in that vehicle's detail panel
@@ -760,7 +729,6 @@ There is no `userId` column.
 - **And** I see a snackbar **`Vehicle deleted successfully!`**
 
 #### Scenario: Cancelled delete leaves the vehicle
-
 - **Given** I am signed in as an admin on the vehicle page
 - **And** a Ford F-150 exists
 - **When** I click **Delete vehicle** in that vehicle's detail panel
@@ -773,7 +741,6 @@ There is no `userId` column.
 ### US-2.7 — Role-Based Access Control
 
 #### Scenario: Requestor vehicle access is restricted
-
 - **Given** I am signed in as a requestor
 - **When** I view the navigation menu
 - **Then** **Vehicle** is not shown
@@ -784,7 +751,6 @@ There is no `userId` column.
 - **And** the catalog is unchanged
 
 #### Scenario: Maintenance cannot create, update, or delete a vehicle
-
 - **Given** I am signed in as a maintenance user
 - **When** I send `POST /api/vehicle/vehicles`, `PUT /api/vehicle/vehicles/1`, or `DELETE /api/vehicle/vehicles/1`
 - **Then** each response is `403` with `{ "message": "Admin role required." }`
@@ -793,7 +759,6 @@ There is no `userId` column.
 - **Then** the API returns `200`
 
 #### Scenario: Unauthenticated visit to the vehicle page redirects to login
-
 - **Given** I have no session
 - **When** I navigate directly to `/vehicle`
 - **Then** I am redirected to `/login`
@@ -805,7 +770,6 @@ There is no `userId` column.
 ### US-2.8 — Log Mileage and Service
 
 #### Scenario: Maintenance logs mileage on a vehicle
-
 - **Given** I am signed in as a maintenance user on the vehicle page
 - **And** a Ford F-150 exists
 - **When** I enter Mileage date `2026-10-01` and Current mileage `15000`
@@ -815,7 +779,6 @@ There is no `userId` column.
 - **And** the Mileage log shows `15,000 mi`
 
 #### Scenario: Maintenance logs a service on a vehicle
-
 - **Given** I am signed in as a maintenance user on the vehicle page
 - **And** a Ford F-150 exists
 - **When** I enter Service date `2026-09-01` and service **Oil change**
@@ -825,21 +788,18 @@ There is no `userId` column.
 - **And** the Service log shows **Oil change**
 
 #### Scenario: Mileage log without current mileage is rejected
-
 - **Given** I am signed in as a maintenance user
 - **And** vehicle `4` exists
 - **When** I send `POST /api/vehicle/vehicles/4/mileage-logs` with `entryDate` `2026-10-01` and no `currentMileage`
 - **Then** the API returns `400` with `{ "message": "Current mileage must be zero or greater." }`
 
 #### Scenario: Service log with an unknown service is rejected
-
 - **Given** I am signed in as a maintenance user
 - **And** vehicle `4` exists
 - **When** I send `POST /api/vehicle/vehicles/4/service-logs` with `entryDate` `2026-09-01` and `servicePerformed` `Inspection`
 - **Then** the API returns `400` with `{ "message": "Service performed must be Repair, Oil change, or Tire replacement." }`
 
 #### Scenario: Mileage log with a future date is rejected
-
 - **Given** I am signed in as a maintenance user
 - **And** vehicle `4` exists
 - **When** I send `POST /api/vehicle/vehicles/4/mileage-logs` with `entryDate` `2099-01-01` and `currentMileage` `15000`
@@ -847,7 +807,6 @@ There is no `userId` column.
 - **And** no mileage log is stored
 
 #### Scenario: Mileage log for the current day is accepted
-
 - **Given** I am signed in as a maintenance user
 - **And** vehicle `4` exists
 - **When** I send `POST /api/vehicle/vehicles/4/mileage-logs` with `entryDate` set to the current calendar date and `currentMileage` `15000`
@@ -855,7 +814,6 @@ There is no `userId` column.
 - **And** the saved log's `entryDate` is that date
 
 #### Scenario: Future mileage date shows the date message
-
 - **Given** I am signed in as a maintenance user on the vehicle page
 - **And** a Ford F-150 exists
 - **When** I enter Mileage date `2099-01-01` and Current mileage `15000`
@@ -864,7 +822,6 @@ There is no `userId` column.
 - **And** `POST /api/vehicle/vehicles/:vehicleId/mileage-logs` is not called
 
 #### Scenario: Service log with a future date is rejected
-
 - **Given** I am signed in as a maintenance user
 - **And** vehicle `4` exists
 - **When** I send `POST /api/vehicle/vehicles/4/service-logs` with `entryDate` `2099-01-01` and `servicePerformed` `Oil change`
@@ -872,7 +829,6 @@ There is no `userId` column.
 - **And** no service log is stored
 
 #### Scenario: Service log for the current day is accepted
-
 - **Given** I am signed in as a maintenance user
 - **And** vehicle `4` exists
 - **When** I send `POST /api/vehicle/vehicles/4/service-logs` with `entryDate` set to the current calendar date and `servicePerformed` `Oil change`
@@ -880,7 +836,6 @@ There is no `userId` column.
 - **And** the saved log's `entryDate` is that date
 
 #### Scenario: Future service date shows the date message
-
 - **Given** I am signed in as a maintenance user on the vehicle page
 - **And** a Ford F-150 exists
 - **When** I enter Service date `2099-01-01` and service **Oil change**
@@ -889,13 +844,11 @@ There is no `userId` column.
 - **And** `POST /api/vehicle/vehicles/:vehicleId/service-logs` is not called
 
 #### Scenario: Mileage log for an unknown vehicle is rejected
-
 - **Given** I am signed in as a maintenance user
 - **When** I send `POST /api/vehicle/vehicles/9999/mileage-logs` with `entryDate` `2026-10-01` and `currentMileage` `15000`
 - **Then** the API returns `404` with `{ "message": "Vehicle with id=9999 not found." }`
 
 #### Scenario: Requestor cannot log mileage
-
 - **Given** I am signed in as a requestor
 - **And** vehicle `4` exists
 - **When** I send `POST /api/vehicle/vehicles/4/mileage-logs` with `entryDate` `2026-10-01` and `currentMileage` `15000`
