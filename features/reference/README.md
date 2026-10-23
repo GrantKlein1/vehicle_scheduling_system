@@ -30,3 +30,4 @@ They do **not** authorize new scope — implement only from `features/feature-*.
 | Area | Introduced |
 |------|------------|
 | Users, sessions, Google sign-in, `MenuBar` | Feature 1 |
+| Vehicles, mileage logs, service logs, **Vehicle** nav item | Feature 2 |

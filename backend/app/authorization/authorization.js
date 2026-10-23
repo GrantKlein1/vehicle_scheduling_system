@@ -35,6 +35,22 @@ export async function authenticate(req, res, next) {
     return res.status(401).json({ message: "Unauthorized! Invalid or expired token." });
   }
 
-  req.user = { id: user.id };
+  req.user = { id: user.id, role: user.role };
   return next();
+}
+
+export function requireFleetAccess(req, res, next) {
+  if (req.user?.role === "admin" || req.user?.role === "maintenance") {
+    return next();
+  }
+
+  return res.status(403).json({ message: "Admin role required." });
+}
+
+export function requireAdmin(req, res, next) {
+  if (req.user?.role === "admin") {
+    return next();
+  }
+
+  return res.status(403).json({ message: "Admin role required." });
 }
