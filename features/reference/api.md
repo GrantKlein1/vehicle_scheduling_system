@@ -18,6 +18,7 @@ API health stays on `/api/health`. Authentication routes are mounted at `/vehicl
 | `DELETE` | `/api/vehicle/vehicles/:vehicleId` | `admin` | Delete a vehicle and its logs | Feature 2 |
 | `POST` | `/api/vehicle/vehicles/:vehicleId/mileage-logs` | `admin`, `maintenance` | Append a mileage log | Feature 2 |
 | `POST` | `/api/vehicle/vehicles/:vehicleId/service-logs` | `admin`, `maintenance` | Append a service log | Feature 2 |
+| `PATCH` | `/api/vehicle/vehicles/:vehicleId/service-logs/:serviceLogId` | `admin`, `maintenance` | Update comments on a service log | Feature 2 |
 
 ## Conventions
 
@@ -77,7 +78,7 @@ Authenticated handlers set `req.user.id` and `req.user.role` from the session's 
 
 ## Vehicles
 
-Vehicle routes are mounted at `/api/vehicle`. Every vehicle route uses `authenticate`. A `requestor` receives `403` `{ "message": "Admin role required." }` on every vehicle route. A `maintenance` user receives that same `403` on `POST`, `PUT`, and `DELETE` `/api/vehicle/vehicles`. List, fetch, mileage logs, and service logs are allowed for `admin` and `maintenance`.
+Vehicle routes are mounted at `/api/vehicle`. Every vehicle route uses `authenticate`. A `requestor` receives `403` `{ "message": "Admin role required." }` on every vehicle route. A `maintenance` user receives that same `403` on `POST`, `PUT`, and `DELETE` `/api/vehicle/vehicles`. List, fetch, mileage logs, service logs, and service comment updates are allowed for `admin` and `maintenance`.
 
 A `userId` in a create or update body is ignored. Responses do not include `userId`.
 
@@ -85,7 +86,7 @@ A `userId` in a create or update body is ignored. Responses do not include `user
 
 **201** returns the saved vehicle: `id`, `category`, `make`, `model`, `year`, `vin`, `purchasedDate`, `color`, `passengerCapacity`, `licensePlateNumber`, `licensePlateExpirationMonth`, `areaAssigned`, `createdAt`, and `updatedAt`. Logs are not included.
 
-`category` is `Golf Cart`, `Truck`, `Car`, or `Van`. `areaAssigned` is `Athletics`, `Support Central`, or `Maintenance`. `make` and `model` are required strings of at most 40 characters and are not limited to the suggestion list. For `Truck`, `Car`, and `Van`, `vin` is required, unique, and must match `^[A-HJ-NPR-Z0-9]{17}$`, `licensePlateNumber` is required, unique, and must match `^[A-Z0-9]{2,8}$`, and `licensePlateExpirationMonth` is an integer from 1 through 12. The API does not change case to make a value match. A `Golf Cart` stores those three fields as `null`; values sent for them are discarded, including values that would fail the VIN or plate pattern, and the nulls are not treated as duplicates. Uniqueness is exact after trim and is case-sensitive. `year` is an integer from 1950 through 2027. `passengerCapacity` is an integer from 1 through 15. `purchasedDate` is a real `YYYY-MM-DD` date. `color` is required and at most 30 characters.
+`category` is `Golf Cart`, `Truck`, `Car`, or `Van`. `areaAssigned` is `Athletics`, `Support Central`, or `Maintenance`. `make` and `model` are required strings of at most 40 characters and are not limited to the suggestion list. For `Truck`, `Car`, and `Van`, `vin` is required, unique, and must match `^[A-HJ-NPR-Z0-9]{17}$`, `licensePlateNumber` is required, unique, and must match `^[A-Z0-9]{2,8}$`, and `licensePlateExpirationMonth` is an integer from 1 through 12. The API does not change case to make a value match. A `Golf Cart` stores those three fields as `null`; values sent for them are discarded, including values that would fail the VIN or plate pattern, and the nulls are not treated as duplicates. Uniqueness is exact after trim and is case-sensitive. `year` is an integer from 1950 through 2027. `passengerCapacity` is an integer from 1 through 15. `purchasedDate` is a real `YYYY-MM-DD` date on the current day or earlier. A later day returns `"Date cannot be in the future."`. `color` is required and at most 30 characters.
 
 **400** messages match the Feature 2 create error table, including `"VIN cannot be empty."`, `"VIN must be a valid 17-character VIN."`, `"VIN already exists."`, `"License Plate Number must be 2 to 8 letters or digits."`, and `"License Plate Number already exists."`.
 
@@ -123,18 +124,32 @@ The vehicle, its mileage logs, and its service logs are removed.
 
 **201** returns `id`, `vehicleId`, `entryDate`, and `currentMileage`. `currentMileage` is an integer greater than or equal to 0. `entryDate` is a real `YYYY-MM-DD` date on or before the server's local calendar date.
 
-**400** `{ "message": "Date must be a valid date." }`, `{ "message": "Date cannot be in the future." }`, or `{ "message": "Current mileage must be zero or greater." }`
+**400** `{ "message": "Date must be a valid date." }`, `{ "message": "Date cannot be in the future." }`, `{ "message": "Current mileage must be zero or greater." }`, or `{ "message": "Current mileage must be greater than the previous mileage of <previous>." }`
+
+A new reading must be greater than the highest `currentMileage` already stored for that vehicle. The first reading may be 0 or greater.
 
 **404** `{ "message": "Vehicle with id=<vehicleId> not found." }`
 
 ### Service log – `POST /api/vehicle/vehicles/:vehicleId/service-logs`
 
 ```json
-{ "entryDate": "2026-09-01", "servicePerformed": "Oil change" }
+{ "entryDate": "2026-09-01", "servicePerformed": "Oil change", "comments": "Used 5W-30." }
 ```
 
-**201** returns `id`, `vehicleId`, `entryDate`, and `servicePerformed`. `servicePerformed` is `Repair`, `Oil change`, or `Tire replacement`. `entryDate` is a real `YYYY-MM-DD` date on or before the server's local calendar date.
+**201** returns `id`, `vehicleId`, `entryDate`, `servicePerformed`, and `comments`. `servicePerformed` is any non-blank string of at most 80 characters. The form suggests `Repair`, `Oil change`, `Tire replacement`, `Tire rotation`, `Brake service`, `Battery replacement`, `Inspection`, `Air filter replacement`, `Wheel alignment`, and `Wiper replacement`. Other text in that limit is stored as a custom service. `comments` is optional text of at most 500 characters, or `null` when omitted or blank. `entryDate` is a real `YYYY-MM-DD` date on or before the server's local calendar date.
 
-**400** `{ "message": "Date must be a valid date." }`, `{ "message": "Date cannot be in the future." }`, `{ "message": "Service performed cannot be empty." }`, or `{ "message": "Service performed must be Repair, Oil change, or Tire replacement." }`
+**400** `{ "message": "Date must be a valid date." }`, `{ "message": "Date cannot be in the future." }`, `{ "message": "Service performed cannot be empty." }`, `{ "message": "Service performed cannot exceed 80 characters." }`, `{ "message": "Comments must be text." }`, or `{ "message": "Comments cannot exceed 500 characters." }`
 
 **404** `{ "message": "Vehicle with id=<vehicleId> not found." }`
+
+### Service comment – `PATCH /api/vehicle/vehicles/:vehicleId/service-logs/:serviceLogId`
+
+```json
+{ "comments": "Used 5W-30." }
+```
+
+**200** returns the service log with the updated `comments`. Blank comments are stored as `null`. `entryDate` and `servicePerformed` stay as they were.
+
+**400** `{ "message": "Comments must be text." }` or `{ "message": "Comments cannot exceed 500 characters." }`
+
+**404** `{ "message": "Vehicle with id=<vehicleId> not found." }` or `{ "message": "Service log with id=<serviceLogId> not found." }`

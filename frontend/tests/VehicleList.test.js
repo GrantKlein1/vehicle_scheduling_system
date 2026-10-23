@@ -15,6 +15,7 @@ import {
   listVehicles,
   logMileage,
   logService,
+  updateServiceComment,
   updateVehicle,
 } from "../src/services/vehicleServices.js";
 import { createTestRouter, mountWithPlugins } from "./testUtils.js";
@@ -27,6 +28,7 @@ vi.mock("../src/services/vehicleServices.js", () => ({
   deleteVehicle: vi.fn(),
   logMileage: vi.fn(),
   logService: vi.fn(),
+  updateServiceComment: vi.fn(),
 }));
 
 const ford = {
@@ -92,11 +94,28 @@ async function setLabeled(wrapper, label, value) {
     return;
   }
 
-  const field = labeled(wrapper, "VCombobox", label) ?? labeled(wrapper, "VTextField", label);
+  const field =
+    labeled(wrapper, "VCombobox", label) ??
+    labeled(wrapper, "VTextField", label) ??
+    labeled(wrapper, "VTextarea", label);
   if (!field) {
     throw new Error(`Missing field ${label}`);
   }
-  await field.find("input").setValue(String(value));
+  const input = field.find("input");
+  const target = input.exists() ? input : field.find("textarea");
+  await target.setValue(String(value));
+  await flushPromises();
+}
+
+async function setDialogLabeled(wrapper, label, value) {
+  const dialog = document.querySelector('[role="dialog"]');
+  const field = wrapper
+    .findAllComponents({ name: "VTextarea" })
+    .find((item) => item.props("label") === label && dialog?.contains(item.element));
+  if (!field) {
+    throw new Error(`Missing dialog field ${label}`);
+  }
+  await field.find("textarea").setValue(String(value));
   await flushPromises();
 }
 
@@ -172,6 +191,7 @@ describe("Feature 2 — Vehicle Management", () => {
     deleteVehicle.mockReset();
     logMileage.mockReset();
     logService.mockReset();
+    updateServiceComment.mockReset();
     await router.push({ name: "login" });
     await router.isReady();
   });
@@ -309,6 +329,18 @@ describe("Feature 2 — Vehicle Management", () => {
       await clickDialogButton("Add Vehicle");
 
       expect(pageText()).toContain("License Plate Number must be 2 to 8 letters or digits.");
+      expect(createVehicle).not.toHaveBeenCalled();
+    });
+
+    it("Future purchased date shows the date message", async () => {
+      setCurrentUser(userWithRole("admin"));
+      const { wrapper } = await mountVehicles();
+
+      await clickControl("Add Vehicle");
+      await setLabeled(wrapper, "Purchased Date", "2099-01-01");
+      await clickDialogButton("Add Vehicle");
+
+      expect(pageText()).toContain("Date cannot be in the future.");
       expect(createVehicle).not.toHaveBeenCalled();
     });
 
@@ -512,6 +544,9 @@ describe("Feature 2 — Vehicle Management", () => {
       await setLabeled(wrapper, "Service date", "2026-09-01");
       await setLabeled(wrapper, "Service performed", "Oil change");
       await clickControl("Log service");
+      expect(logService).not.toHaveBeenCalled();
+      expect(pageText()).toContain("Optional comment for Oil change");
+      await clickDialogButton("Log service");
 
       expect(logService).toHaveBeenCalledWith(4, {
         entryDate: "2026-09-01",
@@ -519,6 +554,108 @@ describe("Feature 2 — Vehicle Management", () => {
       });
       expect(pageText()).toContain("Service logged successfully!");
       expect(pageText()).toContain("Oil change");
+    });
+
+    it("Mileage that is not above the previous mileage shows the mileage message", async () => {
+      setCurrentUser(userWithRole("maintenance"));
+      catalog = [ford];
+      getVehicle.mockResolvedValue({
+        data: {
+          ...ford,
+          mileageLogs: [{ id: 1, vehicleId: 4, entryDate: "2026-10-01", currentMileage: 15000 }],
+          serviceLogs: [],
+        },
+      });
+      const { wrapper } = await mountVehicles();
+
+      await setLabeled(wrapper, "Current mileage", "15000");
+      await clickControl("Log mileage");
+
+      expect(pageText()).toContain("Current mileage must be greater than the previous mileage of 15000.");
+      expect(pageText()).toContain("Must be greater than 15,000 mi");
+      expect(logMileage).not.toHaveBeenCalled();
+    });
+
+    it("Maintenance logs a custom service with a comment", async () => {
+      setCurrentUser(userWithRole("maintenance"));
+      catalog = [ford];
+      logService.mockResolvedValue({
+        status: 201,
+        data: {
+          id: 1,
+          vehicleId: 4,
+          entryDate: "2026-09-01",
+          servicePerformed: "Windshield chip repair",
+          comments: "Small chip on the driver side.",
+        },
+      });
+      getVehicle.mockResolvedValueOnce({
+        data: { ...ford, mileageLogs: [], serviceLogs: [] },
+      });
+      getVehicle.mockResolvedValueOnce({
+        data: {
+          ...ford,
+          mileageLogs: [],
+          serviceLogs: [
+            {
+              id: 1,
+              vehicleId: 4,
+              entryDate: "2026-09-01",
+              servicePerformed: "Windshield chip repair",
+              comments: "Small chip on the driver side.",
+            },
+          ],
+        },
+      });
+      const { wrapper } = await mountVehicles();
+
+      await setLabeled(wrapper, "Service date", "2026-09-01");
+      await setLabeled(wrapper, "Service performed", "Windshield chip repair");
+      await clickControl("Log service");
+      expect(logService).not.toHaveBeenCalled();
+      await setDialogLabeled(wrapper, "Comments", "Small chip on the driver side.");
+      await clickDialogButton("Log service");
+
+      expect(logService).toHaveBeenCalledWith(4, {
+        entryDate: "2026-09-01",
+        servicePerformed: "Windshield chip repair",
+        comments: "Small chip on the driver side.",
+      });
+      expect(pageText()).toContain("Service logged successfully!");
+      expect(pageText()).toContain("Windshield chip repair");
+      expect(pageText()).toContain("Small chip on the driver side.");
+    });
+
+    it("Maintenance adds a comment to an existing service", async () => {
+      setCurrentUser(userWithRole("maintenance"));
+      catalog = [ford];
+      const serviceLogs = [
+        {
+          id: 1,
+          vehicleId: 4,
+          entryDate: "2026-09-01",
+          servicePerformed: "Oil change",
+          comments: null,
+        },
+      ];
+      getVehicle.mockImplementation(async () => ({
+        data: { ...ford, mileageLogs: [], serviceLogs: serviceLogs.map((entry) => ({ ...entry })) },
+      }));
+      updateServiceComment.mockImplementation(async (_vehicleId, _logId, body) => {
+        serviceLogs[0] = { ...serviceLogs[0], comments: body.comments };
+        return { data: { ...serviceLogs[0] } };
+      });
+      const { wrapper } = await mountVehicles();
+
+      expect(pageText()).toContain("No comment");
+      await clickControl("Add comment for Oil change");
+      expect(pageText()).toContain("Oil change on");
+      await setDialogLabeled(wrapper, "Comments", "Used 5W-30.");
+      await clickDialogButton("Save comment");
+
+      expect(updateServiceComment).toHaveBeenCalledWith(4, 1, { comments: "Used 5W-30." });
+      expect(pageText()).toContain("Comment saved.");
+      expect(pageText()).toContain("Used 5W-30.");
     });
 
     it("Future mileage date shows the date message", async () => {

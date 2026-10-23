@@ -56,6 +56,7 @@ function authed(token) {
     get: (url) => request(app).get(url).set(headers),
     post: (url) => request(app).post(url).set(headers),
     put: (url) => request(app).put(url).set(headers),
+    patch: (url) => request(app).patch(url).set(headers),
     delete: (url) => request(app).delete(url).set(headers),
   };
 }
@@ -180,6 +181,29 @@ describe("Feature 2 — Vehicle Management", () => {
         message: "License Plate Number must be 2 to 8 letters or digits.",
       });
       expect(await db.vehicle.count()).toBe(0);
+    });
+
+    it("Create with a future purchased date is rejected", async () => {
+      const token = await signIn("admin");
+
+      const response = await authed(token)
+        .post("/api/vehicle/vehicles")
+        .send(vehicleBody({ purchasedDate: "2099-01-01" }));
+
+      expect(response.status).toBe(400);
+      expect(response.body).toEqual({ message: "Date cannot be in the future." });
+      expect(await db.vehicle.count()).toBe(0);
+    });
+
+    it("Create with the current day as purchased date is accepted", async () => {
+      const token = await signIn("admin");
+
+      const response = await authed(token)
+        .post("/api/vehicle/vehicles")
+        .send(vehicleBody({ purchasedDate: localToday() }));
+
+      expect(response.status).toBe(201);
+      expect(response.body.purchasedDate).toBe(localToday());
     });
 
     it("Create with a make and model that are not on the standard list", async () => {
@@ -363,6 +387,9 @@ describe("Feature 2 — Vehicle Management", () => {
         authed(token)
           .post(`/api/vehicle/vehicles/${vehicle.id}/service-logs`)
           .send({ entryDate: "2026-09-01", servicePerformed: "Oil change" }),
+        authed(token)
+          .patch(`/api/vehicle/vehicles/${vehicle.id}/service-logs/1`)
+          .send({ comments: "Note" }),
       ];
 
       for (const call of calls) {
@@ -436,6 +463,7 @@ describe("Feature 2 — Vehicle Management", () => {
 
       expect(response.status).toBe(201);
       expect(response.body.servicePerformed).toBe("Oil change");
+      expect(response.body.comments).toBeNull();
       expect(response.body.vehicleId).toBe(vehicle.id);
       expect(response.body.entryDate).toBe("2026-09-01");
     });
@@ -452,18 +480,136 @@ describe("Feature 2 — Vehicle Management", () => {
       expect(response.body).toEqual({ message: "Current mileage must be zero or greater." });
     });
 
-    it("Service log with an unknown service is rejected", async () => {
+    it("Mileage that is not above the previous mileage is rejected", async () => {
+      const token = await signIn("maintenance");
+      const vehicle = await db.vehicle.create(vehicleBody());
+
+      const first = await authed(token)
+        .post(`/api/vehicle/vehicles/${vehicle.id}/mileage-logs`)
+        .send({ entryDate: "2026-10-01", currentMileage: 15000 });
+      expect(first.status).toBe(201);
+
+      const same = await authed(token)
+        .post(`/api/vehicle/vehicles/${vehicle.id}/mileage-logs`)
+        .send({ entryDate: "2026-10-02", currentMileage: 15000 });
+      expect(same.status).toBe(400);
+      expect(same.body).toEqual({
+        message: "Current mileage must be greater than the previous mileage of 15000.",
+      });
+
+      const lower = await authed(token)
+        .post(`/api/vehicle/vehicles/${vehicle.id}/mileage-logs`)
+        .send({ entryDate: "2026-10-03", currentMileage: 14999 });
+      expect(lower.status).toBe(400);
+      expect(lower.body).toEqual({
+        message: "Current mileage must be greater than the previous mileage of 15000.",
+      });
+
+      const higher = await authed(token)
+        .post(`/api/vehicle/vehicles/${vehicle.id}/mileage-logs`)
+        .send({ entryDate: "2026-10-04", currentMileage: 15001 });
+      expect(higher.status).toBe(201);
+      expect(higher.body.currentMileage).toBe(15001);
+      expect(await db.mileageLog.count({ where: { vehicleId: vehicle.id } })).toBe(2);
+    });
+
+    it("Maintenance logs a custom service on a vehicle", async () => {
+      const token = await signIn("maintenance");
+      const vehicle = await db.vehicle.create(vehicleBody());
+
+      const response = await authed(token)
+        .post(`/api/vehicle/vehicles/${vehicle.id}/service-logs`)
+        .send({ entryDate: "2026-09-01", servicePerformed: "Windshield chip repair" });
+
+      expect(response.status).toBe(201);
+      expect(response.body.servicePerformed).toBe("Windshield chip repair");
+      expect(response.body.comments).toBeNull();
+    });
+
+    it("Maintenance logs a service with a comment", async () => {
+      const token = await signIn("maintenance");
+      const vehicle = await db.vehicle.create(vehicleBody());
+
+      const response = await authed(token)
+        .post(`/api/vehicle/vehicles/${vehicle.id}/service-logs`)
+        .send({
+          entryDate: "2026-09-01",
+          servicePerformed: "Tire rotation",
+          comments: "  Rotated front to back.  ",
+        });
+
+      expect(response.status).toBe(201);
+      expect(response.body.servicePerformed).toBe("Tire rotation");
+      expect(response.body.comments).toBe("Rotated front to back.");
+    });
+
+    it("Service log with a too-long service name is rejected", async () => {
       const token = await signIn("maintenance");
       await seedVehicleFour();
 
       const response = await authed(token)
         .post("/api/vehicle/vehicles/4/service-logs")
-        .send({ entryDate: "2026-09-01", servicePerformed: "Inspection" });
+        .send({ entryDate: "2026-09-01", servicePerformed: "x".repeat(81) });
 
       expect(response.status).toBe(400);
-      expect(response.body).toEqual({
-        message: "Service performed must be Repair, Oil change, or Tire replacement.",
+      expect(response.body).toEqual({ message: "Service performed cannot exceed 80 characters." });
+      expect(await db.serviceLog.count()).toBe(0);
+    });
+
+    it("Maintenance adds a comment to an existing service", async () => {
+      const token = await signIn("maintenance");
+      const vehicle = await db.vehicle.create(vehicleBody());
+      const log = await db.serviceLog.create({
+        vehicleId: vehicle.id,
+        entryDate: "2026-09-01",
+        servicePerformed: "Oil change",
       });
+
+      const response = await authed(token)
+        .patch(`/api/vehicle/vehicles/${vehicle.id}/service-logs/${log.id}`)
+        .send({ comments: "Used 5W-30." });
+
+      expect(response.status).toBe(200);
+      expect(response.body.comments).toBe("Used 5W-30.");
+      expect(response.body.servicePerformed).toBe("Oil change");
+
+      const cleared = await authed(token)
+        .patch(`/api/vehicle/vehicles/${vehicle.id}/service-logs/${log.id}`)
+        .send({ comments: "   " });
+      expect(cleared.status).toBe(200);
+      expect(cleared.body.comments).toBeNull();
+    });
+
+    it("Service comment that is too long is rejected", async () => {
+      const token = await signIn("maintenance");
+      const vehicle = await db.vehicle.create(vehicleBody());
+      const log = await db.serviceLog.create({
+        vehicleId: vehicle.id,
+        entryDate: "2026-09-01",
+        servicePerformed: "Oil change",
+        comments: "Keep this.",
+      });
+
+      const response = await authed(token)
+        .patch(`/api/vehicle/vehicles/${vehicle.id}/service-logs/${log.id}`)
+        .send({ comments: "x".repeat(501) });
+
+      expect(response.status).toBe(400);
+      expect(response.body).toEqual({ message: "Comments cannot exceed 500 characters." });
+      const stored = await db.serviceLog.findByPk(log.id);
+      expect(stored.comments).toBe("Keep this.");
+    });
+
+    it("Comment update for an unknown service log is rejected", async () => {
+      const token = await signIn("maintenance");
+      await seedVehicleFour();
+
+      const response = await authed(token)
+        .patch("/api/vehicle/vehicles/4/service-logs/9999")
+        .send({ comments: "Note" });
+
+      expect(response.status).toBe(404);
+      expect(response.body).toEqual({ message: "Service log with id=9999 not found." });
     });
 
     it("Mileage log with a future date is rejected", async () => {

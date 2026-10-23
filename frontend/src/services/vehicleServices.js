@@ -27,3 +27,7 @@ export function logMileage(vehicleId, entry) {
 export function logService(vehicleId, entry) {
   return apiClient.post(`vehicle/vehicles/${vehicleId}/service-logs`, entry);
 }
+
+export function updateServiceComment(vehicleId, serviceLogId, entry) {
+  return apiClient.patch(`vehicle/vehicles/${vehicleId}/service-logs/${serviceLogId}`, entry);
+}

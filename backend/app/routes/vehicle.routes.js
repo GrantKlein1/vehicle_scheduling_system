@@ -7,6 +7,7 @@ import {
   deleteVehicle,
   getVehicle,
   listVehicles,
+  updateServiceComment,
   updateVehicle,
 } from "../controllers/vehicle.controller.js";
 
@@ -19,5 +20,11 @@ router.put("/vehicles/:vehicleId", authenticate, requireAdmin, updateVehicle);
 router.delete("/vehicles/:vehicleId", authenticate, requireAdmin, deleteVehicle);
 router.post("/vehicles/:vehicleId/mileage-logs", authenticate, requireFleetAccess, createMileageLog);
 router.post("/vehicles/:vehicleId/service-logs", authenticate, requireFleetAccess, createServiceLog);
+router.patch(
+  "/vehicles/:vehicleId/service-logs/:serviceLogId",
+  authenticate,
+  requireFleetAccess,
+  updateServiceComment
+);
 
 export default router;

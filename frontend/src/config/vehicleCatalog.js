@@ -2,7 +2,18 @@ export const VEHICLE_CATEGORIES = ["Golf Cart", "Truck", "Car", "Van"];
 
 export const AREA_OPTIONS = ["Athletics", "Support Central", "Maintenance"];
 
-export const SERVICE_OPTIONS = ["Repair", "Oil change", "Tire replacement"];
+export const SERVICE_OPTIONS = [
+  "Repair",
+  "Oil change",
+  "Tire replacement",
+  "Tire rotation",
+  "Brake service",
+  "Battery replacement",
+  "Inspection",
+  "Air filter replacement",
+  "Wheel alignment",
+  "Wiper replacement",
+];
 
 export const EXPIRATION_MONTHS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
 

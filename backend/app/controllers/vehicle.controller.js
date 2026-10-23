@@ -2,7 +2,8 @@ import db from "../models/index.js";
 
 const CATEGORIES = ["Golf Cart", "Truck", "Car", "Van"];
 const AREAS = ["Athletics", "Support Central", "Maintenance"];
-const SERVICES = ["Repair", "Oil change", "Tire replacement"];
+const SERVICE_LIMIT = 80;
+const COMMENT_LIMIT = 500;
 const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
 const VIN_PATTERN = /^[A-HJ-NPR-Z0-9]{17}$/;
 const PLATE_PATTERN = /^[A-Z0-9]{2,8}$/;
@@ -85,6 +86,9 @@ function validateVehicle(body) {
   const purchasedDate = validDateOnly(body?.purchasedDate);
   if (!purchasedDate) {
     return { error: "Purchased Date must be a valid date." };
+  }
+  if (purchasedDate > localToday()) {
+    return { error: "Date cannot be in the future." };
   }
 
   const color = trimmedString(body?.color);
@@ -169,6 +173,23 @@ function validateMileage(body) {
   return { value: { entryDate, currentMileage: body.currentMileage } };
 }
 
+function validateComments(value) {
+  if (value === undefined || value === null) {
+    return { value: null };
+  }
+  if (typeof value !== "string") {
+    return { error: "Comments must be text." };
+  }
+  const comments = value.trim();
+  if (!comments) {
+    return { value: null };
+  }
+  if (comments.length > COMMENT_LIMIT) {
+    return { error: "Comments cannot exceed 500 characters." };
+  }
+  return { value: comments };
+}
+
 function validateService(body) {
   const dated = validateLogDate(body?.entryDate);
   if (dated.error) {
@@ -180,11 +201,16 @@ function validateService(body) {
   if (!servicePerformed) {
     return { error: "Service performed cannot be empty." };
   }
-  if (!SERVICES.includes(servicePerformed)) {
-    return { error: "Service performed must be Repair, Oil change, or Tire replacement." };
+  if (servicePerformed.length > SERVICE_LIMIT) {
+    return { error: "Service performed cannot exceed 80 characters." };
   }
 
-  return { value: { entryDate, servicePerformed } };
+  const comments = validateComments(body?.comments);
+  if (comments.error) {
+    return comments;
+  }
+
+  return { value: { entryDate, servicePerformed, comments: comments.value } };
 }
 
 function dateOnly(value) {
@@ -231,6 +257,7 @@ function serviceJson(log) {
     vehicleId: row.vehicleId,
     entryDate: dateOnly(row.entryDate),
     servicePerformed: row.servicePerformed,
+    comments: row.comments ?? null,
   };
 }
 
@@ -402,6 +429,18 @@ export async function createMileageLog(req, res) {
     return res.status(400).json({ message: validated.error });
   }
 
+  const previousMileage = await db.mileageLog.max("currentMileage", {
+    where: { vehicleId: vehicle.id },
+  });
+  if (previousMileage !== null && previousMileage !== undefined) {
+    const previous = Number(previousMileage);
+    if (validated.value.currentMileage <= previous) {
+      return res.status(400).json({
+        message: `Current mileage must be greater than the previous mileage of ${previous}.`,
+      });
+    }
+  }
+
   const log = await db.mileageLog.create({
     ...validated.value,
     vehicleId: vehicle.id,
@@ -427,4 +466,31 @@ export async function createServiceLog(req, res) {
   });
 
   return res.status(201).json(serviceJson(log));
+}
+
+export async function updateServiceComment(req, res) {
+  const vehicle = await findVehicle(req.params.vehicleId);
+  if (!vehicle) {
+    return notFound(res, req.params.vehicleId);
+  }
+
+  const serviceLogId = Number(req.params.serviceLogId);
+  if (!Number.isInteger(serviceLogId)) {
+    return res.status(404).json({ message: `Service log with id=${req.params.serviceLogId} not found.` });
+  }
+
+  const log = await db.serviceLog.findOne({
+    where: { id: serviceLogId, vehicleId: vehicle.id },
+  });
+  if (!log) {
+    return res.status(404).json({ message: `Service log with id=${serviceLogId} not found.` });
+  }
+
+  const comments = validateComments(req.body?.comments);
+  if (comments.error) {
+    return res.status(400).json({ message: comments.error });
+  }
+
+  await log.update({ comments: comments.value });
+  return res.status(200).json(serviceJson(log));
 }

@@ -50,7 +50,7 @@ The spec names `expirationDate` as `DATE`. The column is a datetime so the 24-ho
 | `model` | STRING(40) | Required. Any non-blank value |
 | `year` | INTEGER | Required. 1950 through 2027 |
 | `vin` | STRING(17) | Required and unique for `Truck`, `Car`, and `Van`. Must match `^[A-HJ-NPR-Z0-9]{17}$`. `null` for `Golf Cart`. Case-sensitive after trim |
-| `purchasedDate` | DATEONLY | Required. `YYYY-MM-DD` |
+| `purchasedDate` | DATEONLY | Required. `YYYY-MM-DD`. The current day or a past date |
 | `color` | STRING(30) | Required |
 | `passengerCapacity` | INTEGER | Required. 1 through 15 |
 | `licensePlateNumber` | STRING(8) | Required and unique for `Truck`, `Car`, and `Van`. Must match `^[A-Z0-9]{2,8}$`. `null` for `Golf Cart`. Case-sensitive after trim |
@@ -67,7 +67,7 @@ There is no `userId` column. Introduced in Feature 2.
 |-------|------|-------|
 | `id` | INTEGER PK | Auto-increment |
 | `entryDate` | DATEONLY | Required. `YYYY-MM-DD`. The current day or a past date |
-| `currentMileage` | INTEGER | Required. Integer greater than or equal to 0 |
+| `currentMileage` | INTEGER | Required. Integer greater than or equal to 0, and greater than the highest mileage already logged for that vehicle |
 | `vehicleId` | INTEGER FK | Required, references `vehicles.id` |
 
 No `createdAt` or `updatedAt`. Introduced in Feature 2.
@@ -78,7 +78,8 @@ No `createdAt` or `updatedAt`. Introduced in Feature 2.
 |-------|------|-------|
 | `id` | INTEGER PK | Auto-increment |
 | `entryDate` | DATEONLY | Required. `YYYY-MM-DD`. The current day or a past date |
-| `servicePerformed` | STRING | Required. `Repair`, `Oil change`, or `Tire replacement` |
+| `servicePerformed` | STRING(80) | Required. Any non-blank service of at most 80 characters |
+| `comments` | TEXT | Optional. At most 500 characters. `null` when omitted or blank |
 | `vehicleId` | INTEGER FK | Required, references `vehicles.id` |
 
 No `createdAt` or `updatedAt`. Introduced in Feature 2.

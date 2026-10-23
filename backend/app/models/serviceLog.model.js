@@ -7,8 +7,12 @@ export default (sequelize, Sequelize) => {
         allowNull: false,
       },
       servicePerformed: {
-        type: Sequelize.STRING,
+        type: Sequelize.STRING(80),
         allowNull: false,
+      },
+      comments: {
+        type: Sequelize.TEXT,
+        allowNull: true,
       },
       vehicleId: {
         type: Sequelize.INTEGER,

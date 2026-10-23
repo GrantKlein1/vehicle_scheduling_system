@@ -26,6 +26,7 @@ import {
   listVehicles,
   logMileage,
   logService,
+  updateServiceComment,
   updateVehicle,
 } from "../services/vehicleServices.js";
 
@@ -41,6 +42,7 @@ const logs = ref({ mileageLogs: [], serviceLogs: [] });
 const loadingLogs = ref(false);
 const savingMileage = ref(false);
 const savingService = ref(false);
+const savingComment = ref(false);
 const detailCard = ref(null);
 const snackbar = ref({ show: false, text: "", color: "success" });
 
@@ -55,6 +57,12 @@ const mileage = ref(emptyMileage());
 const mileageErrors = ref({});
 const service = ref(emptyService());
 const serviceErrors = ref({});
+const serviceMenu = ref(false);
+const commentDialog = ref(false);
+const commentMode = ref("edit");
+const commentTarget = ref(null);
+const commentDraft = ref("");
+const commentError = ref([]);
 
 const REGISTRATION_FIELDS = ["vin", "licensePlateNumber", "licensePlateExpirationMonth"];
 
@@ -76,6 +84,13 @@ const latestService = computed(() => {
 });
 const mileageNewestFirst = computed(() => [...logs.value.mileageLogs].reverse());
 const serviceNewestFirst = computed(() => [...logs.value.serviceLogs].reverse());
+const highestMileage = computed(() => {
+  const values = logs.value.mileageLogs.map((entry) => Number(entry.currentMileage));
+  if (values.length === 0) {
+    return null;
+  }
+  return Math.max(...values);
+});
 const detailFields = computed(() => {
   const vehicle = selectedVehicle.value;
   if (!vehicle) {
@@ -205,8 +220,13 @@ function vehicleFieldMessage(key, value) {
   if (key === "vin" && !VIN_PATTERN.test(String(value).trim())) {
     return "VIN must be a valid 17-character VIN.";
   }
-  if (key === "purchasedDate" && !isRealDate(value)) {
-    return "Purchased Date must be a valid date.";
+  if (key === "purchasedDate") {
+    if (!isRealDate(value)) {
+      return "Purchased Date must be a valid date.";
+    }
+    if (value.trim() > todayIso()) {
+      return "Date cannot be in the future.";
+    }
   }
   if (key === "color") {
     return textLimit(value, 30, "Color cannot exceed 30 characters.");
@@ -243,21 +263,36 @@ function mileageFieldMessage(key, value) {
   if (key === "entryDate") {
     return logDateMessage(value);
   }
-  if (key === "currentMileage" && !integerInRange(value, 0, Number.MAX_SAFE_INTEGER)) {
-    return "Current mileage must be zero or greater.";
+  if (key === "currentMileage") {
+    if (!integerInRange(value, 0, Number.MAX_SAFE_INTEGER)) {
+      return "Current mileage must be zero or greater.";
+    }
+    const previous = highestMileage.value;
+    if (previous !== null && toInteger(value) <= previous) {
+      return `Current mileage must be greater than the previous mileage of ${previous}.`;
+    }
   }
   return "";
 }
 
 function serviceFieldMessage(key, value) {
+  if (key === "comments") {
+    if (isBlank(value)) {
+      return "";
+    }
+    if (String(value).trim().length > 500) {
+      return "Comments cannot exceed 500 characters.";
+    }
+    return "";
+  }
   if (isBlank(value)) {
     return "Required field";
   }
   if (key === "entryDate") {
     return logDateMessage(value);
   }
-  if (key === "servicePerformed" && !SERVICE_OPTIONS.includes(value)) {
-    return "Service performed must be Repair, Oil change, or Tire replacement.";
+  if (key === "servicePerformed" && String(value).trim().length > 80) {
+    return "Service performed cannot exceed 80 characters.";
   }
   return "";
 }
@@ -533,7 +568,15 @@ async function saveMileage() {
   }
 }
 
-async function saveService() {
+function openComment(entry) {
+  commentMode.value = "edit";
+  commentTarget.value = entry;
+  commentDraft.value = entry.comments ?? "";
+  commentError.value = [];
+  commentDialog.value = true;
+}
+
+function openServiceComment() {
   serviceErrors.value = collectMessages(
     ["entryDate", "servicePerformed"],
     service.value,
@@ -543,21 +586,57 @@ async function saveService() {
     return;
   }
 
+  serviceMenu.value = false;
+  commentMode.value = "log";
+  commentTarget.value = {
+    servicePerformed: String(service.value.servicePerformed).trim(),
+    entryDate: service.value.entryDate,
+  };
+  commentDraft.value = "";
+  commentError.value = [];
+  commentDialog.value = true;
+}
+
+async function saveComment() {
+  const comments = commentDraft.value.trim();
+  if (comments.length > 500) {
+    commentError.value = ["Comments cannot exceed 500 characters."];
+    return;
+  }
+
   const vehicleId = selectedId.value;
-  savingService.value = true;
+  if (commentMode.value === "log") {
+    savingService.value = true;
+    try {
+      await logService(vehicleId, {
+        entryDate: commentTarget.value.entryDate,
+        servicePerformed: commentTarget.value.servicePerformed,
+        ...(comments ? { comments } : {}),
+      });
+      commentDialog.value = false;
+      service.value = emptyService();
+      serviceErrors.value = {};
+      await refreshLogs(vehicleId);
+      notify("Service logged successfully!");
+    } catch (error) {
+      notify(apiMessage(error), true);
+    } finally {
+      savingService.value = false;
+    }
+    return;
+  }
+
+  const serviceLogId = commentTarget.value?.id;
+  savingComment.value = true;
   try {
-    await logService(vehicleId, {
-      entryDate: service.value.entryDate,
-      servicePerformed: service.value.servicePerformed,
-    });
-    service.value = emptyService();
-    serviceErrors.value = {};
+    await updateServiceComment(vehicleId, serviceLogId, { comments: comments || null });
+    commentDialog.value = false;
     await refreshLogs(vehicleId);
-    notify("Service logged successfully!");
+    notify("Comment saved.");
   } catch (error) {
     notify(apiMessage(error), true);
   } finally {
-    savingService.value = false;
+    savingComment.value = false;
   }
 }
 
@@ -677,6 +756,9 @@ onMounted(async () => {
                       :error-messages="mileageErrors.currentMileage"
                       @update:focused="focused => onMileageBlur('currentMileage', focused)"
                     />
+                    <div v-if="highestMileage !== null" class="text-caption text-medium-emphasis mt-1">
+                      Must be greater than {{ formatMileage(highestMileage) }}
+                    </div>
                   </v-col>
                   <v-col cols="12" sm="3" class="d-flex align-center">
                     <v-btn
@@ -715,7 +797,7 @@ onMounted(async () => {
 
               <v-divider class="my-4" />
               <h2 class="text-subtitle-1 mb-2">Service log</h2>
-              <v-form @submit.prevent="saveService">
+              <v-form @submit.prevent="openServiceComment">
                 <v-row>
                   <v-col cols="12" sm="4">
                     <v-text-field
@@ -728,11 +810,14 @@ onMounted(async () => {
                     />
                   </v-col>
                   <v-col cols="12" sm="5">
-                    <v-select
+                    <v-combobox
                       v-model="service.servicePerformed"
+                      v-model:menu="serviceMenu"
                       label="Service performed"
                       :items="SERVICE_OPTIONS"
                       hide-details="auto"
+                      hint="Select a service or type your own"
+                      persistent-hint
                       :error-messages="serviceErrors.servicePerformed"
                       @update:focused="focused => onServiceBlur('servicePerformed', focused)"
                     />
@@ -744,7 +829,7 @@ onMounted(async () => {
                       type="button"
                       aria-label="Log service"
                       :loading="savingService"
-                      @click="saveService"
+                      @click="openServiceComment"
                     >
                       Log service
                     </v-btn>
@@ -762,12 +847,28 @@ onMounted(async () => {
                   <tr>
                     <th>Date</th>
                     <th>Service</th>
+                    <th>Comments</th>
+                    <th></th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr v-for="entry in serviceNewestFirst" :key="`service-${entry.id}`">
                     <td>{{ formatDate(entry.entryDate) }}</td>
                     <td>{{ entry.servicePerformed }}</td>
+                    <td class="service-comment">{{ entry.comments || "No comment" }}</td>
+                    <td>
+                      <v-btn
+                        class="service-comment-btn"
+                        size="small"
+                        variant="outlined"
+                        color="primary"
+                        :prepend-icon="entry.comments ? 'mdi-comment-edit-outline' : 'mdi-comment-plus-outline'"
+                        :aria-label="entry.comments ? `Edit comment for ${entry.servicePerformed}` : `Add comment for ${entry.servicePerformed}`"
+                        @click="openComment(entry)"
+                      >
+                        {{ entry.comments ? "Edit comment" : "Add comment" }}
+                      </v-btn>
+                    </td>
                   </tr>
                 </tbody>
               </v-table>
@@ -933,6 +1034,41 @@ onMounted(async () => {
       </v-card>
     </v-dialog>
 
+    <v-dialog v-model="commentDialog" max-width="520">
+      <v-card>
+        <v-card-title>{{ commentMode === "log" ? "Add a comment" : commentTarget?.comments ? "Edit comment" : "Add comment" }}</v-card-title>
+        <v-card-text>
+          <p v-if="commentTarget" class="mb-3">
+            <template v-if="commentMode === 'log'">
+              Optional comment for {{ commentTarget.servicePerformed }} on {{ formatDate(commentTarget.entryDate) }}.
+            </template>
+            <template v-else>
+              {{ commentTarget.servicePerformed }} on {{ formatDate(commentTarget.entryDate) }}
+            </template>
+          </p>
+          <v-textarea
+            v-model="commentDraft"
+            label="Comments"
+            rows="3"
+            auto-grow
+            :error-messages="commentError"
+          />
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn variant="text" @click="commentDialog = false">Cancel</v-btn>
+          <v-btn
+            class="oc-cta"
+            color="primary"
+            :loading="commentMode === 'log' ? savingService : savingComment"
+            @click="saveComment"
+          >
+            {{ commentMode === "log" ? "Log service" : "Save comment" }}
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
     <v-snackbar v-model="snackbar.show" :color="snackbar.color">{{ snackbar.text }}</v-snackbar>
   </v-container>
 </template>
@@ -941,6 +1077,16 @@ onMounted(async () => {
 .vehicle-panel {
   color: rgb(var(--v-theme-on-surface));
   border-color: rgb(var(--v-theme-outline));
+}
+
+.service-comment {
+  white-space: normal;
+  max-width: 280px;
+}
+
+.service-comment-btn {
+  text-transform: none;
+  letter-spacing: 0.01em;
 }
 
 .vehicle-dialog-actions {

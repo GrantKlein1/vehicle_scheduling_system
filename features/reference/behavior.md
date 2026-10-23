@@ -70,7 +70,9 @@ They do **not** authorize new scope — implement only from `features/feature-*.
 | A `requestor` receives `403` `{ "message": "Admin role required." }` on every vehicle route | `requireFleetAccess` | Feature 2 |
 | Catalog writes by `maintenance` return `403` `{ "message": "Admin role required." }` | `requireAdmin` | Feature 2 |
 | The vehicle list is ordered by make, then model, then id | `GET /api/vehicle/vehicles` | Feature 2 |
-| Mileage and service logs are append-only and ordered by date, then id | Log create routes and `GET` one vehicle | Feature 2 |
+| Mileage and service logs are appended and ordered by date, then id. A service date and service performed are not edited later. Comments on a service can be set at creation and updated later | Log routes and `GET` one vehicle | Feature 2 |
+| A new mileage reading must be greater than the highest mileage already logged for that vehicle | Mileage log route and the mileage form | Feature 2 |
+| Service performed is any non-blank text up to 80 characters. The form lists common repairs and also accepts a typed custom service. **Log service** asks for an optional comment before the service is saved. Comments are text up to 500 characters and can also be changed from an outlined button on the service row | Service log route, comment update route, and the service form | Feature 2 |
 | Deleting a vehicle deletes its mileage logs and service logs | Delete handler and `onDelete: CASCADE` | Feature 2 |
 | `make` and `model` may be values outside the standard suggestion list | API stores any non-blank make and model | Feature 2 |
 | The vehicle screen shows **Add Vehicle**, **Edit vehicle**, and **Delete vehicle** for `admin` only | `Vehicles.vue` | Feature 2 |
@@ -82,5 +84,6 @@ They do **not** authorize new scope — implement only from `features/feature-*.
 | For `Truck`, `Car`, and `Van`, `vin` must match `^[A-HJ-NPR-Z0-9]{17}$`. A mismatch returns `VIN must be a valid 17-character VIN.` The form shows the same message and does not call the API | Vehicle create/update and the Add and Edit dialogs | Feature 2 |
 | For `Truck`, `Car`, and `Van`, `licensePlateNumber` must match `^[A-Z0-9]{2,8}$`. A mismatch returns `License Plate Number must be 2 to 8 letters or digits.` The form shows the same message and does not call the API | Vehicle create/update and the Add and Edit dialogs | Feature 2 |
 | A mileage or service `entryDate` after the server's local calendar date returns `Date cannot be in the future.` The current day is accepted. The form shows the same message and does not call the API | Mileage and service log routes and the inline log forms | Feature 2 |
+| A `purchasedDate` after the server's local calendar date returns `Date cannot be in the future.` The current day is accepted. The form shows the same message and does not call the API | Vehicle create/update and the Add and Edit dialogs | Feature 2 |
 | An empty catalog shows **No vehicles yet.** A load failure shows the API message in an error alert | `Vehicles.vue` | Feature 2 |
 | Create, update, delete, and log success use the snackbar text from the Feature 2 screen spec. Failures show the API `message` | `Vehicles.vue` | Feature 2 |

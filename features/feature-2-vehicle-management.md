@@ -80,7 +80,7 @@
 **So that** the fleet's mileage and service history stays current
 
 **Priority:** P1
-**Independent test:** Log a mileage reading and an oil change on a vehicle and confirm both appear on that vehicle. A future mileage date or service date is rejected.
+**Independent test:** Log a mileage reading and an oil change on a vehicle and confirm both appear on that vehicle. A later mileage that is not higher than the previous reading is rejected. A future mileage date or service date is rejected. A custom service can be logged with a comment, and a comment can be added to a service afterward.
 **Acceptance scenarios:** see ### US-2.8 under Acceptance Criteria
 
 ---
@@ -102,12 +102,14 @@
 - **FR-011:** For `Truck`, `Car`, and `Van`, `vin` MUST be required, unique, and match **FR-017**. A duplicate or a VIN that does not match **FR-017** MUST return HTTP `400`. A `Golf Cart` MUST store `vin` as `null`. Values sent for `vin`, `licensePlateNumber`, or `licensePlateExpirationMonth` on a golf cart MUST be discarded. The golf-cart path does not apply **FR-017** or **FR-018**.
 - **FR-012:** `category` MUST be exactly one of `Golf Cart`, `Truck`, `Car`, or `Van`. `make` and `model` MUST be required strings of at most 40 characters. They are not limited to the standard list. The standard list is the suggestion list in the Make and Model combo boxes. 
 - **FR-013:** `areaAssigned` MUST be exactly one of `Athletics`, `Support Central`, or `Maintenance`.
-- **FR-014:** `servicePerformed` MUST be exactly one of `Repair`, `Oil change`, or `Tire replacement`. Mileage and service rows are append-only in this feature. A service `entryDate` MUST be the current day or a past date. A future service date MUST return HTTP `400`.
+- **FR-014:** `servicePerformed` MUST be a non-blank string of at most 80 characters. The service form offers `Repair`, `Oil change`, `Tire replacement`, `Tire rotation`, `Brake service`, `Battery replacement`, `Inspection`, `Air filter replacement`, `Wheel alignment`, and `Wiper replacement`, and any other service text within that limit is stored. A service `entryDate` MUST be the current day or a past date. A future service date MUST return HTTP `400`. Optional `comments` MUST be text of at most 500 characters. Omitted or blank comments are stored as `null`. An `admin` or `maintenance` user MUST be able to set comments when the service is logged and update comments later. The service date and service performed stay unchanged after create.
+- **FR-021:** A new `currentMileage` MUST be an integer strictly greater than the highest `currentMileage` already stored for that vehicle. The first reading for a vehicle MAY be any integer greater than or equal to 0. A reading that is not greater MUST return HTTP `400` with `{ "message": "Current mileage must be greater than the previous mileage of <previous>." }`.
 - **FR-015:** Deleting a vehicle MUST delete that vehicle's mileage logs and service logs.
 - **FR-016:** This feature MUST add **Vehicle** to the existing `MenuBar` for `admin` and `maintenance` only. It MUST NOT create a second `MenuBar`.
 - **FR-017:** For `Truck`, `Car`, and `Van`, `vin` MUST match `^[A-HJ-NPR-Z0-9]{17}$`. A value that does not match MUST return HTTP `400`.
 - **FR-018:** For `Truck`, `Car`, and `Van`, `licensePlateNumber` MUST match `^[A-Z0-9]{2,8}$`. A value that does not match MUST return HTTP `400`.
 - **FR-019:** A mileage `entryDate` MUST be the current day or a past date. A future mileage date MUST return HTTP `400`.
+- **FR-020:** `purchasedDate` MUST be a real calendar date in `YYYY-MM-DD` form, and it MUST be the current day or a past date. A future purchased date MUST return HTTP `400` with `{ "message": "Date cannot be in the future." }`. The same rule applies to update.
 
 ## Assumptions
 
@@ -130,6 +132,10 @@
 - Duplicate `licensePlateNumber`: HTTP `400` with `"License Plate Number already exists."`. Empty plate values on golf carts do not count as duplicates.
 - A `licensePlateNumber` on a `Truck`, `Car`, or `Van` that does not match `^[A-Z0-9]{2,8}$`: HTTP `400` with `"License Plate Number must be 2 to 8 letters or digits."`. This includes a hyphen, a space, a lowercase letter, fewer than 2 characters, or more than 8 characters.
 - A mileage or service `entryDate` after the current calendar date: HTTP `400` with `"Date cannot be in the future."`. The current day is allowed.
+- A mileage reading equal to or below the highest mileage already logged for that vehicle: HTTP `400` with `"Current mileage must be greater than the previous mileage of <previous>."`. The first reading has no previous mileage.
+- A service name longer than 80 characters: HTTP `400` with `"Service performed cannot exceed 80 characters."`.
+- Comments longer than 500 characters: HTTP `400` with `"Comments cannot exceed 500 characters."`. Blank comments are stored as `null`.
+- A `purchasedDate` after the current calendar date: HTTP `400` with `"Date cannot be in the future."`. The current day is allowed. The same rule applies to update.
 - A `Golf Cart` is stored with `vin`, `licensePlateNumber`, and `licensePlateExpirationMonth` set to `null`, even when the request includes those fields.
 - A `make` or `model` that is not on the standard list is stored. The API does not reject it for being off the list.
 - `year`, `passengerCapacity`, `licensePlateExpirationMonth`, `purchasedDate`, `color`, or `areaAssigned` outside the rules in the API error table: HTTP `400`.
@@ -157,7 +163,7 @@ Vehicles belong to one shared catalog. There is no `userId` on a vehicle. Admins
 | **Read scope** | `GET /api/vehicle/vehicles` and `GET /api/vehicle/vehicles/:vehicleId` return the shared catalog to an authenticated `admin` or `maintenance` user. |
 | **Write scope** | `PUT` and `DELETE` `/api/vehicle/vehicles/:vehicleId` succeed only when `req.user.role === "admin"`. |
 | **Create scope** | `POST /api/vehicle/vehicles` succeeds only when `req.user.role === "admin"`. The row is saved with no `userId`. |
-| **Log scope** | `POST` mileage and service logs succeed for `admin` and `maintenance`. They append a row for that `vehicleId`. |
+| **Log scope** | `POST` mileage and service logs, and `PATCH` service comments, succeed for `admin` and `maintenance`. Mileage and service rows are appended for that `vehicleId`. A comment update changes only `comments` on that service log. |
 | **Requestor access** | Any vehicle endpoint returns `403` with `{ "message": "Admin role required." }`. |
 | **Maintenance catalog changes** | `POST`, `PUT`, and `DELETE` on a vehicle return `403` with `{ "message": "Admin role required." }`. |
 | **UI scope** | `Vehicles.vue` and the **Vehicle** `MenuBar` item render for `admin` and `maintenance` only. Add, Edit, and Delete render for `admin` only. |
@@ -168,8 +174,8 @@ Vehicles belong to one shared catalog. There is no `userId` on a vehicle. Admins
 ## Key Entities
 
 - **Vehicle**: one shared catalog row (no `userId`). Fields: category, make, model, year, VIN, purchased date, color, passenger capacity, license plate number, license plate expiration month, area assigned. Category is exactly one of Golf Cart, Truck, Car, or Van. On a Truck, Car, or Van, the VIN is a 17-character VIN and the license plate is 2 to 8 letters or digits. A Golf Cart has neither.
-- **Mileage log**: a date and a current mileage for one vehicle. The date is the current day or a past date.
-- **Service log**: a date and a service performed for one vehicle. The service is Repair, Oil change, or Tire replacement. The date is the current day or a past date.
+- **Mileage log**: a date and a current mileage for one vehicle. The date is the current day or a past date. Each new reading is greater than the highest reading already stored for that vehicle.
+- **Service log**: a date, a service performed, and optional comments for one vehicle. The service is one of the listed repairs or any other service text of at most 80 characters. Comments are text of at most 500 characters. The date is the current day or a past date. Comments can be changed after the service is logged.
 - **User / Session**: required for navigation and API calls. Roles are `admin`, `maintenance`, and `requestor` (Feature 1).
 
 ---
@@ -189,6 +195,7 @@ The error tables in this section are normative for HTTP `400` responses. Gherkin
 | `DELETE` | `/api/vehicle/vehicles/:vehicleId` | `admin` | Delete a vehicle and its logs |
 | `POST` | `/api/vehicle/vehicles/:vehicleId/mileage-logs` | `admin`, `maintenance` | Append a mileage log |
 | `POST` | `/api/vehicle/vehicles/:vehicleId/service-logs` | `admin`, `maintenance` | Append a service log |
+| `PATCH` | `/api/vehicle/vehicles/:vehicleId/service-logs/:serviceLogId` | `admin`, `maintenance` | Update a service log's comments |
 
 ### Create – `POST /api/vehicle/vehicles`
 
@@ -229,6 +236,7 @@ A `userId` property in the body is ignored.
 | `vin` does not match `^[A-HJ-NPR-Z0-9]{17}$` when `category` is not `Golf Cart` | `VIN must be a valid 17-character VIN.` |
 | Duplicate `vin` | `VIN already exists.` |
 | Missing, blank, or invalid `purchasedDate` | `Purchased Date must be a valid date.` |
+| `purchasedDate` after the current calendar date | `Date cannot be in the future.` |
 | Missing or blank `color` | `Color cannot be empty.` |
 | `color` longer than 30 characters | `Color cannot exceed 30 characters.` |
 | Missing `passengerCapacity`, or not an integer from 1 through 15 | `Number of passengers must be from 1 through 15.` |
@@ -239,7 +247,7 @@ A `userId` property in the body is ignored.
 | Missing or blank `areaAssigned` | `Area Assigned cannot be empty.` |
 | `areaAssigned` not one of the three area names | `Area Assigned must be Athletics, Support Central, or Maintenance.` |
 
-`purchasedDate` MUST be a real calendar date in `YYYY-MM-DD` form. For `Truck`, `Car`, and `Van`, `vin` MUST match `^[A-HJ-NPR-Z0-9]{17}$` and `licensePlateNumber` MUST match `^[A-Z0-9]{2,8}$`. The API does not change case to make a value match. Uniqueness of `vin` and `licensePlateNumber` is exact after trim, and it is case-sensitive. A `Golf Cart` stores `vin`, `licensePlateNumber`, and `licensePlateExpirationMonth` as `null`. Those nulls are not unique values, so more than one golf cart can omit them. Any values sent for those three fields on a golf cart are discarded, including values that would fail **FR-017** or **FR-018**.
+`purchasedDate` MUST be a real calendar date in `YYYY-MM-DD` form. The current day is the server's local calendar date. That day and every earlier day are accepted. A later day returns `Date cannot be in the future.` For `Truck`, `Car`, and `Van`, `vin` MUST match `^[A-HJ-NPR-Z0-9]{17}$` and `licensePlateNumber` MUST match `^[A-Z0-9]{2,8}$`. The API does not change case to make a value match. Uniqueness of `vin` and `licensePlateNumber` is exact after trim, and it is case-sensitive. A `Golf Cart` stores `vin`, `licensePlateNumber`, and `licensePlateExpirationMonth` as `null`. Those nulls are not unique values, so more than one golf cart can omit them. Any values sent for those three fields on a golf cart are discarded, including values that would fail **FR-017** or **FR-018**.
 
 **Forbidden:** `403` `{ "message": "Admin role required." }` when the caller is `maintenance` or `requestor`.
 
@@ -271,7 +279,7 @@ A `userId` property in the body is ignored.
     { "id": 1, "vehicleId": 1, "entryDate": "2026-10-01", "currentMileage": 15000 }
   ],
   "serviceLogs": [
-    { "id": 1, "vehicleId": 1, "entryDate": "2026-09-01", "servicePerformed": "Oil change" }
+    { "id": 1, "vehicleId": 1, "entryDate": "2026-09-01", "servicePerformed": "Oil change", "comments": null }
   ],
   "createdAt": "2026-10-15T12:00:00.000Z",
   "updatedAt": "2026-10-15T12:00:00.000Z"
@@ -327,6 +335,7 @@ The vehicle row, its mileage logs, and its service logs are removed.
 | Missing, blank, or invalid `entryDate` | `Date must be a valid date.` |
 | `entryDate` after the current calendar date | `Date cannot be in the future.` |
 | Missing `currentMileage`, or not an integer greater than or equal to 0 | `Current mileage must be zero or greater.` |
+| `currentMileage` less than or equal to the highest mileage already logged for that vehicle | `Current mileage must be greater than the previous mileage of <previous>.` |
 
 `entryDate` MUST be a real calendar date in `YYYY-MM-DD` form. The current day is the server's local calendar date. That day and every earlier day are accepted. A later day returns `Date cannot be in the future.` The same date rule applies to service logs.
 
@@ -339,9 +348,12 @@ The vehicle row, its mileage logs, and its service logs are removed.
 ```json
 {
   "entryDate": "2026-09-01",
-  "servicePerformed": "Oil change"
+  "servicePerformed": "Oil change",
+  "comments": "Used 5W-30."
 }
 ```
+
+`comments` is optional. A missing, null, or blank value is stored as `null`.
 
 **Success** (`201`):
 
@@ -350,9 +362,12 @@ The vehicle row, its mileage logs, and its service logs are removed.
   "id": 1,
   "vehicleId": 1,
   "entryDate": "2026-09-01",
-  "servicePerformed": "Oil change"
+  "servicePerformed": "Oil change",
+  "comments": "Used 5W-30."
 }
 ```
+
+`servicePerformed` is any non-blank string of at most 80 characters. The form suggests `Repair`, `Oil change`, `Tire replacement`, `Tire rotation`, `Brake service`, `Battery replacement`, `Inspection`, `Air filter replacement`, `Wheel alignment`, and `Wiper replacement`. Other text in that limit is a custom service.
 
 **Errors (`400`):**
 
@@ -361,9 +376,25 @@ The vehicle row, its mileage logs, and its service logs are removed.
 | Missing, blank, or invalid `entryDate` | `Date must be a valid date.` |
 | `entryDate` after the current calendar date | `Date cannot be in the future.` |
 | Missing or blank `servicePerformed` | `Service performed cannot be empty.` |
-| `servicePerformed` not one of the three services | `Service performed must be Repair, Oil change, or Tire replacement.` |
+| `servicePerformed` longer than 80 characters | `Service performed cannot exceed 80 characters.` |
+| `comments` is not text | `Comments must be text.` |
+| `comments` longer than 500 characters | `Comments cannot exceed 500 characters.` |
 
 **Not found:** `404` `{ "message": "Vehicle with id=<vehicleId> not found." }`
+
+### Update service comment – `PATCH /api/vehicle/vehicles/:vehicleId/service-logs/:serviceLogId`
+
+**Request body:**
+
+```json
+{ "comments": "Used 5W-30." }
+```
+
+**Success** (`200`): the service log, including the updated `comments`. A blank `comments` value is stored as `null`. `entryDate` and `servicePerformed` are not changed.
+
+**Errors (`400`):** `{ "message": "Comments must be text." }` or `{ "message": "Comments cannot exceed 500 characters." }`
+
+**Not found:** `404` `{ "message": "Vehicle with id=<vehicleId> not found." }` or `{ "message": "Service log with id=<serviceLogId> not found." }`
 
 **Error response (all):** `{ "message": "Human-readable explanation." }`
 
@@ -403,15 +434,18 @@ Route name `vehicles`, path `/vehicle`. One view, `Vehicles.vue`. Create, edit, 
   - **Last service**: the latest service, with caption `on {formatted date}`. No services: **No services yet**.
 - **Details** grid: Color, Passengers, Purchased, VIN, License plate, Plate expires. A Golf Cart shows **Not applicable** for VIN, License plate, and Plate expires.
 - **Mileage log**: newest first, columns **Date** and **Mileage**. No rows: **No mileage readings yet.**
-- **Service log**: newest first, columns **Date** and **Service**. No rows: **No services logged yet.**
+- **Service log**: newest first, columns **Date**, **Service**, and **Comments**. No comment shows **No comment**. Each row has **Add comment** or **Edit comment**. No rows: **No services logged yet.**
 
 **Inline log forms**
 
 Both forms sit in the detail panel, above their history tables. Admin and maintenance both see them.
 
-- Mileage fields: **Mileage date** (date, defaults to today), **Current mileage**. Action: **Log mileage** (`aria-label`: **Log mileage**).
-- Service fields: **Service date** (date, defaults to today), **Service performed** (select: Repair, Oil change, Tire replacement). Action: **Log service** (`aria-label`: **Log service**).
-- A blank required field shows **Required field** and does not call the API. Leaving a field shows that field's validation message under the field.
+- Mileage fields: **Mileage date** (date, defaults to today), **Current mileage**. When the vehicle already has a reading, the form shows **Must be greater than {formatted mileage}** under **Current mileage**. Action: **Log mileage** (`aria-label`: **Log mileage**).
+- Service fields: **Service date** (date, defaults to today) and **Service performed** (combo box of Repair, Oil change, Tire replacement, Tire rotation, Brake service, Battery replacement, Inspection, Air filter replacement, Wheel alignment, and Wiper replacement; any other service can be typed). Action: **Log service** (`aria-label`: **Log service**).
+- **Log service** does not save yet. It opens **Add a comment** with an optional **Comments** field for that service. **Log service** in the dialog saves the service, including the comment when one was entered. **Cancel** closes the dialog and does not call the API.
+- A mileage that is not greater than the highest reading already shown for that vehicle shows **Current mileage must be greater than the previous mileage of {previous}.** and does not call the API.
+- Each service row has an outlined **Add comment** or **Edit comment** button. It opens a dialog titled **Add comment** or **Edit comment**. The dialog names the service and its date. **Save comment** stores the comment and shows **`Comment saved.`**. **Cancel** closes the dialog.
+- A blank required field shows **Required field** and does not call the API. **Comments** may be blank. Leaving a field shows that field's validation message under the field.
 - A **Mileage date** or **Service date** after today shows **Date cannot be in the future.** and does not call the API. Today is accepted.
 - On mileage success: refresh the selected vehicle's logs, reset the mileage form, snackbar **`Mileage logged successfully!`**.
 - On service success: refresh the selected vehicle's logs, reset the service form, snackbar **`Service logged successfully!`**.
@@ -425,6 +459,7 @@ Both forms sit in the detail panel, above their history tables. Admin and mainte
 - **Category**, **License Plate Expiration Month**, and **Area Assigned** are selects. Month options are 1 through 12. Area options are Athletics, Support Central, and Maintenance. **License Plate Expiration Month** is shown only when the category is not **Golf Cart**.
 - **Make** and **Model** are combo boxes. **Make** suggests the standard makes for the selected category. **Model** suggests the standard models for the selected category and the current make when that make is on the standard list. A typed make or model that is not on the list is accepted. If the typed make is not on the list, **Model** has no suggestions and the admin types the model.
 - The other fields are inputs. **Purchased Date** is a date.
+- A **Purchased Date** after today shows **Date cannot be in the future.** and does not call the API. Today is accepted. The same check applies in **Edit Vehicle**.
 - A blank required field shows **Required field** and does not call the API.
 - A **VIN** that does not match `^[A-HJ-NPR-Z0-9]{17}$` shows **VIN must be a valid 17-character VIN.** and does not call the API.
 - A **License Plate Number** that does not match `^[A-Z0-9]{2,8}$` shows **License Plate Number must be 2 to 8 letters or digits.** and does not call the API.
@@ -495,7 +530,7 @@ When the chosen make is on this list, **Model** suggests the models in that row.
 | `model` | STRING(40) | Required. Any non-blank value. The standard list is a form suggestion, not a stored whitelist. |
 | `year` | INTEGER | Required. 1950 through 2027 |
 | `vin` | STRING(17) | Required and unique for `Truck`, `Car`, and `Van`. Must match `^[A-HJ-NPR-Z0-9]{17}$`. `null` for `Golf Cart` |
-| `purchasedDate` | DATEONLY | Required. `YYYY-MM-DD` |
+| `purchasedDate` | DATEONLY | Required. `YYYY-MM-DD`. The current day or a past date |
 | `color` | STRING(30) | Required |
 | `passengerCapacity` | INTEGER | Required. 1 through 15 |
 | `licensePlateNumber` | STRING(8) | Required and unique for `Truck`, `Car`, and `Van`. Must match `^[A-Z0-9]{2,8}$`. `null` for `Golf Cart` |
@@ -512,7 +547,7 @@ There is no `userId` column.
 |-------|------|-------|
 | `id` | INTEGER PK | Auto-increment |
 | `entryDate` | DATEONLY | Required. `YYYY-MM-DD`. The current day or a past date |
-| `currentMileage` | INTEGER | Required. Integer greater than or equal to 0 |
+| `currentMileage` | INTEGER | Required. Integer greater than or equal to 0. Greater than the highest mileage already logged for that vehicle |
 | `vehicleId` | INTEGER FK | Required, references `vehicles.id` |
 
 ### `service_logs` table
@@ -521,7 +556,8 @@ There is no `userId` column.
 |-------|------|-------|
 | `id` | INTEGER PK | Auto-increment |
 | `entryDate` | DATEONLY | Required. `YYYY-MM-DD`. The current day or a past date |
-| `servicePerformed` | STRING | Required. `Repair`, `Oil change`, or `Tire replacement` |
+| `servicePerformed` | STRING(80) | Required. Any non-blank service of at most 80 characters. The form suggests the common repairs and also accepts a custom service |
+| `comments` | TEXT | Optional. Text of at most 500 characters. `null` when omitted or blank. Can be changed after the service is logged |
 | `vehicleId` | INTEGER FK | Required, references `vehicles.id` |
 
 ### Associations
@@ -625,6 +661,26 @@ There is no `userId` column.
 - **When** I enter license plate `OC-1001`
 - **And** I click **Add Vehicle**
 - **Then** I see **License Plate Number must be 2 to 8 letters or digits.**
+- **And** `POST /api/vehicle/vehicles` is not called
+
+#### Scenario: Create with a future purchased date is rejected
+- **Given** I am signed in as an admin
+- **When** I send `POST /api/vehicle/vehicles` with a valid vehicle body whose `purchasedDate` is `2099-01-01`
+- **Then** the API returns `400` with `{ "message": "Date cannot be in the future." }`
+- **And** no vehicle is stored
+
+#### Scenario: Create with the current day as purchased date is accepted
+- **Given** I am signed in as an admin
+- **When** I send `POST /api/vehicle/vehicles` with a valid vehicle body whose `purchasedDate` is the current calendar date
+- **Then** the API returns `201`
+- **And** the saved vehicle's `purchasedDate` is that date
+
+#### Scenario: Future purchased date shows the date message
+- **Given** I am signed in as an admin
+- **And** the **Add Vehicle** dialog is open
+- **When** I enter Purchased Date `2099-01-01`
+- **And** I click **Add Vehicle**
+- **Then** I see **Date cannot be in the future.**
 - **And** `POST /api/vehicle/vehicles` is not called
 
 #### Scenario: Create with a make and model that are not on the standard list
@@ -746,7 +802,7 @@ There is no `userId` column.
 - **Then** **Vehicle** is not shown
 - **When** I navigate directly to `/vehicle`
 - **Then** I am redirected to home
-- **When** I send `GET /api/vehicle/vehicles`, `POST /api/vehicle/vehicles`, `PUT /api/vehicle/vehicles/1`, `DELETE /api/vehicle/vehicles/1`, `POST /api/vehicle/vehicles/1/mileage-logs`, or `POST /api/vehicle/vehicles/1/service-logs`
+- **When** I send `GET /api/vehicle/vehicles`, `POST /api/vehicle/vehicles`, `PUT /api/vehicle/vehicles/1`, `DELETE /api/vehicle/vehicles/1`, `POST /api/vehicle/vehicles/1/mileage-logs`, `POST /api/vehicle/vehicles/1/service-logs`, or `PATCH /api/vehicle/vehicles/1/service-logs/1`
 - **Then** each response is `403` with `{ "message": "Admin role required." }`
 - **And** the catalog is unchanged
 
@@ -783,6 +839,7 @@ There is no `userId` column.
 - **And** a Ford F-150 exists
 - **When** I enter Service date `2026-09-01` and service **Oil change**
 - **And** I click **Log service**
+- **And** I click **Log service** in the comment dialog
 - **Then** `POST /api/vehicle/vehicles/:vehicleId/service-logs` returns `201` with `servicePerformed` `Oil change`
 - **And** I see a snackbar **`Service logged successfully!`**
 - **And** the Service log shows **Oil change**
@@ -793,11 +850,73 @@ There is no `userId` column.
 - **When** I send `POST /api/vehicle/vehicles/4/mileage-logs` with `entryDate` `2026-10-01` and no `currentMileage`
 - **Then** the API returns `400` with `{ "message": "Current mileage must be zero or greater." }`
 
-#### Scenario: Service log with an unknown service is rejected
+#### Scenario: Mileage that is not above the previous mileage is rejected
+- **Given** I am signed in as a maintenance user
+- **And** a vehicle has a mileage log of `15000`
+- **When** I send `POST /api/vehicle/vehicles/:vehicleId/mileage-logs` with `currentMileage` `15000` or `14999`
+- **Then** the API returns `400` with `{ "message": "Current mileage must be greater than the previous mileage of 15000." }`
+- **When** I send the same route with `currentMileage` `15001`
+- **Then** the API returns `201`
+
+#### Scenario: Mileage that is not above the previous mileage shows the mileage message
+- **Given** I am signed in as a maintenance user on the vehicle page
+- **And** the selected vehicle has a mileage reading of `15000`
+- **When** I enter Current mileage `15000`
+- **And** I click **Log mileage**
+- **Then** I see **Current mileage must be greater than the previous mileage of 15000.**
+- **And** I see **Must be greater than 15,000 mi**
+- **And** `POST /api/vehicle/vehicles/:vehicleId/mileage-logs` is not called
+
+#### Scenario: Maintenance logs a custom service on a vehicle
+- **Given** I am signed in as a maintenance user
+- **And** a vehicle exists
+- **When** I send `POST /api/vehicle/vehicles/:vehicleId/service-logs` with `entryDate` `2026-09-01` and `servicePerformed` `Windshield chip repair`
+- **Then** the API returns `201` with `servicePerformed` `Windshield chip repair` and `comments` `null`
+
+#### Scenario: Maintenance logs a custom service with a comment
+- **Given** I am signed in as a maintenance user on the vehicle page
+- **And** a Ford F-150 exists
+- **When** I enter Service date `2026-09-01` and service `Windshield chip repair`
+- **And** I click **Log service**
+- **And** I enter comments `Small chip on the driver side.` and click **Log service** in the comment dialog
+- **Then** `POST /api/vehicle/vehicles/:vehicleId/service-logs` is called with that service and comment
+- **And** I see **Service logged successfully!**
+- **And** the Service log shows **Windshield chip repair** and **Small chip on the driver side.**
+
+#### Scenario: Maintenance logs a service with a comment
+- **Given** I am signed in as a maintenance user
+- **And** a vehicle exists
+- **When** I send `POST /api/vehicle/vehicles/:vehicleId/service-logs` with `servicePerformed` `Tire rotation` and `comments` `Rotated front to back.`
+- **Then** the API returns `201` with `servicePerformed` `Tire rotation` and `comments` `Rotated front to back.`
+
+#### Scenario: Service log with a too-long service name is rejected
 - **Given** I am signed in as a maintenance user
 - **And** vehicle `4` exists
-- **When** I send `POST /api/vehicle/vehicles/4/service-logs` with `entryDate` `2026-09-01` and `servicePerformed` `Inspection`
-- **Then** the API returns `400` with `{ "message": "Service performed must be Repair, Oil change, or Tire replacement." }`
+- **When** I send `POST /api/vehicle/vehicles/4/service-logs` with a `servicePerformed` of 81 characters
+- **Then** the API returns `400` with `{ "message": "Service performed cannot exceed 80 characters." }`
+- **And** no service log is stored
+
+#### Scenario: Maintenance adds a comment to an existing service
+- **Given** I am signed in as a maintenance user
+- **And** a vehicle has an **Oil change** service log with no comment
+- **When** I send `PATCH /api/vehicle/vehicles/:vehicleId/service-logs/:serviceLogId` with `comments` `Used 5W-30.`
+- **Then** the API returns `200` with `comments` `Used 5W-30.` and `servicePerformed` `Oil change`
+- **When** I am on the vehicle page and I click **Add comment for Oil change**
+- **And** I enter `Used 5W-30.` and click **Save comment**
+- **Then** I see **Comment saved.** and **Used 5W-30.**
+
+#### Scenario: Service comment that is too long is rejected
+- **Given** I am signed in as a maintenance user
+- **And** a service log has comments `Keep this.`
+- **When** I send `PATCH` with `comments` of 501 characters
+- **Then** the API returns `400` with `{ "message": "Comments cannot exceed 500 characters." }`
+- **And** the stored comment is still `Keep this.`
+
+#### Scenario: Comment update for an unknown service log is rejected
+- **Given** I am signed in as a maintenance user
+- **And** vehicle `4` exists
+- **When** I send `PATCH /api/vehicle/vehicles/4/service-logs/9999` with `comments` `Note`
+- **Then** the API returns `404` with `{ "message": "Service log with id=9999 not found." }`
 
 #### Scenario: Mileage log with a future date is rejected
 - **Given** I am signed in as a maintenance user
@@ -875,6 +994,9 @@ Each Gherkin scenario above maps to at least one automated test. An admin create
 | US-2.2 | Invalid VIN shows the format message | `frontend/tests/VehicleList.test.js` | `Invalid VIN shows the format message` |
 | US-2.2 | Create with an invalid license plate is rejected | `backend/tests/vehicles.test.js` | `Create with an invalid license plate is rejected` |
 | US-2.2 | Invalid license plate shows the format message | `frontend/tests/VehicleList.test.js` | `Invalid license plate shows the format message` |
+| US-2.2 | Create with a future purchased date is rejected | `backend/tests/vehicles.test.js` | `Create with a future purchased date is rejected` |
+| US-2.2 | Create with the current day as purchased date is accepted | `backend/tests/vehicles.test.js` | `Create with the current day as purchased date is accepted` |
+| US-2.2 | Future purchased date shows the date message | `frontend/tests/VehicleList.test.js` | `Future purchased date shows the date message` |
 | US-2.2 | Create with a make and model that are not on the standard list | `backend/tests/vehicles.test.js` | `Create with a make and model that are not on the standard list` |
 | US-2.2 | Supplied userId is ignored | `backend/tests/vehicles.test.js` | `Supplied userId is ignored` |
 | US-2.2 | Empty required field shows Required field | `frontend/tests/VehicleList.test.js` | `Empty required field shows Required field` |
@@ -893,7 +1015,15 @@ Each Gherkin scenario above maps to at least one automated test. An admin create
 | US-2.8 | Maintenance logs mileage on a vehicle | `backend/tests/vehicles.test.js`, `frontend/tests/VehicleList.test.js` | `Maintenance logs mileage on a vehicle` |
 | US-2.8 | Maintenance logs a service on a vehicle | `backend/tests/vehicles.test.js`, `frontend/tests/VehicleList.test.js` | `Maintenance logs a service on a vehicle` |
 | US-2.8 | Mileage log without current mileage is rejected | `backend/tests/vehicles.test.js` | `Mileage log without current mileage is rejected` |
-| US-2.8 | Service log with an unknown service is rejected | `backend/tests/vehicles.test.js` | `Service log with an unknown service is rejected` |
+| US-2.8 | Mileage that is not above the previous mileage is rejected | `backend/tests/vehicles.test.js` | `Mileage that is not above the previous mileage is rejected` |
+| US-2.8 | Mileage that is not above the previous mileage shows the mileage message | `frontend/tests/VehicleList.test.js` | `Mileage that is not above the previous mileage shows the mileage message` |
+| US-2.8 | Maintenance logs a custom service on a vehicle | `backend/tests/vehicles.test.js` | `Maintenance logs a custom service on a vehicle` |
+| US-2.8 | Maintenance logs a custom service with a comment | `frontend/tests/VehicleList.test.js` | `Maintenance logs a custom service with a comment` |
+| US-2.8 | Maintenance logs a service with a comment | `backend/tests/vehicles.test.js` | `Maintenance logs a service with a comment` |
+| US-2.8 | Service log with a too-long service name is rejected | `backend/tests/vehicles.test.js` | `Service log with a too-long service name is rejected` |
+| US-2.8 | Maintenance adds a comment to an existing service | `backend/tests/vehicles.test.js`, `frontend/tests/VehicleList.test.js` | `Maintenance adds a comment to an existing service` |
+| US-2.8 | Service comment that is too long is rejected | `backend/tests/vehicles.test.js` | `Service comment that is too long is rejected` |
+| US-2.8 | Comment update for an unknown service log is rejected | `backend/tests/vehicles.test.js` | `Comment update for an unknown service log is rejected` |
 | US-2.8 | Mileage log with a future date is rejected | `backend/tests/vehicles.test.js` | `Mileage log with a future date is rejected` |
 | US-2.8 | Mileage log for the current day is accepted | `backend/tests/vehicles.test.js` | `Mileage log for the current day is accepted` |
 | US-2.8 | Future mileage date shows the date message | `frontend/tests/VehicleList.test.js` | `Future mileage date shows the date message` |
@@ -944,14 +1074,15 @@ Do not implement behavior not in this spec.
 - Requestor trip notices such as Low Gas, Dirty, and Maintenance needed ([Feature 6](feature-6-reservation-management.md))
 - Reservation email ([Feature 7](feature-7-email-management.md))
 - The admin weekly schedule and the queue of requests that need a vehicle or a check-in ([Feature 8](feature-8-admin-page.md))
-- Editing or deleting a single mileage log or service log row
+- Editing or deleting a mileage log
+- Editing a service log's date or service performed. Comments on a service can be added when it is logged and changed afterward
 
 ---
 
 ## Delivered to later features
 
-- A vehicle is a shared catalog row with `category`, `make`, `model`, `year`, `vin`, `purchasedDate`, `color`, `passengerCapacity`, `licensePlateNumber`, `licensePlateExpirationMonth`, and `areaAssigned`. It has no `userId`. On a Truck, Car, or Van, `vin` matches `^[A-HJ-NPR-Z0-9]{17}$` and `licensePlateNumber` matches `^[A-Z0-9]{2,8}$`. A Golf Cart stores those fields as `null`.
-- A mileage log and a service log each have an `entryDate` of the current day or a past date.
+- A vehicle is a shared catalog row with `category`, `make`, `model`, `year`, `vin`, `purchasedDate`, `color`, `passengerCapacity`, `licensePlateNumber`, `licensePlateExpirationMonth`, and `areaAssigned`. It has no `userId`. On a Truck, Car, or Van, `vin` matches `^[A-HJ-NPR-Z0-9]{17}$` and `licensePlateNumber` matches `^[A-Z0-9]{2,8}$`. A Golf Cart stores those fields as `null`. `purchasedDate` is the current day or a past date.
+- A mileage log and a service log each have an `entryDate` of the current day or a past date. A new mileage reading is greater than the highest mileage already logged for that vehicle. A service log stores `servicePerformed` and optional `comments`.
 - `category` is exactly one of `Golf Cart`, `Truck`, `Car`, or `Van`. Feature 3 uses those four values for what a driver is approved to drive.
 - `areaAssigned` is `Athletics`, `Support Central`, or `Maintenance`. Feature 5 may replace that string with an area id. Until then, the vehicle stores the name.
 - Mileage logs and service logs belong to a vehicle and are removed when the vehicle is deleted. Feature 6 can reference `vehicleId` when a reservation is assigned a vehicle.
