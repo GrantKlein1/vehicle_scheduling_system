@@ -17,6 +17,7 @@ No application code may be written unless it maps to a requirement in one of the
 | ID | File | Branch | Depends on |
 |----|------|--------|------------|
 | 1 | [feature-1-user-auth.md](./feature-1-user-auth.md) | `feature/1-user-auth` | — |
+| 7 | [feature-7-email-management.md](./feature-7-email-management.md) | `feature/7-email-management` | [Feature 1](./feature-1-user-auth.md), [Feature 6](./feature-6-reservation-management.md) |
 
 New features: follow [framework.md](./framework.md#feature-spec-template) — **Status**, **Input**, **FR-00N**, **SC-00N**, **Key Entities**, Gherkin, **Agent implementation request**, **Definition of Done**.
 
