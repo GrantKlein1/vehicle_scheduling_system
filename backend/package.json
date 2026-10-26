@@ -9,24 +9,31 @@
     "dev": "node --watch server.js",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
     "test:watch": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watch",
-    "bundle": "node scripts/make-deploy.mjs"
+    "bundle": "rm -rf deploy && mkdir deploy && cp -r app server.js package.json package-lock.json vehicle-t4-backend.service .env deploy"
   },
-  "keywords": ["node.js", "express", "sequelize"],
+  "keywords": [
+    "node.js",
+    "express",
+    "sequelize"
+  ],
   "license": "ISC",
   "dependencies": {
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
+    "google-auth-library": "^11.3.1",
     "jsonwebtoken": "^9.0.2",
     "morgan": "^1.10.0",
     "mysql2": "^3.12.0",
     "sequelize": "^6.37.5",
+    "speckit-app": "file:..",
     "winston": "^3.17.0",
     "winston-daily-rotate-file": "^5.0.0"
   },
   "devDependencies": {
     "jest": "^29.7.0",
+    "sqlite3": "^6.0.1",
     "supertest": "^7.0.0"
   }
 }
