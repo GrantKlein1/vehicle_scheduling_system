@@ -17,7 +17,7 @@ They do **not** authorize new scope — implement only from `features/feature-*.
 |------|-------------|------------|
 | Google is the only sign-in method | The login page offers **Google Sign in** only. There is no register screen | Feature 1 |
 | Only an `@eagles.oc.edu` Google account can finish sign-in | `verifyGoogleCredential` rejects other emails with `401` | Feature 1 |
-| Sign-in finds a user by `googleSub`, then by email | `POST /vehicleScheduling/login` | Feature 1 |
+| Sign-in finds a user by `googleSub`, then by email | `POST /vehicle-t4/login` | Feature 1 |
 | No matching user creates a `requestor` and returns `201` | Login controller | Feature 1 |
 | An existing user, including a seeded admin or maintenance user, is reused and returns `200` | Login controller | Feature 1 |
 | A null `googleSub` is set from the Google credential; an existing `googleSub` is left in place | Login controller | Feature 1 |
@@ -39,7 +39,7 @@ They do **not** authorize new scope — implement only from `features/feature-*.
 | Missing bearer token is `401` `{ "message": "Unauthorized! No token provided." }` | `authenticate` | Feature 1 |
 | Expired, revoked, or invalid token is `401` `{ "message": "Unauthorized! Invalid or expired token." }` | `authenticate` | Feature 1 |
 | That `401` clears `localStorage` `user` and sends the user to `login` | Axios response interceptor, except the login request itself | Feature 1 |
-| Sign out deletes the current session row, removes `user` from `localStorage`, and opens `login` | `POST /vehicleScheduling/logout` and `MenuBar` | Feature 1 |
+| Sign out deletes the current session row, removes `user` from `localStorage`, and opens `login` | `POST /vehicle-t4/logout` and `MenuBar` | Feature 1 |
 
 ## Screens
 
