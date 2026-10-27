@@ -41,7 +41,7 @@ describe("Feature 1 — User Authentication & Session Management", () => {
         lName: "Doe",
       });
 
-      const response = await request(app).post("/vehicleScheduling/login").send({
+      const response = await request(app).post("/vehicle-t4/login").send({
         credential: "google-credential-jane",
       });
 
@@ -89,7 +89,7 @@ describe("Feature 1 — User Authentication & Session Management", () => {
         lName: "Admin",
       });
 
-      const response = await request(app).post("/vehicleScheduling/login").send({
+      const response = await request(app).post("/vehicle-t4/login").send({
         credential: "google-credential-admin",
       });
 
@@ -122,7 +122,7 @@ describe("Feature 1 — User Authentication & Session Management", () => {
         lName: "Maint",
       });
 
-      const response = await request(app).post("/vehicleScheduling/login").send({
+      const response = await request(app).post("/vehicle-t4/login").send({
         credential: "google-credential-maint",
       });
 
@@ -147,7 +147,7 @@ describe("Feature 1 — User Authentication & Session Management", () => {
         lName: "Doe",
       });
 
-      const response = await request(app).post("/vehicleScheduling/login").send({
+      const response = await request(app).post("/vehicle-t4/login").send({
         credential: "google-credential-jane",
         role: "admin",
       });
@@ -183,7 +183,7 @@ describe("Feature 1 — User Authentication & Session Management", () => {
         lName: "Doe",
       });
 
-      const response = await request(app).post("/vehicleScheduling/login").send({
+      const response = await request(app).post("/vehicle-t4/login").send({
         credential: "google-credential-jane",
       });
 
@@ -220,7 +220,7 @@ describe("Feature 1 — User Authentication & Session Management", () => {
         lName: "Admin",
       });
 
-      const response = await request(app).post("/vehicleScheduling/login").send({
+      const response = await request(app).post("/vehicle-t4/login").send({
         credential: "google-credential-admin",
       });
 
@@ -238,7 +238,7 @@ describe("Feature 1 — User Authentication & Session Management", () => {
         message: "Google sign-in failed",
       });
 
-      const response = await request(app).post("/vehicleScheduling/login").send({
+      const response = await request(app).post("/vehicle-t4/login").send({
         credential: "not-a-google-credential",
       });
 
@@ -257,20 +257,20 @@ describe("Feature 1 — User Authentication & Session Management", () => {
         lName: "Doe",
       });
 
-      const loginResponse = await request(app).post("/vehicleScheduling/login").send({
+      const loginResponse = await request(app).post("/vehicle-t4/login").send({
         credential: "google-credential-jane",
       });
       const token = loginResponse.body.token;
 
       const logoutResponse = await request(app)
-        .post("/vehicleScheduling/logout")
+        .post("/vehicle-t4/logout")
         .set("Authorization", `Bearer ${token}`);
 
       expect(logoutResponse.status).toBe(200);
       expect(await db.session.count({ where: { token } })).toBe(0);
 
       const reuse = await request(app)
-        .post("/vehicleScheduling/logout")
+        .post("/vehicle-t4/logout")
         .set("Authorization", `Bearer ${token}`);
       expect(reuse.status).toBe(401);
       expect(reuse.body).toEqual({ message: "Unauthorized! Invalid or expired token." });

@@ -129,8 +129,8 @@ Feature 1 establishes identity. Later features decide which data a signed-in use
 
 | Method | Endpoint                      | Auth | Purpose                                 |
 | ------ | ----------------------------- | ---- | --------------------------------------- |
-| `POST` | `/vehicleScheduling/login`    | No   | Authenticate and return session payload |
-| `POST` | `/vehicleScheduling/logout`   | Yes  | Invalidate current session token        |
+| `POST` | `/vehicle-t4/login`    | No   | Authenticate and return session payload |
+| `POST` | `/vehicle-t4/logout`   | Yes  | Invalidate current session token        |
 
 **Login / register success response from Google** (flat JSON, no envelope):
 

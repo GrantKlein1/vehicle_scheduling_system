@@ -2,15 +2,15 @@
 
 **Status:** Feature 1 authentication and Feature 2 vehicle catalog are implemented.
 
-API health stays on `/api/health`. Authentication routes are mounted at `/vehicleScheduling`.
+API health stays on `/api/health`. Authentication routes are mounted at `/vehicle-t4`.
 
 ## Endpoints
 
 | Method | Path | Auth | Purpose | Introduced |
 |--------|------|------|---------|------------|
 | `GET` | `/api/health` | No | Process health check | Starter |
-| `POST` | `/vehicleScheduling/login` | No | Verify a Google credential and return a session | Feature 1 |
-| `POST` | `/vehicleScheduling/logout` | Yes | Invalidate the current session token | Feature 1 |
+| `POST` | `/vehicle-t4/login` | No | Verify a Google credential and return a session | Feature 1 |
+| `POST` | `/vehicle-t4/logout` | Yes | Invalidate the current session token | Feature 1 |
 | `POST` | `/api/vehicle/vehicles` | `admin` | Create a shared catalog vehicle | Feature 2 |
 | `GET` | `/api/vehicle/vehicles` | `admin`, `maintenance` | List vehicles by make, model, then id | Feature 2 |
 | `GET` | `/api/vehicle/vehicles/:vehicleId` | `admin`, `maintenance` | Fetch one vehicle with mileage and service logs | Feature 2 |
@@ -29,7 +29,7 @@ API health stays on `/api/health`. Authentication routes are mounted at `/vehicl
 
 ## Login
 
-`POST /vehicleScheduling/login`
+`POST /vehicle-t4/login`
 
 ```json
 {
@@ -62,7 +62,7 @@ A `role` field in the body is ignored. The stored user row decides `role`.
 
 ## Logout
 
-`POST /vehicleScheduling/logout`
+`POST /vehicle-t4/logout`
 
 Header: `Authorization: Bearer <token>`
 
