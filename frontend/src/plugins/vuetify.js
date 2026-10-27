@@ -25,6 +25,7 @@ const ocAcademic = {
     surface: "#F9F9FF",
     "surface-variant": "#E7E0E1",
     "on-surface": "#1C1B1F",
+    "on-surface-variant": "#1C1B1F",
     background: "#FFFFFF",
     "on-background": "#1C1B1F",
     outline: "#857373",

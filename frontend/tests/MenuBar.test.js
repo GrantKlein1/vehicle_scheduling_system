@@ -14,6 +14,16 @@ vi.mock("../src/services/authServices.js", () => ({
   logout: vi.fn(),
 }));
 
+vi.mock("../src/services/vehicleServices.js", () => ({
+  listVehicles: vi.fn().mockResolvedValue({ data: [] }),
+  getVehicle: vi.fn(),
+  createVehicle: vi.fn(),
+  updateVehicle: vi.fn(),
+  deleteVehicle: vi.fn(),
+  logMileage: vi.fn(),
+  logService: vi.fn(),
+}));
+
 const catalogLabels = ["Vehicle", "Driver", "Destination", "Area", "Reservation"];
 
 function userWithRole(role) {
@@ -93,7 +103,8 @@ describe("Feature 1 — User Authentication & Session Management", () => {
       const { wrapper } = await mountApp("/", userWithRole("admin"));
 
       expect(wrapper.text()).toContain("Sign out");
-      for (const label of catalogLabels) {
+      expect(wrapper.text()).toContain("Vehicle");
+      for (const label of catalogLabels.filter((item) => item !== "Vehicle")) {
         expect(wrapper.text()).not.toContain(label);
       }
     });
@@ -102,9 +113,61 @@ describe("Feature 1 — User Authentication & Session Management", () => {
       const { wrapper } = await mountApp("/", userWithRole("maintenance"));
 
       expect(wrapper.text()).toContain("Sign out");
-      for (const label of catalogLabels) {
+      expect(wrapper.text()).toContain("Vehicle");
+      for (const label of catalogLabels.filter((item) => item !== "Vehicle")) {
         expect(wrapper.text()).not.toContain(label);
       }
+    });
+  });
+});
+
+describe("Feature 2 — Vehicle Management", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    clearCurrentUser();
+    logout.mockReset();
+    logout.mockResolvedValue({ data: { message: "Signed out." } });
+  });
+
+  describe("US-2.1 — View Vehicle List Page", () => {
+    it("Requestor does not see Vehicle in the menu", async () => {
+      const { wrapper } = await mountApp("/", userWithRole("requestor"));
+
+      expect(wrapper.text()).not.toContain("Vehicle");
+    });
+
+    it("Admin sees their name and Sign out on the vehicle page", async () => {
+      const { wrapper } = await mountApp("/vehicle", userWithRole("admin"));
+
+      expect(wrapper.find(".menu-bar__nav").exists()).toBe(true);
+      expect(wrapper.find(".menu-bar__session").text()).toContain("Jane Doe");
+      expect(wrapper.find(".menu-bar__session").text()).toContain("Sign out");
+      const labels = wrapper.findAll(".menu-bar__item").map((item) => item.text());
+      expect(labels).toEqual(["Vehicle", "Sign out"]);
+    });
+
+    it("Maintenance sees their name and Sign out on the vehicle page", async () => {
+      const { wrapper } = await mountApp("/vehicle", userWithRole("maintenance"));
+
+      expect(wrapper.find(".menu-bar__session").text()).toContain("Jane Doe");
+      expect(wrapper.find(".menu-bar__session").text()).toContain("Sign out");
+      expect(wrapper.find(".menu-bar__nav").text()).toContain("Vehicle");
+    });
+
+    it("Requestor keeps their name and Sign out with no catalog links", async () => {
+      const { wrapper } = await mountApp("/", userWithRole("requestor"));
+
+      expect(wrapper.find(".menu-bar__session").text()).toContain("Jane Doe");
+      expect(wrapper.find(".menu-bar__session").text()).toContain("Sign out");
+      expect(wrapper.find(".menu-bar__nav").text()).not.toContain("Vehicle");
+    });
+  });
+
+  describe("US-2.7 — Role-Based Access Control", () => {
+    it("Requestor vehicle access is restricted", async () => {
+      const { wrapper } = await mountApp("/", userWithRole("requestor"));
+
+      expect(wrapper.text()).not.toContain("Vehicle");
     });
   });
 });
