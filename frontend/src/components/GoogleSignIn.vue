@@ -8,7 +8,9 @@ const router = useRouter();
 const buttonHost = ref(null);
 const loading = ref(false);
 const errorMessage = ref("");
-const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || "";
+const clientId = String(import.meta.env.VITE_GOOGLE_CLIENT_ID || "")
+  .trim()
+  .replace(/^["']|["']$/g, "");
 
 let pollTimer = 0;
 
