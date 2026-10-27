@@ -42,7 +42,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.use("/api", apiRouter);
-app.use("/vehicleScheduling", vehicleSchedulingRouter);
+app.use("/vehicle-t4", vehicleSchedulingRouter);
 
 const PORT = process.env.PORT || 3200;
 
