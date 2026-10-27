@@ -6,7 +6,7 @@ import dns from "dns";
 dns.setDefaultResultOrder("verbatim");
 
 export default () => {
-  const baseURL = process.env.APP_ENV === "development" ? "/" : "/";
+  const baseURL = process.env.APP_ENV === "development" ? "/seiv2026/p4/t4/" : "/";
   return defineConfig({
     plugins: [vue(), vuetify({ autoImport: false })],
     server: {
