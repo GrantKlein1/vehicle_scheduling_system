@@ -1,4 +1,5 @@
 import db from "../models/index.js";
+import { DEFAULT_VEHICLE_STATUS, VEHICLE_STATUSES } from "../models/vehicle.model.js";
 
 const CATEGORIES = ["Golf Cart", "Truck", "Car", "Van"];
 const AREAS = ["Athletics", "Support Central", "Maintenance"];
@@ -42,7 +43,30 @@ function localToday() {
   return `${now.getFullYear()}-${month}-${day}`;
 }
 
-function validateVehicle(body) {
+function statusErrorMessage() {
+  const last = VEHICLE_STATUSES[VEHICLE_STATUSES.length - 1];
+  const head = VEHICLE_STATUSES.slice(0, -1).join(", ");
+  return `Status must be ${head}, or ${last}.`;
+}
+
+function validateStatus(value) {
+  if (value === undefined || value === null) {
+    return { omitted: true };
+  }
+  if (typeof value !== "string") {
+    return { error: statusErrorMessage() };
+  }
+  const status = value.trim();
+  if (!status) {
+    return { omitted: true };
+  }
+  if (!VEHICLE_STATUSES.includes(status)) {
+    return { error: statusErrorMessage() };
+  }
+  return { value: status };
+}
+
+function validateVehicle(body, { currentStatus } = {}) {
   const category = trimmedString(body?.category);
   if (!category) {
     return { error: "Category cannot be empty." };
@@ -128,6 +152,11 @@ function validateVehicle(body) {
     return { error: "Area Assigned must be Athletics, Support Central, or Maintenance." };
   }
 
+  const status = validateStatus(body?.status);
+  if (status.error) {
+    return status;
+  }
+
   return {
     value: {
       category,
@@ -141,6 +170,7 @@ function validateVehicle(body) {
       licensePlateNumber,
       licensePlateExpirationMonth,
       areaAssigned,
+      status: status.omitted ? currentStatus || DEFAULT_VEHICLE_STATUS : status.value,
     },
   };
 }
@@ -235,6 +265,7 @@ function vehicleJson(vehicle) {
     licensePlateNumber: row.licensePlateNumber,
     licensePlateExpirationMonth: row.licensePlateExpirationMonth,
     areaAssigned: row.areaAssigned,
+    status: row.status ?? DEFAULT_VEHICLE_STATUS,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -383,7 +414,7 @@ export async function updateVehicle(req, res) {
     return notFound(res, req.params.vehicleId);
   }
 
-  const validated = validateVehicle(req.body);
+  const validated = validateVehicle(req.body, { currentStatus: vehicle.status });
   if (validated.error) {
     return res.status(400).json({ message: validated.error });
   }
