@@ -1,6 +1,6 @@
 # Data Model Reference
 
-**Status:** Feature 1 users and sessions, plus system admin / area admin.
+**Status:** Feature 1 users and sessions, plus system admin / area admin, and Feature 2 vehicles, mileage logs, and service logs.
 
 Sequelize model names: `user` → table `users`, `session` → table `sessions`, `area` → table `areas`. None of these tables use `createdAt` / `updatedAt`.
 
@@ -67,11 +67,60 @@ Introduced in Feature 1.
 
 The spec names `expirationDate` as `DATE`. The column is a datetime so the 24-hour lifetime can be enforced.
 
+### `vehicles`
+
+| Field | Type | Rules |
+|-------|------|-------|
+| `id` | INTEGER PK | Auto-increment |
+| `category` | STRING | Required. `Golf Cart`, `Truck`, `Car`, or `Van` |
+| `make` | STRING(40) | Required. Any non-blank value |
+| `model` | STRING(40) | Required. Any non-blank value |
+| `year` | INTEGER | Required. 1950 through 2027 |
+| `vin` | STRING(17) | Required and unique for `Truck`, `Car`, and `Van`. Must match `^[A-HJ-NPR-Z0-9]{17}$`. `null` for `Golf Cart`. Case-sensitive after trim |
+| `purchasedDate` | DATEONLY | Required. `YYYY-MM-DD`. The current day or a past date |
+| `color` | STRING(30) | Required |
+| `passengerCapacity` | INTEGER | Required. 1 through 15 |
+| `licensePlateNumber` | STRING(8) | Required and unique for `Truck`, `Car`, and `Van`. Must match `^[A-Z0-9]{2,8}$`. `null` for `Golf Cart`. Case-sensitive after trim |
+| `licensePlateExpirationMonth` | INTEGER | Required, 1 through 12, for `Truck`, `Car`, and `Van`. `null` for `Golf Cart` |
+| `areaAssigned` | STRING | Required. `Athletics`, `Support Central`, or `Maintenance` |
+| `createdAt` | DATE | Set by Sequelize |
+| `updatedAt` | DATE | Set by Sequelize |
+
+There is no `userId` column. Introduced in Feature 2.
+
+### `mileage_logs`
+
+| Field | Type | Rules |
+|-------|------|-------|
+| `id` | INTEGER PK | Auto-increment |
+| `entryDate` | DATEONLY | Required. `YYYY-MM-DD`. The current day or a past date |
+| `currentMileage` | INTEGER | Required. Integer greater than or equal to 0, and greater than the highest mileage already logged for that vehicle |
+| `vehicleId` | INTEGER FK | Required, references `vehicles.id` |
+
+No `createdAt` or `updatedAt`. Introduced in Feature 2.
+
+### `service_logs`
+
+| Field | Type | Rules |
+|-------|------|-------|
+| `id` | INTEGER PK | Auto-increment |
+| `entryDate` | DATEONLY | Required. `YYYY-MM-DD`. The current day or a past date |
+| `servicePerformed` | STRING(80) | Required. Any non-blank service of at most 80 characters |
+| `comments` | TEXT | Optional. At most 500 characters. `null` when omitted or blank |
+| `vehicleId` | INTEGER FK | Required, references `vehicles.id` |
+
+No `createdAt` or `updatedAt`. Introduced in Feature 2.
+
 ## Associations
 
 | From | To | Relationship | On delete |
 |------|----|--------------|-----------|
 | `users` | `sessions` | one-to-many (`sessions.userId`) | CASCADE |
+<<<<<<< HEAD
 | `areas` | `users` | one-to-many (`users.areaId`) | RESTRICT |
 
 An area admin must reference an existing area. That rule is enforced in a `users` `beforeValidate` hook. Deleting an area that still has users is restricted by the foreign key.
+=======
+| `vehicles` | `mileage_logs` | one-to-many (`mileage_logs.vehicleId`) | CASCADE |
+| `vehicles` | `service_logs` | one-to-many (`service_logs.vehicleId`) | CASCADE |
+>>>>>>> dev

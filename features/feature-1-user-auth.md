@@ -13,7 +13,6 @@ The full-access administrator role is stored as `system_admin`. A legacy row wit
 ## User Stories
 
 ### US-1.1: Register a new account with Google OAuth
-
 **As a** new user  
 **I want to** create an account via Google with my OC email and password  
 **So that** I can sign in and do the activities allowed for my role
@@ -23,7 +22,6 @@ The full-access administrator role is stored as `system_admin`. A legacy row wit
 **Acceptance scenarios:** see ### US-1.1 under Acceptance Criteria
 
 ### US-1.2: An existing user signs in with Google
-
 **As a** registered user  
 **I want to** sign in with via Google with my OC email and password  
 **So that** I can access the application dashboard securely
@@ -33,7 +31,6 @@ The full-access administrator role is stored as `system_admin`. A legacy row wit
 **Acceptance scenarios:** see ### US-1.2 under Acceptance Criteria
 
 ### US-1.3: Stay signed in across page loads
-
 **As a** signed-in user  
 **I want** my session to persist in the browser  
 **So that** I do not have to sign in again every time I refresh the page
@@ -43,7 +40,6 @@ The full-access administrator role is stored as `system_admin`. A legacy row wit
 **Acceptance scenarios:** see ### US-1.3 under Acceptance Criteria
 
 ### US-1.4: Sign out
-
 **As a** signed-in user  
 **I want to** sign out  
 **So that** no one else can use my account on a shared device
@@ -53,7 +49,6 @@ The full-access administrator role is stored as `system_admin`. A legacy row wit
 **Acceptance scenarios:** see ### US-1.4 under Acceptance Criteria
 
 ### US-1.5: Block unauthenticated access
-
 **As the** application  
 **I want to** require a valid session for all non-auth screens  
 **So that** protected screens and APIs are only available with a valid session
@@ -63,7 +58,6 @@ The full-access administrator role is stored as `system_admin`. A legacy row wit
 **Acceptance scenarios:** see ### US-1.5 under Acceptance Criteria
 
 ### US-1.6: Role-based MenuBar
-
 **As a** signed-in user  
 **I want** the `MenuBar` to show **Sign out** and only the nav items allowed for my `role`  
 **So that** I can leave the session and I do not see tools for other roles
@@ -87,7 +81,7 @@ The full-access administrator role is stored as `system_admin`. A legacy row wit
 - **FR-007**: Allowed roles are `requestor`, `system_admin`, `area_admin`, and `maintenance`. `system_admin` is the full-access administrator (the role previously stored as `admin`). `area_admin` must reference one row in `areas` through `areaId`. Other roles have `areaId` null. The database seed inserts exactly two users when those emails are not already present: `admin@eagles.oc.edu` (`fName` `Admin`, `lName` `User`, `role` `system_admin`, `googleSub` null) and `maint@eagles.oc.edu` (`fName` `Maintenance`, `lName` `User`, `role` `maintenance`, `googleSub` null). It also inserts placeholder areas `Athletics`, `Support Central`, and `Maintenance` when those names are missing. Startup rewrites every stored `role` `admin` to `system_admin` and clears `areaId`. Sign-in does not change `role`, except that same legacy rewrite. This feature has no screen for changing a role. Automated tests insert the users they need and do not depend on these two rows.
 - **FR-008**: Every authenticated request MUST resolve to exactly one user via `req.user.id` from the session token (foundation for later features that need the signed-in user).
 - **FR-010**: This feature MUST **introduce** `MenuBar` in `App.vue` (`<MenuBar />` above `<v-main>`). `MenuBar` MUST be visible on `login` and `home`.
-- **FR-011**: `MenuBar` MUST show **Sign out** when a session exists and the user is on a page they are allowed to stay on (`home`). When there is no session, **Sign out** MUST be hidden. A signed-in user who opens `login` MUST be redirected to `home`.
+- **FR-011**: `MenuBar` MUST show the signed-in user's name and **Sign out** on every page while a session exists, for every role. When there is no session, the name and **Sign out** MUST be hidden. A signed-in user who opens `login` MUST be redirected to `home`.
 - **FR-012**: `MenuBar` nav items MUST be filtered by the signed-in user's `role` from the `users` table / `localStorage` `user` payload. An item is shown only when `user.role` is in that item's allowed roles. Feature 1 ships **Sign out** for every authenticated role and no catalog links.
 - **FR-013**: Sign-in finds a user by `googleSub`. If none exists, it finds a user by email. A found row is reused and its `role` is kept. If that row's `googleSub` is null, it is set from the Google credential. If no row is found, a new user is created with `role` `requestor`.
 - **FR-014**: On sign-in, `fName` and `lName` come from the Google profile. A new user's email comes from the Google profile. A seeded user's email is the match key and is not replaced.
@@ -137,8 +131,8 @@ Feature 1 establishes identity. Later features decide which data a signed-in use
 
 | Method | Endpoint                      | Auth | Purpose                                 |
 | ------ | ----------------------------- | ---- | --------------------------------------- |
-| `POST` | `/vehicleScheduling/login`    | No   | Authenticate and return session payload |
-| `POST` | `/vehicleScheduling/logout`   | Yes  | Invalidate current session token        |
+| `POST` | `/vehicle-t4/login`    | No   | Authenticate and return session payload |
+| `POST` | `/vehicle-t4/logout`   | Yes  | Invalidate current session token        |
 
 **Login / register success response from Google** (flat JSON, no envelope):
 
@@ -175,7 +169,7 @@ Feature 1 establishes identity. Later features decide which data a signed-in use
 
 ### [View: Home placeholder] — route name `home`
 
-- Minimal protected landing page shown after successful login or registration. This is **not** the semester list (`/semester` is Feature 2) or the courses list (`/course` is Feature 3).
+- Minimal protected landing page shown after successful login or registration. This is **not** the vehicle list (`/vehicle` is Feature 2) or the driver list (`/driver` is Feature 3).
 - Displays **"Welcome, {first name}."** using the signed-in user's first name.
 - No on-page **Sign out** button — sign-out is only in `MenuBar`.
 

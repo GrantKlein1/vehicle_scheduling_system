@@ -1,0 +1,15 @@
+# Deploy rewrites User and WorkingDirectory from GitHub secrets.
+# BACKEND_DEPLOY_TARGET must be the absolute path to nodeapps/2026/project4/t4.
+[Unit]
+Description=vehicle-t4 backend
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/ubuntu/nodeapps/2026/project4/t4
+Environment=PORT=3024
+ExecStart=/usr/local/bin/node server.js
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

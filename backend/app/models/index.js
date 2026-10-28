@@ -6,6 +6,9 @@ import { ensureAdminTypeSchema, migrateLegacyAdmins } from "../migrations/adminT
 import userModel from "./user.model.js";
 import sessionModel from "./session.model.js";
 import areaModel from "./area.model.js";
+import vehicleModel from "./vehicle.model.js";
+import mileageLogModel from "./mileageLog.model.js";
+import serviceLogModel from "./serviceLog.model.js";
 
 const db = {};
 db.Sequelize = Sequelize;
@@ -13,10 +16,14 @@ db.sequelize = sequelize;
 db.area = areaModel(sequelize, Sequelize);
 db.user = userModel(sequelize, Sequelize);
 db.session = sessionModel(sequelize, Sequelize);
+db.vehicle = vehicleModel(sequelize, Sequelize);
+db.mileageLog = mileageLogModel(sequelize, Sequelize);
+db.serviceLog = serviceLogModel(sequelize, Sequelize);
 
 db.user.hasMany(db.session, { foreignKey: "userId", onDelete: "CASCADE" });
 db.session.belongsTo(db.user, { foreignKey: "userId" });
 
+<<<<<<< HEAD
 db.area.hasMany(db.user, { foreignKey: "areaId", onDelete: "RESTRICT" });
 db.user.belongsTo(db.area, { foreignKey: "areaId" });
 
@@ -43,6 +50,21 @@ db.user.addHook("beforeValidate", async (user) => {
 });
 
 const SEEDED_AREAS = ["Athletics", "Support Central", "Maintenance"];
+=======
+db.vehicle.hasMany(db.mileageLog, {
+  foreignKey: "vehicleId",
+  onDelete: "CASCADE",
+  as: "mileageLogs",
+});
+db.mileageLog.belongsTo(db.vehicle, { foreignKey: "vehicleId" });
+
+db.vehicle.hasMany(db.serviceLog, {
+  foreignKey: "vehicleId",
+  onDelete: "CASCADE",
+  as: "serviceLogs",
+});
+db.serviceLog.belongsTo(db.vehicle, { foreignKey: "vehicleId" });
+>>>>>>> dev
 
 const SEEDED_ROLE_USERS = [
   {

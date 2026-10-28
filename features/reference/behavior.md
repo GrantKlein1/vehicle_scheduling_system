@@ -1,6 +1,6 @@
 # Behavior & Rules Reference
 
-**Living snapshot** of product rules currently implemented for Feature 1.
+**Living snapshot** of product rules currently implemented through Feature 2.
 
 These files answer: *"What rules does the app enforce right now?"*  
 They do **not** authorize new scope — implement only from `features/feature-*.md`.
@@ -17,7 +17,7 @@ They do **not** authorize new scope — implement only from `features/feature-*.
 |------|-------------|------------|
 | Google is the only sign-in method | The login page offers **Google Sign in** only. There is no register screen | Feature 1 |
 | Only an `@eagles.oc.edu` Google account can finish sign-in | `verifyGoogleCredential` rejects other emails with `401` | Feature 1 |
-| Sign-in finds a user by `googleSub`, then by email | `POST /vehicleScheduling/login` | Feature 1 |
+| Sign-in finds a user by `googleSub`, then by email | `POST /vehicle-t4/login` | Feature 1 |
 | No matching user creates a `requestor` and returns `201` | Login controller | Feature 1 |
 | An existing user, including a seeded system admin or maintenance user, is reused and returns `200` | Login controller | Feature 1 |
 | A null `googleSub` is set from the Google credential; an existing `googleSub` is left in place | Login controller | Feature 1 |
@@ -43,7 +43,7 @@ They do **not** authorize new scope — implement only from `features/feature-*.
 | Missing bearer token is `401` `{ "message": "Unauthorized! No token provided." }` | `authenticate` | Feature 1 |
 | Expired, revoked, or invalid token is `401` `{ "message": "Unauthorized! Invalid or expired token." }` | `authenticate` | Feature 1 |
 | That `401` clears `localStorage` `user` and sends the user to `login` | Axios response interceptor, except the login request itself | Feature 1 |
-| Sign out deletes the current session row, removes `user` from `localStorage`, and opens `login` | `POST /vehicleScheduling/logout` and `MenuBar` | Feature 1 |
+| Sign out deletes the current session row, removes `user` from `localStorage`, and opens `login` | `POST /vehicle-t4/logout` and `MenuBar` | Feature 1 |
 
 ## Screens
 
@@ -51,11 +51,49 @@ They do **not** authorize new scope — implement only from `features/feature-*.
 |------|-------------|------------|
 | `MenuBar` is mounted above `<v-main>` and is visible on `login` and `home` | `App.vue` | Feature 1 |
 | No session: `MenuBar` has no **Sign out** and no catalog links | `MenuBar` | Feature 1 |
+<<<<<<< HEAD
 | Session on `home`: `MenuBar` shows the user's name, role label, and **Sign out** | `MenuBar` | Feature 1, admin types |
 | Role labels are **System Admin** (including legacy `admin`), **Area Admin · {area name}**, **Maintenance**, and **Requestor** | `formatRoleLabel` | Admin types |
 | Feature 1 has no catalog nav items | `navItems` is empty. An item is shown when `roleMatchesNav` matches. `admin` and `system_admin` match system admins only. `area_admin` matches area admins only | Feature 1, admin types |
+=======
+| A signed-in session shows the user's name and **Sign out** on every page | `MenuBar` | Feature 1 |
+| Nav items share one size and sit in a centered group with the same gap; the name and **Sign out** stay on the right | `MenuBar` | Feature 1 |
+| Catalog nav items are shown only when `user.role` is allowed | `MenuBar` `navItems` | Feature 1 |
+>>>>>>> dev
 | A signed-in user who opens `login` is redirected to `home` | Router `beforeEach` | Feature 1 |
 | `home` without a session redirects to `login` | Router `beforeEach` | Feature 1 |
 | Home shows `Welcome, {first name}.` | `Home.vue` | Feature 1 |
 | Failed Google sign-in stays on the login page and shows `<v-alert type="error">` | `GoogleSignIn.vue` | Feature 1 |
 | Login shows Google's **Sign in with Google** button. A progress indicator is shown while the login request is in flight | `GoogleSignIn.vue` | Feature 1 |
+| **Vehicle** is in `MenuBar` for `admin` and `maintenance` and opens `/vehicle` | `MenuBar` | Feature 2 |
+| A signed-out menu and a `requestor` menu do not show **Vehicle** | `MenuBar` | Feature 2 |
+| `/vehicle` without a session redirects to `login` | Router `beforeEach` | Feature 2 |
+| A signed-in `requestor` who opens `/vehicle` is redirected to `home` | Router `beforeEach` | Feature 2 |
+
+## Vehicles
+
+| Rule | Enforcement | Introduced |
+|------|-------------|------------|
+| Vehicles are one shared catalog and have no `userId` | `vehicles` table and create/update ignore `userId` | Feature 2 |
+| `admin` can list, fetch, create, update, and delete vehicles | Vehicle routes | Feature 2 |
+| `maintenance` can list, fetch, and append logs, and cannot create, update, or delete a vehicle | `requireFleetAccess` and `requireAdmin` | Feature 2 |
+| A `requestor` receives `403` `{ "message": "Admin role required." }` on every vehicle route | `requireFleetAccess` | Feature 2 |
+| Catalog writes by `maintenance` return `403` `{ "message": "Admin role required." }` | `requireAdmin` | Feature 2 |
+| The vehicle list is ordered by make, then model, then id | `GET /api/vehicle/vehicles` | Feature 2 |
+| Mileage and service logs are appended and ordered by date, then id. A service date and service performed are not edited later. Comments on a service can be set at creation and updated later | Log routes and `GET` one vehicle | Feature 2 |
+| A new mileage reading must be greater than the highest mileage already logged for that vehicle | Mileage log route and the mileage form | Feature 2 |
+| Service performed is any non-blank text up to 80 characters. The form lists common repairs and also accepts a typed custom service. **Log service** asks for an optional comment before the service is saved. Comments are text up to 500 characters and can also be changed from an outlined button on the service row | Service log route, comment update route, and the service form | Feature 2 |
+| Deleting a vehicle deletes its mileage logs and service logs | Delete handler and `onDelete: CASCADE` | Feature 2 |
+| `make` and `model` may be values outside the standard suggestion list | API stores any non-blank make and model | Feature 2 |
+| The vehicle screen shows **Add Vehicle**, **Edit vehicle**, and **Delete vehicle** for `admin` only | `Vehicles.vue` | Feature 2 |
+| The vehicle screen shows a searchable list and a detail panel for the selected vehicle (first vehicle auto-selected). Mileage and service are logged inline in the panel. | `Vehicles.vue` | Feature 2 |
+| **Log mileage** and **Log service** are available to `admin` and `maintenance` | `Vehicles.vue` | Feature 2 |
+| A blank required field shows **Required field** and does not call the API | Vehicle dialogs and inline log forms | Feature 2 |
+| Choosing **Golf Cart** hides **VIN**, **License Plate Number**, and **License Plate Expiration Month**. The API stores those fields as `null` | `Vehicles.vue` and vehicle create/update | Feature 2 |
+| Leaving a field shows that field's validation message under the field. A year outside 1950 through 2027 shows **Year must be from 1950 through 2027.** The same field messages apply to make, model, VIN, date, color, passengers, license plate, expiration month, area, mileage, and service | Vehicle dialogs and inline log forms | Feature 2 |
+| For `Truck`, `Car`, and `Van`, `vin` must match `^[A-HJ-NPR-Z0-9]{17}$`. A mismatch returns `VIN must be a valid 17-character VIN.` The form shows the same message and does not call the API | Vehicle create/update and the Add and Edit dialogs | Feature 2 |
+| For `Truck`, `Car`, and `Van`, `licensePlateNumber` must match `^[A-Z0-9]{2,8}$`. A mismatch returns `License Plate Number must be 2 to 8 letters or digits.` The form shows the same message and does not call the API | Vehicle create/update and the Add and Edit dialogs | Feature 2 |
+| A mileage or service `entryDate` after the server's local calendar date returns `Date cannot be in the future.` The current day is accepted. The form shows the same message and does not call the API | Mileage and service log routes and the inline log forms | Feature 2 |
+| A `purchasedDate` after the server's local calendar date returns `Date cannot be in the future.` The current day is accepted. The form shows the same message and does not call the API | Vehicle create/update and the Add and Edit dialogs | Feature 2 |
+| An empty catalog shows **No vehicles yet.** A load failure shows the API message in an error alert | `Vehicles.vue` | Feature 2 |
+| Create, update, delete, and log success use the snackbar text from the Feature 2 screen spec. Failures show the API `message` | `Vehicles.vue` | Feature 2 |

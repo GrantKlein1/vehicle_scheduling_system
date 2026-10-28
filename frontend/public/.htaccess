@@ -1,0 +1,23 @@
+# After deploy, browsers must re-fetch index.html so they load the new hashed JS/CSS.
+<IfModule mod_headers.c>
+  # Google's sign-in popup posts the credential back with window.postMessage.
+  Header always set Cross-Origin-Opener-Policy "same-origin-allow-popups"
+  <Files "index.html">
+    Header set Cache-Control "max-age=0, must-revalidate, no-cache"
+  </Files>
+  <FilesMatch "\.(js|mjs|css|woff2?|ttf|eot|ico)$">
+    Header set Cache-Control "public, max-age=31536000, immutable"
+  </FilesMatch>
+</IfModule>
+
+<IfModule mod_negotiation.c>
+  Options -MultiViews
+</IfModule>
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /seiv2026/p4/t4/
+  RewriteRule ^index\.html$ - [L]
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteRule . /seiv2026/p4/t4/index.html [L]
+</IfModule>

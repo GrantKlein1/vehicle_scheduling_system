@@ -42,9 +42,12 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.use("/api", apiRouter);
-app.use("/vehicleScheduling", vehicleSchedulingRouter);
+// Team 4 Apache rule keeps the prefix:
+// ProxyPass /vehicle-t4 http://localhost:3024/vehicle-t4
+app.use("/vehicle-t4", vehicleSchedulingRouter);
+app.use("/vehicle-t4", apiRouter);
 
-const PORT = process.env.PORT || 3200;
+const PORT = process.env.PORT || 3024;
 
 if (process.env.NODE_ENV !== "test") {
   app.listen(PORT, () => {

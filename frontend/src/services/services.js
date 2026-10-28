@@ -3,41 +3,54 @@ import { clearCurrentUser } from "../config/session.js";
 import Utils from "../config/utils.js";
 import router from "../router.js";
 
-const apiClient = axios.create({
-  baseURL: import.meta.env.DEV ? "http://localhost:3200/vehicleScheduling/" : "/vehicleScheduling/",
-  withCredentials: true,
-});
+function createClient(baseURL) {
+  const client = axios.create({
+    baseURL,
+    withCredentials: true,
+  });
 
-apiClient.interceptors.request.use((config) => {
-  const user = Utils.getStore("user");
+  client.interceptors.request.use((config) => {
+    const user = Utils.getStore("user");
 
-  if (user?.token) {
-    config.headers.Authorization = `Bearer ${user.token}`;
-  }
-
-  if (config.data instanceof FormData) {
-    delete config.headers["Content-Type"];
-  }
-
-  return config;
-});
-
-apiClient.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    const message = error.response?.data?.message || "";
-    const url = error.config?.url || "";
-    const isLoginAttempt = url.includes("login");
-
-    if (!isLoginAttempt && (error.response?.status === 401 || /Unauthorized/i.test(message))) {
-      clearCurrentUser();
-      if (router.hasRoute("login") && router.currentRoute.value.name !== "login") {
-        router.push({ name: "login" });
-      }
+    if (user?.token) {
+      config.headers.Authorization = `Bearer ${user.token}`;
     }
 
-    return Promise.reject(error);
-  }
+    if (config.data instanceof FormData) {
+      delete config.headers["Content-Type"];
+    }
+
+    return config;
+  });
+
+  client.interceptors.response.use(
+    (response) => response,
+    (error) => {
+      const message = error.response?.data?.message || "";
+      const url = error.config?.url || "";
+      const isLoginAttempt = url.includes("login");
+
+      if (!isLoginAttempt && (error.response?.status === 401 || /Unauthorized/i.test(message))) {
+        clearCurrentUser();
+        if (router.hasRoute("login") && router.currentRoute.value.name !== "login") {
+          router.push({ name: "login" });
+        }
+      }
+
+      return Promise.reject(error);
+    }
+  );
+
+  return client;
+}
+
+const apiClient = createClient(
+  import.meta.env.DEV ? "http://localhost:3200/api/" : "/vehicle-t4/"
 );
 
-export default apiClient;
+const schedulingClient = createClient(
+  import.meta.env.DEV ? "http://localhost:3200/vehicle-t4/" : "/vehicle-t4/"
+);
+
+export { apiClient };
+export default schedulingClient;
