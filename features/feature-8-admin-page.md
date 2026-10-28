@@ -121,3 +121,64 @@ Accessible only to users with the `admin` role.
 - **Heading**: Admin Page / Management
 - **Content**: Displays the administrative schedule overview and management tools.
 - **App chrome**: Standard application `MenuBar` at the top with the **Admin** navigation item visible only when `user.role === 'admin'`.
+
+---
+
+## Acceptance Criteria (Gherkin)
+
+### US-8.1 — Access Admin Page restricted by role
+
+#### Scenario: Admin successfully accesses the admin page
+
+- **Given** I am signed in as a user with role `admin`
+- **When** I navigate to the admin page (`/admin`)
+- **Then** I am successfully shown the admin schedule interface
+- **And** the API request to fetch admin data returns `200`
+
+---
+
+### US-8.2 — Block non-admin access to Admin Page
+
+#### Scenario: Requestor is blocked from the admin page
+
+- **Given** I am signed in as a user with role `requestor`
+- **When** I attempt to navigate to `/admin`
+- **Then** I am redirected or shown a forbidden message
+- **And** any direct API call to admin endpoints returns `403`
+
+#### Scenario: Maintenance is blocked from the admin page
+
+- **Given** I am signed in as a user with role `maintenance`
+- **When** I attempt to navigate to `/admin`
+- **Then** I am redirected or shown a forbidden message
+- **And** any direct API call to admin endpoints returns `403`
+
+---
+
+### US-8.3 — Admin MenuBar integration
+
+#### Scenario: Admin sees Admin nav item in MenuBar
+
+- **Given** I am signed in as a user with role `admin`
+- **When** I view the `MenuBar`
+- **Then** the **Admin** navigation item is displayed
+
+#### Scenario: Non-admin does not see Admin nav item in MenuBar
+
+- **Given** I am signed in as a user with role `requestor`
+- **When** I view the `MenuBar`
+- **Then** the **Admin** navigation item is **not** displayed
+
+---
+
+## Test Coverage Map
+
+Each scenario above must map to at least one automated test.
+
+| Story | Scenario | Test file | Test name |
+|-------|----------|-----------|-----------|
+| US-8.1 | Admin successfully accesses the admin page | `backend/tests/admin.test.js`, `frontend/tests/Admin.test.js` | `it("Admin successfully accesses the admin page")` |
+| US-8.2 | Requestor is blocked from the admin page | `backend/tests/admin.test.js`, `frontend/tests/router.test.js` | `it("Requestor is blocked from the admin page")` |
+| US-8.2 | Maintenance is blocked from the admin page | `backend/tests/admin.test.js`, `frontend/tests/router.test.js` | `it("Maintenance is blocked from the admin page")` |
+| US-8.3 | Admin sees Admin nav item in MenuBar | `frontend/tests/MenuBar.test.js` | `it("Admin sees Admin nav item in MenuBar")` |
+| US-8.3 | Non-admin does not see Admin nav item in MenuBar | `frontend/tests/MenuBar.test.js` | `it("Non-admin does not see Admin nav item in MenuBar")` |
