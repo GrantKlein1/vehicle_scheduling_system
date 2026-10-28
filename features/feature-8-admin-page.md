@@ -41,3 +41,39 @@
 **Priority:** P1
 **Independent test:** After logging in as admin, the `MenuBar` displays the Admin link; clicking it routes to `/admin`
 **Acceptance scenarios:** see ### US-8.3 under Acceptance Criteria
+
+---
+
+## Requirements
+
+### Functional Requirements
+
+- **FR-801**: The application MUST provide a protected route and view for the admin page/schedule (route name `admin`, path `/admin`).
+- **FR-802**: Access to the `admin` route and its backing APIs MUST be strictly restricted to users with the `admin` role. Any attempt by a non-admin user (requestor, maintenance) MUST be rejected with HTTP `403`.
+- **FR-803**: Unauthenticated requests to admin endpoints MUST return HTTP `401`.
+- **FR-804**: Feature 8 MUST add the **Admin** nav item to the existing `MenuBar` exclusively for users with the `admin` role. Requestors and maintenance users MUST NOT see the Admin link.
+- **FR-805**: The admin page MUST display the comprehensive system schedule / administrative overview as specified by product requirements.
+
+---
+
+## Assumptions
+
+- Only users with the `admin` role can access the admin page and associated admin schedule APIs.
+- `MenuBar` is already introduced in Feature 1 and updated by intermediate features; Feature 8 appends the Admin nav item for admins.
+- Backend middleware will verify both authentication (valid token) and authorization (`role === 'admin'`).
+
+---
+
+## Edge Cases
+
+- A requestor or maintenance user manually types the URL `/admin` → redirected away or shown an unauthorized error message, and backend API returns `403`.
+- An unauthenticated user accesses `/admin` or admin APIs → redirected to login / API returns `401`.
+
+---
+
+## Success Criteria
+
+- **SC-801**: Every Gherkin scenario in this feature has at least one automated test before merge.
+- **SC-802**: An admin user can successfully navigate to the admin page via the `MenuBar` and view the admin schedule.
+- **SC-803**: Non-admin users are successfully blocked from viewing the admin page or calling admin endpoints.
+- **SC-804**: `npm test` passes with backend and frontend coverage for admin role checks and page rendering.
