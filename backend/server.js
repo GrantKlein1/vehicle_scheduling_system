@@ -42,11 +42,12 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.use("/api", apiRouter);
-// Apache publishes this app at /vehicle-t4 and strips that prefix before Node sees the request.
+// Team 4 Apache rule keeps the prefix:
+// ProxyPass /vehicle-t4 http://localhost:3024/vehicle-t4
 app.use("/vehicle-t4", vehicleSchedulingRouter);
-app.use(vehicleSchedulingRouter);
+app.use("/vehicle-t4", apiRouter);
 
-const PORT = process.env.PORT || 3200;
+const PORT = process.env.PORT || 3024;
 
 if (process.env.NODE_ENV !== "test") {
   app.listen(PORT, () => {
