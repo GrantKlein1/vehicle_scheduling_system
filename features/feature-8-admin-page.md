@@ -182,3 +182,40 @@ Each scenario above must map to at least one automated test.
 | US-8.2 | Maintenance is blocked from the admin page | `backend/tests/admin.test.js`, `frontend/tests/router.test.js` | `it("Maintenance is blocked from the admin page")` |
 | US-8.3 | Admin sees Admin nav item in MenuBar | `frontend/tests/MenuBar.test.js` | `it("Admin sees Admin nav item in MenuBar")` |
 | US-8.3 | Non-admin does not see Admin nav item in MenuBar | `frontend/tests/MenuBar.test.js` | `it("Non-admin does not see Admin nav item in MenuBar")` |
+
+---
+
+## Agent implementation request
+
+Copy when asking Cursor to implement this feature (`@` this file):
+
+```text
+Implement Feature 8 from @features/feature-8-admin-page.md on branch `feature-8-admin-page`.
+
+Follow layer order in @features/framework.md (models → routes → backend tests → frontend → frontend tests).
+Map every Gherkin scenario in the Test Coverage Map; run `npm test` before finishing.
+If API routes, payloads, schema, or product rules changed per this spec, update @features/reference/api.md, @features/reference/data-model.md, and/or @features/reference/behavior.md in the same PR to match shipped code.
+Complete Definition of Done and the merge checklist in @features/framework.md.
+Do not implement behavior not in this spec.
+
+**Reference updates for this feature:** `features/reference/api.md`,`features/reference/data-model.md`,`features/reference/behavior.md`
+
+## Definition of Done
+
+- [ ] Backend and frontend implemented per this spec (**FR-801**–**FR-805** satisfied)
+- [ ] **Success Criteria (SC-801**–**SC-804)** met
+- [ ] All mapped tests pass (`npm test`)
+- [ ] Test Coverage Map complete
+- [ ] `features/reference/data-model.md` updated (if schema changed)
+- [ ] `features/reference/api.md` updated (if API changed)
+- [ ] `features/reference/behavior.md` updated (if product rules changed)
+
+## Out of Scope
+
+- Modifying non-admin user roles directly from this page
+- Changes to authentication mechanism ([Feature 1](./feature-1-user-auth.md))
+
+## Delivered to Feature 8
+
+- `MenuBar` includes the **Admin** navigation item for `admin` role users.
+- Admin schedule view is fully functional at `/admin`.
