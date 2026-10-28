@@ -77,3 +77,47 @@
 - **SC-802**: An admin user can successfully navigate to the admin page via the `MenuBar` and view the admin schedule.
 - **SC-803**: Non-admin users are successfully blocked from viewing the admin page or calling admin endpoints.
 - **SC-804**: `npm test` passes with backend and frontend coverage for admin role checks and page rendering.
+---
+
+## Data Ownership & Isolation
+
+Admin APIs and views allow administrative oversight across system schedules and resources per product authorization rules. Non-admin roles have zero access to admin data endpoints.
+
+| Rule | Requirement |
+|------|-------------|
+| **Read scope** | `GET /vehicle-t4/admin/schedule` (or matching admin endpoint) is restricted exclusively to authenticated users with `role === 'admin'`. |
+| **Write/Access scope** | `403` returned if authenticated user lacks the `admin` role. `401` returned if unauthenticated. |
+| **UI scope** | Admin page and **Admin** nav item in `MenuBar` render only when `user.role === 'admin'`. |
+
+---
+
+## Key Entities
+
+- **Admin Schedule / View**: The primary dashboard interface for administrators to monitor system-wide activities.
+- **User Role**: Verified via session token/payload to enforce administrative restrictions.
+
+---
+
+## API Requirements
+
+Mount prefix: `/vehicle-t4` (see `backend/server.js`). Flat JSON; errors `{ "message": "…" }`. Do not wrap in `{ success, data }`.
+
+| Method | Endpoint | Auth | Purpose |
+|--------|----------|------|---------|
+| `GET` | `/vehicle-t4/admin/schedule` | Yes (admin) | Retrieve comprehensive schedule data for the admin view |
+
+**Error responses:**
+- Unauthorized: `401` with `{ "message": "Unauthorized" }`
+- Forbidden (non-admin role): `403` with `{ "message": "Forbidden" }`
+
+---
+
+## Screen Requirements
+
+### [View: Admin Page] — route name `admin` (`/admin`)
+
+Accessible only to users with the `admin` role.
+
+- **Heading**: Admin Page / Management
+- **Content**: Displays the administrative schedule overview and management tools.
+- **App chrome**: Standard application `MenuBar` at the top with the **Admin** navigation item visible only when `user.role === 'admin'`.
