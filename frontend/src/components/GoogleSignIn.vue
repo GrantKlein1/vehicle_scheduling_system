@@ -48,8 +48,6 @@ function renderGoogleButton() {
     auto_select: false,
     cancel_on_tap_outside: true,
     ux_mode: "popup",
-    use_fedcm_for_button: true,
-    button_auto_select: false,
   });
   google.accounts.id.renderButton(buttonHost.value, {
     type: "standard",
