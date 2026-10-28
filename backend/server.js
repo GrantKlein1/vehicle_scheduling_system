@@ -16,7 +16,7 @@ if (process.env.NODE_ENV !== "test") {
   db.sequelize
     .sync(syncOptions)
     .then(async () => {
-      await db.seedRoleUsers();
+      await db.prepareAdminTypes();
       if (syncOptions.alter) {
         logger.info("Database sync completed with alter: true.");
       }

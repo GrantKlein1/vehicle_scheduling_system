@@ -30,3 +30,4 @@ They do **not** authorize new scope — implement only from `features/feature-*.
 | Area | Introduced |
 |------|------------|
 | Users, sessions, Google sign-in, `MenuBar` | Feature 1 |
+| `system_admin`, `area_admin`, placeholder `areas`, area authorization | Admin types on `feature/1-user-auth-implement` |

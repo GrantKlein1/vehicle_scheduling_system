@@ -53,6 +53,8 @@ describe("Feature 1 — User Authentication & Session Management", () => {
           fName: "Jane",
           lName: "Doe",
           role: "requestor",
+          areaId: null,
+          areaName: null,
           token: expect.any(String),
         })
       );
@@ -64,6 +66,7 @@ describe("Feature 1 — User Authentication & Session Management", () => {
       expect(users[0].fName).toBe("Jane");
       expect(users[0].lName).toBe("Doe");
       expect(users[0].role).toBe("requestor");
+      expect(users[0].areaId).toBeNull();
 
       const sessions = await db.session.findAll({ where: { userId: users[0].id } });
       expect(sessions).toHaveLength(1);
@@ -78,7 +81,8 @@ describe("Feature 1 — User Authentication & Session Management", () => {
         email: "admin@eagles.oc.edu",
         fName: "Admin",
         lName: "User",
-        role: "admin",
+        role: "system_admin",
+        areaId: null,
         googleSub: null,
       });
 
@@ -94,13 +98,15 @@ describe("Feature 1 — User Authentication & Session Management", () => {
       });
 
       expect(response.status).toBe(200);
-      expect(response.body.role).toBe("admin");
+      expect(response.body.role).toBe("system_admin");
+      expect(response.body.areaId).toBeNull();
+      expect(response.body.areaName).toBeNull();
       expect(response.body.userId).toBe(seeded.id);
 
       const users = await db.user.findAll();
       expect(users).toHaveLength(1);
       expect(users[0].googleSub).toBe("google-sub-admin");
-      expect(users[0].role).toBe("admin");
+      expect(users[0].role).toBe("system_admin");
       expect(users[0].fName).toBe("Alex");
       expect(users[0].lName).toBe("Admin");
       expect(users[0].email).toBe("admin@eagles.oc.edu");
@@ -149,14 +155,54 @@ describe("Feature 1 — User Authentication & Session Management", () => {
 
       const response = await request(app).post("/vehicleScheduling/login").send({
         credential: "google-credential-jane",
-        role: "admin",
+        role: "system_admin",
+        areaId: 4,
+        areaName: "Biology",
       });
 
       expect(response.status).toBe(201);
       expect(response.body.role).toBe("requestor");
+      expect(response.body.areaId).toBeNull();
+      expect(response.body.areaName).toBeNull();
 
       const user = await db.user.findOne({ where: { email: "jdoe@eagles.oc.edu" } });
       expect(user.role).toBe("requestor");
+      expect(user.areaId).toBeNull();
+    });
+
+    it("Legacy admin sign-in becomes a system admin", async () => {
+      await db.sequelize.query(
+        "INSERT INTO users (fName, lName, email, googleSub, role, areaId) VALUES (?, ?, ?, ?, ?, ?)",
+        {
+          replacements: ["Admin", "User", "admin@eagles.oc.edu", null, "admin", null],
+        }
+      );
+
+      mockGoogleProfile({
+        sub: "google-sub-admin",
+        email: "admin@eagles.oc.edu",
+        fName: "Alex",
+        lName: "Admin",
+      });
+
+      const response = await request(app).post("/vehicleScheduling/login").send({
+        credential: "google-credential-admin",
+        role: "requestor",
+        areaId: 9,
+      });
+
+      expect(response.status).toBe(200);
+      expect(response.body.role).toBe("system_admin");
+      expect(response.body.areaId).toBeNull();
+      expect(response.body.areaName).toBeNull();
+
+      const users = await db.user.findAll();
+      expect(users).toHaveLength(1);
+      expect(users[0].googleSub).toBe("google-sub-admin");
+      expect(users[0].role).toBe("system_admin");
+      expect(users[0].areaId).toBeNull();
+      expect(users[0].fName).toBe("Alex");
+      expect(users[0].lName).toBe("Admin");
     });
   });
 
@@ -195,6 +241,8 @@ describe("Feature 1 — User Authentication & Session Management", () => {
           fName: "Jane",
           lName: "Doe",
           role: "requestor",
+          areaId: null,
+          areaName: null,
           token: existingSession.token,
         })
       );
@@ -210,7 +258,8 @@ describe("Feature 1 — User Authentication & Session Management", () => {
         lName: "User",
         email: "admin@eagles.oc.edu",
         googleSub: "google-sub-admin",
-        role: "admin",
+        role: "system_admin",
+        areaId: null,
       });
 
       mockGoogleProfile({
@@ -225,11 +274,59 @@ describe("Feature 1 — User Authentication & Session Management", () => {
       });
 
       expect(response.status).toBe(200);
-      expect(response.body.role).toBe("admin");
+      expect(response.body.role).toBe("system_admin");
+      expect(response.body.areaId).toBeNull();
       expect(await db.user.count()).toBe(1);
 
       const user = await db.user.findOne({ where: { googleSub: "google-sub-admin" } });
-      expect(user.role).toBe("admin");
+      expect(user.role).toBe("system_admin");
+      expect(user.areaId).toBeNull();
+    });
+
+    it("Area admin sign-in keeps the assigned area", async () => {
+      const area = await db.area.create({ name: "Athletics" });
+      const existing = await db.user.create({
+        fName: "Avery",
+        lName: "Athlete",
+        email: "athletics-admin@eagles.oc.edu",
+        googleSub: "google-sub-area",
+        role: "area_admin",
+        areaId: area.id,
+      });
+
+      mockGoogleProfile({
+        sub: "google-sub-area",
+        email: "athletics-admin@eagles.oc.edu",
+        fName: "Avery",
+        lName: "Coach",
+      });
+
+      const response = await request(app).post("/vehicleScheduling/login").send({
+        credential: "google-credential-area",
+        role: "system_admin",
+        areaId: 999,
+        areaName: "Biology",
+      });
+
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual(
+        expect.objectContaining({
+          userId: existing.id,
+          email: "athletics-admin@eagles.oc.edu",
+          fName: "Avery",
+          lName: "Coach",
+          role: "area_admin",
+          areaId: area.id,
+          areaName: "Athletics",
+          token: expect.any(String),
+        })
+      );
+      expect(await db.user.count()).toBe(1);
+
+      const user = await db.user.findByPk(existing.id);
+      expect(user.role).toBe("area_admin");
+      expect(user.areaId).toBe(area.id);
+      expect(user.lName).toBe("Coach");
     });
 
     it("Invalid Google credential stays on login", async () => {
