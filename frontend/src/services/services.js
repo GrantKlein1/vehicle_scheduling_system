@@ -45,7 +45,7 @@ function createClient(baseURL) {
 }
 
 const apiClient = createClient(
-  import.meta.env.DEV ? "http://localhost:3200/api/" : "/vehicle-t4/api/"
+  import.meta.env.DEV ? "http://localhost:3200/api/" : "/vehicle-t4/"
 );
 
 const schedulingClient = createClient(
