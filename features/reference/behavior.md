@@ -51,15 +51,9 @@ They do **not** authorize new scope — implement only from `features/feature-*.
 |------|-------------|------------|
 | `MenuBar` is mounted above `<v-main>` and is visible on `login` and `home` | `App.vue` | Feature 1 |
 | No session: `MenuBar` has no **Sign out** and no catalog links | `MenuBar` | Feature 1 |
-<<<<<<< HEAD
 | Session on `home`: `MenuBar` shows the user's name, role label, and **Sign out** | `MenuBar` | Feature 1, admin types |
 | Role labels are **System Admin** (including legacy `admin`), **Area Admin · {area name}**, **Maintenance**, and **Requestor** | `formatRoleLabel` | Admin types |
 | Feature 1 has no catalog nav items | `navItems` is empty. An item is shown when `roleMatchesNav` matches. `admin` and `system_admin` match system admins only. `area_admin` matches area admins only | Feature 1, admin types |
-=======
-| A signed-in session shows the user's name and **Sign out** on every page | `MenuBar` | Feature 1 |
-| Nav items share one size and sit in a centered group with the same gap; the name and **Sign out** stay on the right | `MenuBar` | Feature 1 |
-| Catalog nav items are shown only when `user.role` is allowed | `MenuBar` `navItems` | Feature 1 |
->>>>>>> dev
 | A signed-in user who opens `login` is redirected to `home` | Router `beforeEach` | Feature 1 |
 | `home` without a session redirects to `login` | Router `beforeEach` | Feature 1 |
 | Home shows `Welcome, {first name}.` | `Home.vue` | Feature 1 |

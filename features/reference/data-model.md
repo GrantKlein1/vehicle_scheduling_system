@@ -116,11 +116,8 @@ No `createdAt` or `updatedAt`. Introduced in Feature 2.
 | From | To | Relationship | On delete |
 |------|----|--------------|-----------|
 | `users` | `sessions` | one-to-many (`sessions.userId`) | CASCADE |
-<<<<<<< HEAD
 | `areas` | `users` | one-to-many (`users.areaId`) | RESTRICT |
 
 An area admin must reference an existing area. That rule is enforced in a `users` `beforeValidate` hook. Deleting an area that still has users is restricted by the foreign key.
-=======
 | `vehicles` | `mileage_logs` | one-to-many (`mileage_logs.vehicleId`) | CASCADE |
 | `vehicles` | `service_logs` | one-to-many (`service_logs.vehicleId`) | CASCADE |
->>>>>>> dev

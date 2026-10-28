@@ -23,7 +23,6 @@ db.serviceLog = serviceLogModel(sequelize, Sequelize);
 db.user.hasMany(db.session, { foreignKey: "userId", onDelete: "CASCADE" });
 db.session.belongsTo(db.user, { foreignKey: "userId" });
 
-<<<<<<< HEAD
 db.area.hasMany(db.user, { foreignKey: "areaId", onDelete: "RESTRICT" });
 db.user.belongsTo(db.area, { foreignKey: "areaId" });
 
@@ -50,7 +49,6 @@ db.user.addHook("beforeValidate", async (user) => {
 });
 
 const SEEDED_AREAS = ["Athletics", "Support Central", "Maintenance"];
-=======
 db.vehicle.hasMany(db.mileageLog, {
   foreignKey: "vehicleId",
   onDelete: "CASCADE",
@@ -64,7 +62,6 @@ db.vehicle.hasMany(db.serviceLog, {
   as: "serviceLogs",
 });
 db.serviceLog.belongsTo(db.vehicle, { foreignKey: "vehicleId" });
->>>>>>> dev
 
 const SEEDED_ROLE_USERS = [
   {
