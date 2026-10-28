@@ -84,11 +84,13 @@ A `userId` in a create or update body is ignored. Responses do not include `user
 
 ### Create – `POST /api/vehicle/vehicles`
 
-**201** returns the saved vehicle: `id`, `category`, `make`, `model`, `year`, `vin`, `purchasedDate`, `color`, `passengerCapacity`, `licensePlateNumber`, `licensePlateExpirationMonth`, `areaAssigned`, `createdAt`, and `updatedAt`. Logs are not included.
+**201** returns the saved vehicle: `id`, `category`, `make`, `model`, `year`, `vin`, `purchasedDate`, `color`, `passengerCapacity`, `licensePlateNumber`, `licensePlateExpirationMonth`, `areaAssigned`, `status`, `createdAt`, and `updatedAt`. Logs are not included.
 
 `category` is `Golf Cart`, `Truck`, `Car`, or `Van`. `areaAssigned` is `Athletics`, `Support Central`, or `Maintenance`. `make` and `model` are required strings of at most 40 characters and are not limited to the suggestion list. For `Truck`, `Car`, and `Van`, `vin` is required, unique, and must match `^[A-HJ-NPR-Z0-9]{17}$`, `licensePlateNumber` is required, unique, and must match `^[A-Z0-9]{2,8}$`, and `licensePlateExpirationMonth` is an integer from 1 through 12. The API does not change case to make a value match. A `Golf Cart` stores those three fields as `null`; values sent for them are discarded, including values that would fail the VIN or plate pattern, and the nulls are not treated as duplicates. Uniqueness is exact after trim and is case-sensitive. `year` is an integer from 1950 through 2027. `passengerCapacity` is an integer from 1 through 15. `purchasedDate` is a real `YYYY-MM-DD` date on the current day or earlier. A later day returns `"Date cannot be in the future."`. `color` is required and at most 30 characters.
 
 **400** messages match the Feature 2 create error table, including `"VIN cannot be empty."`, `"VIN must be a valid 17-character VIN."`, `"VIN already exists."`, `"License Plate Number must be 2 to 8 letters or digits."`, and `"License Plate Number already exists."`.
+
+`status` is optional on create and update. Allowed values are `available`, `checked_out`, `in_repair`, and `out_of_service`. A missing or blank `status` on create is stored as `available`. A missing or blank `status` on update leaves the stored status unchanged. Any other value returns **400** `{ "message": "Status must be available, checked_out, in_repair, or out_of_service." }`. The vehicle screen shows the status and does not send it; a later feature can change it through these same create and update routes.
 
 ### List – `GET /api/vehicle/vehicles`
 
@@ -102,7 +104,7 @@ A `userId` in a create or update body is ignored. Responses do not include `user
 
 ### Update – `PUT /api/vehicle/vehicles/:vehicleId`
 
-The body requires the same fields as create. A duplicate `vin` or `licensePlateNumber` is reported only when another vehicle already has that value.
+The body requires the same catalog fields as create. `status` stays optional: omit it to keep the stored value. A duplicate `vin` or `licensePlateNumber` is reported only when another vehicle already has that value.
 
 **200** `{ "message": "Vehicle was updated successfully." }`
 

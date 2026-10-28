@@ -17,6 +17,7 @@ if (process.env.NODE_ENV !== "test") {
     .sync(syncOptions)
     .then(async () => {
       await db.seedRoleUsers();
+      await db.backfillVehicleStatuses();
       if (syncOptions.alter) {
         logger.info("Database sync completed with alter: true.");
       }

@@ -2,7 +2,7 @@ import { Sequelize } from "sequelize";
 import sequelize from "../config/sequelizeInstance.js";
 import userModel from "./user.model.js";
 import sessionModel from "./session.model.js";
-import vehicleModel from "./vehicle.model.js";
+import vehicleModel, { DEFAULT_VEHICLE_STATUS } from "./vehicle.model.js";
 import mileageLogModel from "./mileageLog.model.js";
 import serviceLogModel from "./serviceLog.model.js";
 
@@ -56,6 +56,17 @@ db.seedRoleUsers = async () => {
       await db.user.create(seed);
     }
   }
+};
+
+db.backfillVehicleStatuses = async () => {
+  await db.vehicle.update(
+    { status: DEFAULT_VEHICLE_STATUS },
+    {
+      where: {
+        [Sequelize.Op.or]: [{ status: null }, { status: "" }],
+      },
+    }
+  );
 };
 
 export default db;

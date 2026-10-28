@@ -1,3 +1,31 @@
+const VEHICLE_STATUS_LABELS = {
+  available: "Available",
+  checked_out: "Checked Out",
+  in_repair: "In Repair",
+  out_of_service: "Out of Service",
+};
+
+const VEHICLE_STATUS_COLORS = {
+  available: "success",
+  checked_out: "primary",
+  in_repair: "warning",
+  out_of_service: "error",
+};
+
+export function vehicleStatusLabel(status) {
+  if (!status) {
+    return VEHICLE_STATUS_LABELS.available;
+  }
+  return VEHICLE_STATUS_LABELS[status] ?? status;
+}
+
+export function vehicleStatusColor(status) {
+  if (!status) {
+    return VEHICLE_STATUS_COLORS.available;
+  }
+  return VEHICLE_STATUS_COLORS[status] ?? "secondary";
+}
+
 export const CATEGORY_ICONS = {
   "Golf Cart": "mdi-golf-cart",
   Truck: "mdi-truck",

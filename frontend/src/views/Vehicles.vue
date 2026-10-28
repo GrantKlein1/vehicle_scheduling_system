@@ -17,6 +17,8 @@ import {
   formatMileage,
   monthName,
   todayIso,
+  vehicleStatusColor,
+  vehicleStatusLabel,
   vehicleTitle,
 } from "../config/vehicleDisplay.js";
 import {
@@ -98,6 +100,7 @@ const detailFields = computed(() => {
   }
   const golfCart = vehicle.category === "Golf Cart";
   return [
+    { label: "Status", value: vehicleStatusLabel(vehicle.status) },
     { label: "Color", value: vehicle.color },
     { label: "Passengers", value: vehicle.passengerCapacity },
     { label: "Purchased", value: formatDate(vehicle.purchasedDate) },
@@ -123,6 +126,7 @@ function emptyVehicle() {
     licensePlateNumber: "",
     licensePlateExpirationMonth: null,
     areaAssigned: null,
+    status: "available",
   };
 }
 
@@ -482,6 +486,7 @@ function openEdit() {
     licensePlateNumber: vehicle.licensePlateNumber,
     licensePlateExpirationMonth: vehicle.licensePlateExpirationMonth,
     areaAssigned: vehicle.areaAssigned,
+    status: vehicle.status || "available",
   };
   vehicleErrors.value = {};
   vehicleDialog.value = true;
@@ -687,8 +692,16 @@ onMounted(async () => {
                 <v-chip size="small" color="primary" variant="tonal" class="mr-2">
                   {{ selectedVehicle.category }}
                 </v-chip>
-                <v-chip size="small" color="primary" variant="tonal">
+                <v-chip size="small" color="primary" variant="tonal" class="mr-2">
                   {{ selectedVehicle.areaAssigned }}
+                </v-chip>
+                <v-chip
+                  size="small"
+                  :color="vehicleStatusColor(selectedVehicle.status)"
+                  variant="tonal"
+                  :aria-label="`Status: ${vehicleStatusLabel(selectedVehicle.status)}`"
+                >
+                  {{ vehicleStatusLabel(selectedVehicle.status) }}
                 </v-chip>
               </template>
               <template v-if="isAdmin" #append>
@@ -884,6 +897,17 @@ onMounted(async () => {
         <v-card-title>{{ dialogTitle }}</v-card-title>
         <v-card-text>
           <v-form @submit.prevent="saveVehicle">
+            <div class="d-flex align-center mb-4">
+              <span class="text-caption text-medium-emphasis mr-2">Status</span>
+              <v-chip
+                size="small"
+                :color="vehicleStatusColor(form.status)"
+                variant="tonal"
+                aria-label="Vehicle status"
+              >
+                {{ vehicleStatusLabel(form.status) }}
+              </v-chip>
+            </div>
             <p class="text-subtitle-2 mb-2">Vehicle</p>
             <v-row>
               <v-col cols="12" sm="6">
