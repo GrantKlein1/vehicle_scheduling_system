@@ -18,6 +18,8 @@ No application code may be written unless it maps to a requirement in one of the
 |----|------|--------|------------|
 | 1 | [feature-1-user-auth.md](./feature-1-user-auth.md) | `feature/1-user-auth` | — |
 | 2 | [feature-2-vehicle-management.md](./feature-2-vehicle-management.md) | `feature/2-vehicle-management` | Feature 1 |
+| 3 | [feature-3-driver-management.md](./feature-3-driver-management.md) | `feature/3-driver-management` | Feature 1 |
+| 3 | [feature-4-destination-management.md](./feature-4-destination-management.md) | `feature/4-destination-management` | Feature 1 |
 
 New features: follow [framework.md](./framework.md#feature-spec-template) — **Status**, **Input**, **FR-00N**, **SC-00N**, **Key Entities**, Gherkin, **Agent implementation request**, **Definition of Done**.
 

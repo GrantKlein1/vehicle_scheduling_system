@@ -2,10 +2,10 @@
 
 **Feature ID:** 3
 **Branch pattern:** `feature/3-driver-management`
-**Status:** done
+**Status:** Ready
 **Created:** 2026-10-23
 **Input:** Logged-in admin maintains a list of drivers on a single view via dialogs; drivers are users with valid credentials.
-**Depends on:** [Feature 1 — User Authentication](feature-1-user-auth.md), [Feature 2 - Vehicle Management](feature-2-vehicle-management)
+**Depends on:** [Feature 1 — User Authentication](feature-1-user-auth.md)
 
 ---
 
@@ -61,15 +61,25 @@
 **Independent test:** Delete a driver via confirmation dialog and verify its removal
 **Acceptance scenarios:** see ### US-3.5 under Acceptance Criteria
 
-### US-3.6: Role-Based Access Control
+### US-3.6: Role-Based Menu Access
 
 **As** the application
-**I want** to restrict Driver catalog modifications and menu visibility exclusively to admin
+**I want** to restrict Driver visibility exclusively to admin and maintenance
+**So that** maintenance or requestor users cannot modify the driver management view
+
+**Priority:** P1
+**Independent test:** Sign in as requestor to ensure "Driver" menu is disabled
+**Acceptance scenarios:** see ### US-3.6 under Acceptance Criteria
+
+### US-3.7: Role-Based Access Control
+
+**As** the application
+**I want** to restrict Driver list modifications exclusively to admin
 **So that** maintenance or requestor users cannot modify the driver management view
 
 **Priority:** P1
 **Independent test:** Sign in as maintenance or requestor to ensure editing or deleting a "Driver" yields a 403
-**Acceptance scenarios:** see ### US-3.6 under Acceptance Criteria
+**Acceptance scenarios:** see ### US-3.7 under Acceptance Criteria
 
 ---
 
@@ -78,7 +88,7 @@
 ### Functional Requirements
 
 - **FR-001:** All driver endpoints MUST require authentication (`authenticate` middleware). 
-- **FR-002:** `GET /vehicle-t4/drivers` MUST be accessible by any authenticated user (`Admin` and `Maintenance`).
+- **FR-002:** `GET /vehicle-t4/drivers` MUST be accessible by any authenticated user.
 -**FR-003:**  `POST`, `PUT`, and `DELETE` endpoints MUST be restricted strictly to users with `req.user.role === "admin"`.
 -**FR-004:** Drivers MUST be stored as a list of approved drivers without a `userId` field.
 -**FR-005:** If a `Maintenance` or `Requestor` user attempts a `POST`, `PUT`, or `DELETE` request, the API MUST return HTTP status `403 Forbidden` with `{ "message": "Admin role required." }`.
@@ -91,9 +101,9 @@
 
 - Feature 1 user authentication is merged and active on `dev`.
 - The `MenuBar` component exists and supports conditional rendering based on user role.
-- Courses represent a shared global catalog rather than user-based resources.
-- Course interactions use modal dialogs on a single view (`Courses.vue`) rather than split-scren views.
-- Feature 5 (Sections) will associate `courseId` with sections at a larger stage.
+- Drivers represent a list rather than user-based resources.
+- Driver interactions use modal dialogs on a single view (`Drivers.vue`) rather than split-scren views.
+- Feature 6 (Reservation) will associate `driverId` with reservations at a larger stage.
 
 ---
 
@@ -109,166 +119,83 @@
 
 - **SC-001**: Every Gherkin scenario is covered by automated unit/integration tests.
 - **SC-002**: Admin can perform complete CRUD operations on drivers within a single screen using dialogs.
-- **SC-003**: Maintenance users can perform GET requests but don't have mutation access.
-- **SC-004**: Requestor users cannot perform CRUD operations on drivers.
-- **SC-005**: All test suites (`npm test`) pass completely without failiures.
+- **SC-003**: Maintenance or Requestor users can perform GET requests but don't have mutation access.
+- **SC-004**: All test suites (`npm test`) pass completely without failiures.
 
 ## Data Ownership & Isolation
 
-Courses belong to a global shared catalog and are not tied to individual user accounts (`userId` is not present in the course schema). Faculty manage catalog entries, while student users have read-only access.
+Drivers belong to a list and are not tied to individual user accounts (`userId` is not present in the course schema). Admin manage list entries, while mainenance users have read-only access, and requestors have no access.
 
 | Rule | Requirement |
 |------|-------------|
-| **Read scope** | `GET /course/courses` returns all shared courses and is accessible by any authenticated user (`faculty` or `student`). |
-| **Write scope** | `PUT` / `DELETE` `/course/courses/:courseId` succeed only when `req.user.role === "faculty"`. Student mutation attempts return `403`. |
-| **Create scope** | `POST /course/courses` requires a valid faculty session (`req.user.role === "faculty"`). Course data is saved without a `userId` owner field. |
-| **Cross-user access** | Any faculty can update or delete courses in the shared catalog. No `userId` validation exists for course rows. |
-| **UI scope** | `Courses.vue` view and `Course` option in `MenuBar` render exclusively when logged in as `faculty`. |
-| **Implementation** | `authenticate` middleware in `backend/app/routes/` verifies session. Role check confirms `req.user.role === "faculty"` for mutations (`POST`, `PUT`, `DELETE`). |
+| **Read scope** | `GET /vehicle/drivers` returns all drivers and is accessible by any authenticated user. |
+| **Write scope** | `PUT` / `DELETE` `/vehicle/drivers/:driverId` succeed only when `req.user.role === "admin"`. Maintenance or Requestor mutation attempts return `403`. |
+| **Create scope** | `POST /vehicle/drivers` requires a valid admin session (`req.user.role === "admin"`). Driver data is saved without a `userId` owner field. |
+| **Cross-user access** | Any admin can update or delete drivers in the list. No `userId` validation exists for driver rows. |
+| **UI scope** | `Driver.vue` view and `Driver` option in `MenuBar` render exclusively when logged in as `admin` or `maintenance`. |
+| **Implementation** | `authenticate` middleware in `backend/app/routes/` verifies session. Role check confirms `req.user.role === "admin"` for mutations (`POST`, `PUT`, `DELETE`). |
 
 ---
 
 ## Key Entities
 
-- **Course**: shared course row in global catalog (no `userId` owner); has `courseNumber`, `courseName`, `courseDescription`, `courseSemesters`, `courseFrequency`, `courseHours`, and `courseDept`; may have section rows (Feature 5).
-- **User / Session**: required for course list view navigation, modal CRUD actions (`faculty` role), and role checks (Feature 1).
+
 
 ---
 
 ## API Requirements
 
-Mount prefix: `/course` (see `backend/server.js`). Flat JSON; errors `{ "message": "..." }`. Do not wrap in `{ success, data }`.
+Mount prefix: `/driver` (see `backend/server.js`). Flat JSON; errors `{ "message": "..." }`. Do not wrap in `{ success, data }`.
 
 | Method | Endpoint | Auth | Purpose |
 |--------|----------|------|---------|
-| `POST` | `/course/courses` | Yes (`faculty`) | Create a course |
-| `GET` | `/course/courses` | Yes | List all courses, sorted by `courseName` ascending |
-| `GET` | `/course/courses/:courseId` | Yes | Fetch one course |
-| `PUT` | `/course/courses/:courseId` | Yes (`faculty`) | Update a course |
-| `DELETE` | `/course/courses/:courseId` | Yes (`faculty`) | Delete a course |
+| `POST` | `/vehicle/drivers` | Yes (`admin`) | Create a driver |
+| `GET` | `/vehicle/drivers` | Yes | List all drivers, sorted by `lastName` ascending |
+| `PUT` | `/vehicle/drivers/:driverId` | Yes (`admin`) | Update a driver |
+| `DELETE` | `/vehicle/drivers/:driverId` | Yes (`admin`) | Delete a driver |
 
-### Create – `POST /course/courses`
+### Create – `POST /vehicle/drivers`
 
-**Request body:**
 
-```json
-{
-  "courseNumber": "CS101",
-  "courseName": "Introduction to Computer Science",
-  "courseDescription": "Basic programming concepts.",
-  "courseTerm": "Fall/Spring/Summer/Winter",
-  "sections": "{[sectionsHere]}"
-}
-```
-
-**Success** (`201`): course row JSON including `id`, `courseNumber`, `courseName`, `courseDescription`, `courseTerm`, `sections`, timestamps.
-
-**Errors (`400`):**
-
-| Condition | `message` |
-|-----------|-----------|
-| Missing `courseNumber` | `Course Number cannot be empty for course!` |
-| Missing `courseName` | `Course Name cannot be empty for course!` |
-| Missing `courseTerm` | `Course Term cannot be empty for course!` |
-| Duplicate `courseNumber` | `Course number already exists.` |
-
-**Unauthorized:** `401` when the Bearer token is missing or invalid.
-
-### List all – `GET /course/courses`
-
-**Success** (`200`): JSON array of all courses, ordered by `courseName` ASC.
-
-### Get one – `GET /course/courses/:courseId`
-
-**Success** (`200`): JSON **array** of matching courses (running controller uses `findAll`). The editor reads `response.data[0]`.
-
-### Update – `PUT /course/courses/:courseId`
-
-**Request body:** course fields to change (at least `courseNumber`, `courseName`, `courseDescription`, `courseTerm` as edited on screen).
-
-**Success:** `{ "message": "Course was updated successfully." }`
-
-**Not found / not owned:** `404` `{ "message": "Cannot find Course with id=." }`
-
-### Delete – `DELETE /course/courses/:courseId`
-
-**Success:** `{ "message": "Course was deleted successfully!" }`
-
-**Not found / not owned:** `404` `{ "message": "Cannot find Course with id=." }`
-
-**Error response (all):** `{ "message": "Human-readable explanation." }`
 
 ---
 
 ## Screen Requirements
 
-Follow [ui-style-system.mdc](../.cursor/rules/ui-style-system.mdc) for theme tokens. Labels below match the running Course UI.
 
-### [View: Course list] – route name `courses` (`/courses`)
-
-Feature 1 already specifies who may open this screen and the list navigation. This feature adds signed-in create, edit, and delete actions for `faculty` role.
-
-**Shell**
-
-- Heading: **Courses**
-- Primary action: **Add Course** (`v-if="user && user.role === 'faculty'"`) – faculty role only
-- **Error:** snackbar with API `message`
-- No empty-state copy in the running view – do not invent one
-
-**Course cards** (`CourseCardComponent`)
-
-- Show **courseNumber**, **courseName**, **courseTerm** and **courseDescription**
-- Click the card to expand/collapse details. Expanded section rows are display-only here; add/edit/delete of section rows is Feature 5
-- Pencil icon (`mdi-pencil`) opens **Edit Course** modal or navigates to `editCourse` with that course's `id`; `aria-label`: **Edit course**
-- Trash icon (`mdi-delete`) prompts delete confirmation and removes course on success; `aria-label`: **Delete course**
-
-**Add Course dialog** (`v-dialog`)
-
-- Title: **Add Course**
-- Fields: **Course Number**, **Course Name**, **Description**, **courseTerm**
-- Actions: **Close**, **Add Course**
-- On success: close dialog, refresh list, snackbar **`{courseName} added successfully!`**
-- On failure: error snackbar with API `message`
-
-### [View: Edit course] – route name `editCourse` (`/course/:id`)
-
-Session required (Feature 1). This feature owns the course **metadata** form only.
-
-- Heading: **Edit Course**
-- Fields: **Course Number**, **Course Name**, **Description**, **courseTerm**
-- Primary action: **Update Course**
-- On success: snackbar **`{courseName} updated successfully!`**, then reload the course
-- On failure: error snackbar with API `message`
-- **Sections** cards, **Add** / pencil / trash on those rows are Feature 5
 
 ### App chrome
 
-- MenuBar **Courses** already routes here (Feature 1). This feature does not add nav items.
+- MenuBar **Drivers** already routes here (Feature 1). This feature does not add nav items.
 
 ---
 
 ## Data Model Requirements
 
-### `courses` table
+### `drivers` table
 
-| Field | Type | Rules |
-|-------|------|-------|
-| `id` | INTEGER PK | Auto-increment |
-| `courseNumber` | STRING | Required |
-| `courseName` | STRING | Required |
-| `courseDescription` | STRING | Optional |
-| `courseTerm` | STRING | Required |
+| Field                  | Type       | Rules          |
+|------------------------|------------|----------------|
+| `id`                   | INTEGER PK | Auto-increment |
+| `firstName`            | STRING     | Required       |
+| `lastName`             | STRING     | Required       |
+| `driverLicenseNumber`  | STRING     | Required       |
+| `driverLicenseExpDate` | DATE       | Required       |
+| `insuranceProvider`    | STRING     | Requried       |
+| `insuranceNumber`      | STRING     | Requried       |
+| `approvedDate`         | DATE       | Required       |
+| `Status`               | STRING     | Required       |
 
 ### Associations
 
-- `Course` hasMany `Section` – `onDelete: CASCADE` (child CRUD is Feature 5)
-- `Section` belongsTo `Course`
+- `Driver` hasMany `Reservations` – `onDelete: CASCADE` (child CRUD is Feature 6)
+- `Reservations` belongsTo `Driver`
 
 ---
 
 ## Acceptance Criteria (Gherkin)
 
-### US-3.1 – View Course List Page
+### US-3.1 – View Driver List Page
 
 #### Scenario: Signed-in faculty navigates to course page
 
@@ -293,18 +220,18 @@ Session required (Feature 1). This feature owns the course **metadata** form onl
 
 ---
 
-### US-3.2 – Create Course
+### US-3.2 – Create Driver
 
-#### Scenario: Signed-in faculty creates a new course
+#### Scenario: Signed-in admin creates a new driver
 
-- **Given** I am signed in as a faculty on the course page
-- **When** I click **Add Course**
-- **Then** the course modal dialog opens
-- **When** I enter course number `CS101`, course name `Intro to CS`, course description `Basic concepts`, term `Spring`
+- **Given** I am signed in as a admin on the driver page
+- **When** I click **Add Driver**
+- **Then** the driver modal dialog opens
+- **When** I enter driver first name `Jaxen`, last name `Roden`, drivers license number `11111111`, drivers license expiration date `2030-09-20`, insurance number `11111111`, insurance provider `root`, approved date `2026-10-28`, and status `valid`
 - **And** I click **Save**
-- **Then** `POST /course/courses` returns `201` with a course whose `courseNumber` is `CS101`
-- **And** `Intro to CS` appears in the course table
-- **And** I see a snackbar **`Intro to CS added successfully!`**
+- **Then** `POST /vehicle/drivers` returns `201` with a course whose `lastName` is `Roden`
+- **And** `Jaxen Roden - Valid` appears in the driver table
+- **And** I see a snackbar **`Driver added successfully!`**
 
 #### Scenario: Create without course number is rejected
 
@@ -320,18 +247,7 @@ Session required (Feature 1). This feature owns the course **metadata** form onl
 
 ---
 
-### US-3.3 – Read Course Catalog
-
-#### Scenario: Signed-in faculty views courses catalog
-
-- **Given** I am signed in as a faculty
-- **When** I open the course management page
-- **Then** `GET /course/courses` is called
-- **And** all courses returned by the API are listed in the data table
-
----
-
-### US-3.4 – Row Action Icons
+### US-3.3 – Row Action Icons
 
 #### Scenario: Row action buttons visible for faculty
 
@@ -341,7 +257,7 @@ Session required (Feature 1). This feature owns the course **metadata** form onl
 
 ---
 
-### US-3.5 – Edit Course
+### US-3.4 – Edit Driver
 
 #### Scenario: Signed-in faculty updates course details
 
@@ -357,7 +273,7 @@ Session required (Feature 1). This feature owns the course **metadata** form onl
 
 ---
 
-### US-3.6 – Delete Course
+### US-3.5 – Delete Driver
 
 #### Scenario: Signed-in faculty deletes a course with confirmation
 
@@ -372,7 +288,7 @@ Session required (Feature 1). This feature owns the course **metadata** form onl
 
 ---
 
-### US-3.7 – Role-Based Access Control
+### US-3.6 – Role-Based Menu Access
 
 #### Scenario: Student user edit access restricted
 
@@ -401,26 +317,19 @@ Session required (Feature 1). This feature owns the course **metadata** form onl
 - **Then** the API returns `200` with the data
 - **And** course catalog data remains unchanged
 
+### US-3.7 – Role-Based Access Control
+
+
+
 ---
 
 ## Test Coverage Map
 
-Each Gherkin scenario above maps to at least one automated test. Faculty creates, updates, and deletes courses. Signed-in students and faculty can open **Course** and read the catalog. A student `POST`, `PUT`, or `DELETE` returns `403`.
+Each Gherkin scenario above maps to at least one automated test. Admin creates, updates, and deletes courses. Signed-in admin or maintenance can open **Driver** and read the list. A requester `POST`, `PUT`, or `DELETE` returns `403`. A requester can `GET` the list.
 
 | Story | Scenario | Test file | Test name |
 | ----- | -------- | --------- | --------- |
-| US–3.1 | Signed-in faculty navigates to course page | `frontend/tests/CourseList.test.js` | `Signed-in faculty navigates to course page` |
-| US–3.1 | Signed-in student navigates to course page | `frontend/tests/CourseList.test.js` | `Signed-in student navigates to course page` |
-| US–3.2 | Signed-in faculty creates a new course | `backend/tests/courses.test.js`, `frontend/tests/CourseList.test.js` | `Signed-in faculty creates a new course` |
-| US–3.2 | Create without course number is rejected | `backend/tests/courses.test.js` | `Create without course number is rejected` |
-| US–3.2 | Create without course name is rejected | `backend/tests/courses.test.js` | `Create without course name is rejected` |
-| US–3.3 | Signed-in faculty views courses catalog | `backend/tests/courses.test.js`, `frontend/tests/CourseList.test.js` | `Signed-in faculty views courses catalog` |
-| US–3.4 | Row action buttons visible for faculty | `frontend/tests/CourseList.test.js` | `Row action buttons visible for faculty` |
-| US–3.5 | Signed-in faculty updates course details | `backend/tests/courses.test.js`, `frontend/tests/CourseList.test.js` | `Signed-in faculty updates course details` |
-| US–3.6 | Signed-in faculty deletes a course with confirmation | `backend/tests/courses.test.js`, `frontend/tests/CourseList.test.js` | `Signed-in faculty deletes a course with confirmation` |
-| US–3.7 | Student user edit access restricted | `backend/tests/courses.test.js`, `frontend/tests/CourseList.test.js` | `Student user edit access restricted` |
-| US–3.7 | Student user GET access | `backend/tests/courses.test.js` | `Student user GET access` |
-| US–3.7 | Student user view list of courses access | `backend/tests/courses.test.js`, `frontend/tests/CourseList.test.js` | `Student user view list of courses access` |
+
 
 
 ---
@@ -457,20 +366,20 @@ Do not implement behavior not in this spec.
 
 ## Out of Scope
 
-- Faculty CRUD / **Faculty** nav item ([Feature 4](feature-4-faculty-management.md))
-- Section CRUD / **Section** nav item ([Feature 5](feature-5-section-management.md))
-- Enrollment CRUD / **Enrollment** nav item ([Feature 6](feature-6-enrollment-management.md))
-- Student course listing / **Student Course Listing** nav item ([Feature 7](feature-7-student-course-listing.md))
-- Section student listing / **Section Student Listing** nav item ([Feature 8](feature-8-section-student-listing.md))
+- Destination CRUD / **Destination** nav item ([Feature 4](feature-4-destination-management.md))
+- Area CRUD / **Area** nav item ([Feature 5](feature-5-area-management.md))
+- Reservation CRUD / **Reservation** nav item ([Feature 6](feature-6-reservation-management.md))
+- Email CRUD / **Email** nav item ([Feature 7](feature-7-email.management.md))
+- Admin Page / **Admin Page** nav item ([Feature 8](feature-8-admin-page.md))
 
 ---
 
 ## Delivered to later features
 
-- A course is a shared catalog row (`courseNumber`, `courseName`, `courseDescription`, `courseTerm`) with no `userId`. Faculty create, update, and delete it. Any signed-in student or faculty can read it.
-- **Course** in `MenuBar` routes signed-in students and faculty to `/course`. This feature does not add a second `MenuBar`.
-- Feature 4 adds **Faculty** (allowed role `faculty`) to this `MenuBar`.
-- Feature 5 adds **Section** (allowed role `faculty`) to this `MenuBar` and owns section rows on a course.
-- Feature 6 adds **Enrollment** (allowed role `faculty` and `student`) to this `MenuBar`.
-- Feature 7 adds **Student Course Listing** (allowed role `faculty`) to this `MenuBar`.
-- Feature 8 adds **Section Student Listing** (allowed role `faculty`) to this `MenuBar`.
+- A driver is a list row (`firstName`, `lastName`, `driverLicenseNumber`, `driverLicenseExpDate`, `insuranceProvider`, `insuranceNumber`, `approvedDate`, `status`) with no `userId`. Admin create, update, and delete it. Any signed-in user can read it.
+- **Driver** in `MenuBar` routes signed-in users to `/driver`. This feature does not add a second `MenuBar`.
+- Feature 4 adds **Destination** (allowed role `admin`) to this `MenuBar`.
+- Feature 5 adds **Area** (allowed role `admin`) to this `MenuBar`.
+- Feature 6 adds **Reservation** (allowed role `requestor`) to this `MenuBar` and owns reservation rows in driver.
+- Feature 7 adds **Email** (allowed role `admin`) to this `MenuBar`.
+- Feature 8 adds **Admin Page** (allowed role `admin`) to this `MenuBar`.
