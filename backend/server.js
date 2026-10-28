@@ -42,7 +42,9 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.use("/api", apiRouter);
+// Apache publishes this app at /vehicle-t4 and strips that prefix before Node sees the request.
 app.use("/vehicle-t4", vehicleSchedulingRouter);
+app.use(vehicleSchedulingRouter);
 
 const PORT = process.env.PORT || 3200;
 
