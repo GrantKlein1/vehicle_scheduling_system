@@ -2,6 +2,7 @@
 import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { clearCurrentUser, currentUser } from "../config/session.js";
+import { formatRoleLabel, roleMatchesNav } from "../config/roles.js";
 import { logout } from "../services/authServices.js";
 
 const route = useRoute();
@@ -10,7 +11,7 @@ const router = useRouter();
 const navItems = [];
 
 const visibleNavItems = computed(() =>
-  navItems.filter((item) => item.roles.includes(currentUser.value?.role))
+  navItems.filter((item) => roleMatchesNav(currentUser.value, item.roles))
 );
 
 const showSessionActions = computed(
@@ -23,6 +24,10 @@ const displayName = computed(() => {
   }
   return `${currentUser.value.fName} ${currentUser.value.lName}`.trim();
 });
+
+const roleLabel = computed(() =>
+  showSessionActions.value ? formatRoleLabel(currentUser.value) : ""
+);
 
 async function signOut() {
   try {
@@ -46,6 +51,7 @@ async function signOut() {
     </v-btn>
     <v-spacer />
     <span v-if="displayName" class="mr-4">{{ displayName }}</span>
+    <span v-if="roleLabel" class="mr-4">{{ roleLabel }}</span>
     <v-btn v-if="showSessionActions" variant="text" @click="signOut">Sign out</v-btn>
   </v-app-bar>
 </template>
