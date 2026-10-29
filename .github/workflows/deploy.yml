@@ -59,7 +59,7 @@ jobs:
       DB_NAME: ${{ secrets.DB_NAME }}
       AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
       CLIENT_ID: ${{ secrets.VUE_APP_CLIENT_ID }}
-      CLIENT_SECRET: ${{ secrets.VUE_APP_CLIENT_SECRET }}
+      CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
       GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
       PORT: ${{ secrets.PORT }}
       NODE_ENV: production
