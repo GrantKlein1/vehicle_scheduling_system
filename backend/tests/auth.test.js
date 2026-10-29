@@ -73,6 +73,22 @@ describe("Feature 1 — User Authentication & Session Management", () => {
       expect(lifetime).toBeLessThanOrEqual(24 * 60 * 60 * 1000);
     });
 
+    it("Accepts login at /api/login", async () => {
+      mockGoogleProfile({
+        sub: "google-sub-jane",
+        email: "jdoe@eagles.oc.edu",
+        fName: "Jane",
+        lName: "Doe",
+      });
+
+      const response = await request(app).post("/api/login").send({
+        credential: "google-credential-jane",
+      });
+
+      expect(response.status).toBe(201);
+      expect(response.body.email).toBe("jdoe@eagles.oc.edu");
+    });
+
     it("Seeded admin sign-in binds Google subject", async () => {
       const seeded = await db.user.create({
         email: "admin@eagles.oc.edu",
