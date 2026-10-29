@@ -53,13 +53,13 @@ They do **not** authorize new scope — implement only from `features/feature-*.
 | No session: `MenuBar` has no **Sign out** and no catalog links | `MenuBar` | Feature 1 |
 | Session on `home`: `MenuBar` shows the user's name, role label, and **Sign out** | `MenuBar` | Feature 1, admin types |
 | Role labels are **System Admin** (including legacy `admin`), **Area Admin · {area name}**, **Maintenance**, and **Requestor** | `formatRoleLabel` | Admin types |
-| Feature 1 has no catalog nav items | `navItems` is empty. An item is shown when `roleMatchesNav` matches. `admin` and `system_admin` match system admins only. `area_admin` matches area admins only | Feature 1, admin types |
+| A nav item is shown when `roleMatchesNav` matches the signed-in role. `admin` and `system_admin` match system admins only. `area_admin` matches area admins only | `roleMatchesNav` | Feature 1, admin types |
 | A signed-in user who opens `login` is redirected to `home` | Router `beforeEach` | Feature 1 |
 | `home` without a session redirects to `login` | Router `beforeEach` | Feature 1 |
 | Home shows `Welcome, {first name}.` | `Home.vue` | Feature 1 |
 | Failed Google sign-in stays on the login page and shows `<v-alert type="error">` | `GoogleSignIn.vue` | Feature 1 |
 | Login shows Google's **Sign in with Google** button. A progress indicator is shown while the login request is in flight | `GoogleSignIn.vue` | Feature 1 |
-| **Vehicle** is in `MenuBar` for `admin` and `maintenance` and opens `/vehicle` | `MenuBar` | Feature 2 |
+| **Vehicle** is in `MenuBar` for `admin`, `system_admin`, and `maintenance`, and opens `/vehicle`. An area admin does not see it | `MenuBar` | Feature 2, admin types |
 | A signed-out menu and a `requestor` menu do not show **Vehicle** | `MenuBar` | Feature 2 |
 | `/vehicle` without a session redirects to `login` | Router `beforeEach` | Feature 2 |
 | A signed-in `requestor` who opens `/vehicle` is redirected to `home` | Router `beforeEach` | Feature 2 |
@@ -90,4 +90,5 @@ They do **not** authorize new scope — implement only from `features/feature-*.
 | A mileage or service `entryDate` after the server's local calendar date returns `Date cannot be in the future.` The current day is accepted. The form shows the same message and does not call the API | Mileage and service log routes and the inline log forms | Feature 2 |
 | A `purchasedDate` after the server's local calendar date returns `Date cannot be in the future.` The current day is accepted. The form shows the same message and does not call the API | Vehicle create/update and the Add and Edit dialogs | Feature 2 |
 | An empty catalog shows **No vehicles yet.** A load failure shows the API message in an error alert | `Vehicles.vue` | Feature 2 |
+| A vehicle status is `available`, `checked_out`, `in_repair`, or `out_of_service`. New vehicles, and rows with a blank status, are `available`. Create and update accept a status; omitting it on update keeps the stored value. The vehicle list, detail panel, and add/edit dialog show the status and do not edit it | Vehicle model, create/update, and `Vehicles.vue` | Vehicle status |
 | Create, update, delete, and log success use the snackbar text from the Feature 2 screen spec. Failures show the API `message` | `Vehicles.vue` | Feature 2 |

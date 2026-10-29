@@ -83,10 +83,13 @@ The spec names `expirationDate` as `DATE`. The column is a datetime so the 24-ho
 | `licensePlateNumber` | STRING(8) | Required and unique for `Truck`, `Car`, and `Van`. Must match `^[A-Z0-9]{2,8}$`. `null` for `Golf Cart`. Case-sensitive after trim |
 | `licensePlateExpirationMonth` | INTEGER | Required, 1 through 12, for `Truck`, `Car`, and `Van`. `null` for `Golf Cart` |
 | `areaAssigned` | STRING | Required. `Athletics`, `Support Central`, or `Maintenance` |
+| `status` | STRING(32) | Required. `available`, `checked_out`, `in_repair`, or `out_of_service`. Default `available`. A string code, not a database enum, so a later feature can add a value without changing the column type |
 | `createdAt` | DATE | Set by Sequelize |
 | `updatedAt` | DATE | Set by Sequelize |
 
 There is no `userId` column. Introduced in Feature 2.
+
+`status` was added after the original vehicle table. On an existing database, run `backend/migrations/20261028-add-vehicle-status.sql`, or start the API with schema alter enabled (`NODE_ENV=development`, or `SEQUELIZE_SYNC_ALTER=true`). After sync, startup calls `backfillVehicleStatuses()`, which sets a null or blank `status` to `available`. New rows get that default when `status` is omitted.
 
 ### `mileage_logs`
 

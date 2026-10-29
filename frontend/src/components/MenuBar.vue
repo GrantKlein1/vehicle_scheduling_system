@@ -7,8 +7,9 @@ import { logout } from "../services/authServices.js";
 
 const router = useRouter();
 
-// Feature 1 has no catalog pages. Vehicle lives on the vehicle-management branch.
-const navItems = [];
+const navItems = [
+  { title: "Vehicle", to: { name: "vehicles" }, roles: ["admin", "system_admin", "maintenance"] },
+];
 
 const visibleNavItems = computed(() =>
   navItems.filter((item) => roleMatchesNav(currentUser.value, item.roles))

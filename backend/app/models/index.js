@@ -6,7 +6,7 @@ import { ensureAdminTypeSchema, migrateLegacyAdmins } from "../migrations/adminT
 import userModel from "./user.model.js";
 import sessionModel from "./session.model.js";
 import areaModel from "./area.model.js";
-import vehicleModel from "./vehicle.model.js";
+import vehicleModel, { DEFAULT_VEHICLE_STATUS } from "./vehicle.model.js";
 import mileageLogModel from "./mileageLog.model.js";
 import serviceLogModel from "./serviceLog.model.js";
 
@@ -98,6 +98,43 @@ db.seedRoleUsers = async () => {
       await db.user.create(seed);
     }
   }
+};
+
+function tableNameList(tables) {
+  return tables.map((table) => {
+    if (typeof table === "string") {
+      return table.toLowerCase();
+    }
+    const name = table.tableName || table.table_name || table.name || "";
+    return String(name).toLowerCase();
+  });
+}
+
+db.backfillVehicleStatuses = async () => {
+  const queryInterface = db.sequelize.getQueryInterface();
+  const tables = tableNameList(await queryInterface.showAllTables());
+  if (!tables.includes("vehicles")) {
+    return;
+  }
+
+  const columns = await queryInterface.describeTable("vehicles");
+  const columnNames = Object.keys(columns).map((name) => name.toLowerCase());
+  if (!columnNames.includes("status")) {
+    await queryInterface.addColumn("vehicles", "status", {
+      type: Sequelize.STRING(32),
+      allowNull: false,
+      defaultValue: DEFAULT_VEHICLE_STATUS,
+    });
+  }
+
+  await db.vehicle.update(
+    { status: DEFAULT_VEHICLE_STATUS },
+    {
+      where: {
+        [Sequelize.Op.or]: [{ status: null }, { status: "" }],
+      },
+    }
+  );
 };
 
 db.ensureAdminTypeSchema = () => ensureAdminTypeSchema(db.sequelize);

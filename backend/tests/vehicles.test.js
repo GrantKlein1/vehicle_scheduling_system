@@ -430,6 +430,17 @@ describe("Feature 2 — Vehicle Management", () => {
       expect(list.status).toBe(200);
     });
 
+    it("System admin can read and create vehicles", async () => {
+      const token = await signIn("system_admin");
+
+      const created = await authed(token).post("/api/vehicle/vehicles").send(vehicleBody());
+      expect(created.status).toBe(201);
+
+      const list = await authed(token).get("/api/vehicle/vehicles");
+      expect(list.status).toBe(200);
+      expect(list.body).toHaveLength(1);
+    });
+
     it("Unauthenticated visit to the vehicle page redirects to login", async () => {
       const response = await request(app).get("/api/vehicle/vehicles");
 
@@ -686,6 +697,124 @@ describe("Feature 2 — Vehicle Management", () => {
       expect(response.status).toBe(403);
       expect(response.body).toEqual({ message: "Admin role required." });
       expect(await db.mileageLog.count()).toBe(0);
+    });
+  });
+
+  describe("Vehicle status", () => {
+    it("Vehicle status is stored, updated, and shown", async () => {
+      const token = await signIn("admin");
+
+      const created = await authed(token).post("/api/vehicle/vehicles").send(vehicleBody());
+      expect(created.status).toBe(201);
+      expect(created.body.status).toBe("available");
+
+      const blank = await authed(token)
+        .post("/api/vehicle/vehicles")
+        .send(
+          vehicleBody({
+            status: "   ",
+            vin: "1FTFW1E50NFA00008",
+            licensePlateNumber: "OC8008",
+          })
+        );
+      expect(blank.status).toBe(201);
+      expect(blank.body.status).toBe("available");
+
+      const supplied = await authed(token)
+        .post("/api/vehicle/vehicles")
+        .send(
+          vehicleBody({
+            status: " checked_out ",
+            vin: "1FTFW1E50NFA00002",
+            licensePlateNumber: "OC2002",
+          })
+        );
+      expect(supplied.status).toBe(201);
+      expect(supplied.body.status).toBe("checked_out");
+
+      const rejected = await authed(token)
+        .post("/api/vehicle/vehicles")
+        .send(
+          vehicleBody({
+            status: "reserved",
+            vin: "1FTFW1E50NFA00003",
+            licensePlateNumber: "OC3003",
+          })
+        );
+      expect(rejected.status).toBe(400);
+      expect(rejected.body).toEqual({
+        message: "Status must be available, checked_out, in_repair, or out_of_service.",
+      });
+
+      const list = await authed(token).get("/api/vehicle/vehicles");
+      expect(list.status).toBe(200);
+      expect(list.body.find((vehicle) => vehicle.id === supplied.body.id).status).toBe("checked_out");
+
+      const fetched = await authed(token).get(`/api/vehicle/vehicles/${supplied.body.id}`);
+      expect(fetched.status).toBe(200);
+      expect(fetched.body.status).toBe("checked_out");
+
+      const updated = await authed(token)
+        .put(`/api/vehicle/vehicles/${supplied.body.id}`)
+        .send(
+          vehicleBody({
+            status: "in_repair",
+            vin: "1FTFW1E50NFA00002",
+            licensePlateNumber: "OC2002",
+          })
+        );
+      expect(updated.status).toBe(200);
+      expect((await db.vehicle.findByPk(supplied.body.id)).status).toBe("in_repair");
+
+      const preserved = await authed(token)
+        .put(`/api/vehicle/vehicles/${supplied.body.id}`)
+        .send(
+          vehicleBody({
+            color: "Blue",
+            vin: "1FTFW1E50NFA00002",
+            licensePlateNumber: "OC2002",
+          })
+        );
+      expect(preserved.status).toBe(200);
+      const stored = await db.vehicle.findByPk(supplied.body.id);
+      expect(stored.status).toBe("in_repair");
+      expect(stored.color).toBe("Blue");
+    });
+
+    it("Adds status when an existing vehicles table does not have the column", async () => {
+      await db.vehicle.create(vehicleBody());
+      await db.sequelize.getQueryInterface().removeColumn("vehicles", "status");
+
+      await db.backfillVehicleStatuses();
+
+      const columns = await db.sequelize.getQueryInterface().describeTable("vehicles");
+      expect(columns.status.allowNull).toBe(false);
+      const stored = await db.vehicle.findAll();
+      expect(stored).toHaveLength(1);
+      expect(stored[0].status).toBe("available");
+    });
+
+    it("Blank vehicle status is backfilled to available", async () => {
+      const blank = await db.vehicle.create(vehicleBody());
+      const kept = await db.vehicle.create(
+        vehicleBody({
+          vin: "1FTFW1E50NFA00002",
+          licensePlateNumber: "OC2002",
+          status: "out_of_service",
+        })
+      );
+      await db.sequelize.query("UPDATE vehicles SET status = '' WHERE id = :id", {
+        replacements: { id: blank.id },
+      });
+
+      await db.backfillVehicleStatuses();
+
+      expect((await db.vehicle.findByPk(blank.id)).status).toBe("available");
+      expect((await db.vehicle.findByPk(kept.id)).status).toBe("out_of_service");
+
+      const columns = await db.sequelize.getQueryInterface().describeTable("vehicles");
+      expect(columns.status.allowNull).toBe(false);
+      expect(String(columns.status.defaultValue ?? "").replace(/'/g, "")).toBe("available");
     });
   });
 });

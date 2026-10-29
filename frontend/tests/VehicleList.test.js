@@ -197,30 +197,20 @@ describe("Feature 2 — Vehicle Management", () => {
   });
 
   describe("US-2.1 — View Vehicle List Page", () => {
-    it("Signed-in admin has no Vehicle menu button", async () => {
+    it("Signed-in admin navigates to the vehicle page", async () => {
       const { wrapper } = await mountAppHome("admin");
 
-      expect(
-        [...document.querySelectorAll("button, a")].some((node) => node.textContent.trim() === "Vehicle")
-      ).toBe(false);
-
-      await router.push({ name: "vehicles" });
-      await flushPromises();
+      await clickControl("Vehicle");
 
       expect(router.currentRoute.value.path).toBe("/vehicle");
       expect(wrapper.text()).toContain("Vehicles");
       expect(pageText()).toContain("Add Vehicle");
     });
 
-    it("Signed-in maintenance user has no Vehicle menu button", async () => {
+    it("Signed-in maintenance user navigates to the vehicle page", async () => {
       const { wrapper } = await mountAppHome("maintenance");
 
-      expect(
-        [...document.querySelectorAll("button, a")].some((node) => node.textContent.trim() === "Vehicle")
-      ).toBe(false);
-
-      await router.push({ name: "vehicles" });
-      await flushPromises();
+      await clickControl("Vehicle");
 
       expect(router.currentRoute.value.path).toBe("/vehicle");
       expect(wrapper.text()).toContain("Vehicles");
@@ -414,6 +404,45 @@ describe("Feature 2 — Vehicle Management", () => {
 
       expect(pageText()).toContain("15,000 mi");
       expect(pageText()).toContain("Oil change");
+    });
+
+    it("Vehicle status is shown on the list, detail, and edit view", async () => {
+      setCurrentUser(userWithRole("admin"));
+      catalog = [
+        { ...ford, status: "checked_out" },
+        { ...malibu, status: "in_repair" },
+      ];
+      updateVehicle.mockResolvedValue({ data: { message: "Vehicle was updated successfully." } });
+      const { wrapper } = await mountVehicles();
+
+      expect(pageText()).toContain("Checked Out");
+      expect(pageText()).toContain("In Repair");
+      expect(document.querySelectorAll('[aria-label="Status: Checked Out"]').length).toBeGreaterThan(0);
+      expect(document.querySelectorAll('[aria-label="Status: In Repair"]').length).toBeGreaterThan(0);
+
+      const search = labeled(wrapper, "VTextField", "Search vehicles");
+      await search.find("input").setValue("out of service");
+      await flushPromises();
+      expect(pageText()).toContain("No vehicles match your search.");
+
+      await search.find("input").setValue("checked out");
+      await flushPromises();
+      expect(pageText()).toContain("F-150");
+      expect(pageText()).not.toContain("Malibu");
+
+      await search.find("input").setValue("");
+      await flushPromises();
+      await clickControl("Edit vehicle");
+      expect(pageText()).toContain("Edit Vehicle");
+      expect(pageText()).toContain("Checked Out");
+      expect(labeled(wrapper, "VSelect", "Status")).toBeUndefined();
+
+      await setLabeled(wrapper, "Color", "Blue");
+      await clickDialogButton("Update Vehicle");
+      expect(updateVehicle).toHaveBeenCalledWith(
+        ford.id,
+        expect.not.objectContaining({ status: expect.anything() })
+      );
     });
   });
 
