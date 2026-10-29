@@ -1,5 +1,7 @@
 # After deploy, browsers must re-fetch index.html so they load the new hashed JS/CSS.
 <IfModule mod_headers.c>
+  # Google's sign-in popup posts the credential back with window.postMessage.
+  Header always set Cross-Origin-Opener-Policy "same-origin-allow-popups"
   <Files "index.html">
     Header set Cache-Control "max-age=0, must-revalidate, no-cache"
   </Files>

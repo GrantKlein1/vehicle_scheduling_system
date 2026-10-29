@@ -8,6 +8,7 @@ apiRouter.get("/health", (_req, res) => {
   res.json({ status: "ok" });
 });
 
+apiRouter.use(authRoutes);
 apiRouter.use("/vehicle", vehicleRoutes);
 
 const vehicleSchedulingRouter = Router();

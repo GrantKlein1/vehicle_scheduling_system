@@ -28,6 +28,12 @@ ADRs do **not** replace feature specs or Cursor rules.
 
 ---
 
+## Index
+
+| ADR | Title | Status |
+|-----|-------|--------|
+| [0001](./0001-system-and-area-admins.md) | System admin and area admin | Accepted |
+
 ## File naming
 
 ```

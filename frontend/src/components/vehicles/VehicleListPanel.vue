@@ -1,6 +1,11 @@
 <script setup>
 import { computed, ref } from "vue";
-import { CATEGORY_ICONS, vehicleTitle } from "../../config/vehicleDisplay.js";
+import {
+  CATEGORY_ICONS,
+  vehicleStatusColor,
+  vehicleStatusLabel,
+  vehicleTitle,
+} from "../../config/vehicleDisplay.js";
 
 const props = defineProps({
   vehicles: { type: Array, required: true },
@@ -26,6 +31,8 @@ const filtered = computed(() => {
       vehicle.licensePlateNumber,
       vehicle.areaAssigned,
       vehicle.color,
+      vehicle.status,
+      vehicleStatusLabel(vehicle.status),
     ]
       .filter((value) => value !== null && value !== undefined)
       .join(" ")
@@ -72,6 +79,17 @@ function plateLabel(vehicle) {
         <v-list-item-subtitle>
           {{ plateLabel(vehicle) }} - {{ vehicle.areaAssigned }}
         </v-list-item-subtitle>
+        <template #append>
+          <v-chip
+            class="vehicle-status"
+            size="small"
+            :color="vehicleStatusColor(vehicle.status)"
+            variant="tonal"
+            :aria-label="`Status: ${vehicleStatusLabel(vehicle.status)}`"
+          >
+            {{ vehicleStatusLabel(vehicle.status) }}
+          </v-chip>
+        </template>
       </v-list-item>
     </v-list>
     <p v-if="filtered.length === 0" class="text-body-2 px-4 pb-4">No vehicles match your search.</p>
@@ -82,6 +100,10 @@ function plateLabel(vehicle) {
 .vehicle-panel {
   color: rgb(var(--v-theme-on-surface));
   border-color: rgb(var(--v-theme-outline));
+}
+
+.vehicle-status {
+  flex-shrink: 0;
 }
 
 @media (min-width: 960px) {

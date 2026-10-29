@@ -6,6 +6,8 @@
 **Created:** 2026-09-23
 **Input:** Multi-user authentication via Google sign in with an OC account and get a session
 
+The full-access administrator role is stored as `system_admin`. A legacy row with `role` `admin` is rewritten to `system_admin` on startup and again on that user's next sign-in. `area_admin` is a second administrator role assigned to one area (`users.areaId`). See [ADR-0001](../docs/adr/0001-system-and-area-admins.md).
+
 ---
 
 ## User Stories
@@ -76,7 +78,7 @@
 - **FR-004**: Sessions MUST use a **JWT + Session table** pattern: token stored server-side; client sends `Authorization: Bearer <token>`. Successful registration MUST create a session and return the same payload as login, with HTTP `201`.
 - **FR-005**: Session lifetime MUST be **24 hours** from creation.
 - **FR-006**: Login MUST reuse a non-expired session for the same user (`userId`) when one already exists.
-- **FR-007**: Allowed roles are `requestor`, `admin`, and `maintenance`. The database seed inserts exactly two users when those emails are not already present: `admin@eagles.oc.edu` (`fName` `Admin`, `lName` `User`, `role` `admin`, `googleSub` null) and `maint@eagles.oc.edu` (`fName` `Maintenance`, `lName` `User`, `role` `maintenance`, `googleSub` null). Sign-in does not change `role`. This feature has no screen for changing a role. Automated tests insert the users they need and do not depend on these two rows.
+- **FR-007**: Allowed roles are `requestor`, `system_admin`, `area_admin`, and `maintenance`. `system_admin` is the full-access administrator (the role previously stored as `admin`). `area_admin` must reference one row in `areas` through `areaId`. Other roles have `areaId` null. The database seed inserts exactly two users when those emails are not already present: `admin@eagles.oc.edu` (`fName` `Admin`, `lName` `User`, `role` `system_admin`, `googleSub` null) and `maint@eagles.oc.edu` (`fName` `Maintenance`, `lName` `User`, `role` `maintenance`, `googleSub` null). It also inserts placeholder areas `Athletics`, `Support Central`, and `Maintenance` when those names are missing. Startup rewrites every stored `role` `admin` to `system_admin` and clears `areaId`. Sign-in does not change `role`, except that same legacy rewrite. This feature has no screen for changing a role. Automated tests insert the users they need and do not depend on these two rows.
 - **FR-008**: Every authenticated request MUST resolve to exactly one user via `req.user.id` from the session token (foundation for later features that need the signed-in user).
 - **FR-010**: This feature MUST **introduce** `MenuBar` in `App.vue` (`<MenuBar />` above `<v-main>`). `MenuBar` MUST be visible on `login` and `home`.
 - **FR-011**: `MenuBar` MUST show the signed-in user's name and **Sign out** on every page while a session exists, for every role. When there is no session, the name and **Sign out** MUST be hidden. A signed-in user who opens `login` MUST be redirected to `home`.
@@ -89,10 +91,10 @@
 
 - Google is the only way to sign in with an OC account.
 - Single browser `localStorage` session per device (no multi-tab sync beyond shared storage).
-- Product roles are `requestor`, `admin`, and `maintenance`. The same Google sign-in is used for every role.
-- Exactly one `admin` and one `maintenance` user are seeded, with `googleSub` null until that person signs in. Their OC emails are `admin@eagles.oc.edu` and `maint@eagles.oc.edu`.
+- Product roles are `requestor`, `system_admin`, `area_admin`, and `maintenance`. The same Google sign-in is used for every role. A stored `admin` is treated as `system_admin` until it is rewritten.
+- Exactly one `system_admin` and one `maintenance` user are seeded, with `googleSub` null until that person signs in. Their OC emails are `admin@eagles.oc.edu` and `maint@eagles.oc.edu`. Placeholder areas `Athletics`, `Support Central`, and `Maintenance` are seeded so an area admin can be assigned before area management is built.
 - A Google account that matches no existing `googleSub` or email is created as a `requestor`.
-- `role` stays whatever is stored on the user row. Changing who is `admin` or `maintenance` is a database change.
+- `role` stays whatever is stored on the user row. Changing who is `system_admin`, `area_admin`, or `maintenance` is a database change. There is no user-management screen in this feature.
 - An approved driver is a Feature 3 record, not a login role.
 - Feature 1 delivers auth, a minimal protected home, and `MenuBar` (**Sign out** only). Later features add their own nav items.
 
@@ -101,7 +103,7 @@
 - Missing token on a protected API → API returns `401` with `{ "message": "Google sign-in could not be verified." }. Expired or revoked token → `API returns `401` with `{ "message": "Google sign-in could not be verified." }`. The frontend clears `localStorage` key `user` and redirects to login.
 - Backend rejects the credential given by Google results in user being redirected to login page.
 - Second or many sign-ins with the same Google subject or the same email do not create another user.
-- A seeded admin or maintenance user signing in for the first time binds `googleSub` on the existing row and keeps the seeded `role`.
+- A seeded system admin or maintenance user signing in for the first time binds `googleSub` on the existing row and keeps the seeded `role`. A legacy `admin` row is saved as `system_admin` on that sign-in.
 - A `role` sent by the client is ignored. The stored row decides the role. A new row is always `requestor`.
 - A later sign-in does not change `role`.
 - Closing or canceling Google sign in results in no credential being sent, no API call is made and no user is created or logged in and the user stays on login.
@@ -129,8 +131,8 @@ Feature 1 establishes identity. Later features decide which data a signed-in use
 
 | Method | Endpoint                      | Auth | Purpose                                 |
 | ------ | ----------------------------- | ---- | --------------------------------------- |
-| `POST` | `/vehicleScheduling/login`    | No   | Authenticate and return session payload |
-| `POST` | `/vehicleScheduling/logout`   | Yes  | Invalidate current session token        |
+| `POST` | `/vehicle-t4/login`    | No   | Authenticate and return session payload |
+| `POST` | `/vehicle-t4/logout`   | Yes  | Invalidate current session token        |
 
 **Login / register success response from Google** (flat JSON, no envelope):
 
@@ -141,6 +143,8 @@ Feature 1 establishes identity. Later features decide which data a signed-in use
   "fName": "Jane",
   "lName": "Doe",
   "role": "requestor",
+  "areaId": null,
+  "areaName": null,
   "token": "<jwt>"
 }
 ```
@@ -148,7 +152,7 @@ Feature 1 establishes identity. Later features decide which data a signed-in use
 **Creating a new user:** 201
 **Signing in as an existing user, including a seeded user's first Google sign-in:** 200
 
-`role` is the value stored on that user row: `requestor`, `admin`, or `maintenance`.
+`role` is the value stored on that user row: `requestor`, `system_admin`, `area_admin`, or `maintenance`. `areaId` and `areaName` are set for an `area_admin` and null for every other role. A client-supplied `role`, `areaId`, or `areaName` is ignored.
 **Error response:** `{ "message": "Human-readable explanation." }` with appropriate HTTP status.
 
 ---
@@ -174,14 +178,15 @@ Feature 1 establishes identity. Later features decide which data a signed-in use
 - **Introduce** `MenuBar` in this feature. Mount it in `App.vue` (`<MenuBar />` above `<v-main>`).
 - `MenuBar` is visible on `login` and `home`.
 - No session: `MenuBar` shows with no catalog items and no **Sign out**.
-- A session shows the signed-in user's name and **Sign out** on every page, plus only the nav items allowed for `user.role`. Nav items share one size and sit in a centered group with the same gap. The name and **Sign out** stay on the right.
-- Feature 1 catalog items: none. Later features add one item each: **Vehicle** (Feature 2, `admin` and `maintenance`), **Driver** (Feature 3, `admin`), **Destination** (Feature 4, `admin`), **Area** (Feature 5, `admin`), **Reservation** (Feature 6, `requestor` and `admin`). Feature 8 adds the admin schedule for `admin`. Feature 7 sends email and adds no nav item.
+- Session exists on `home`: `MenuBar` shows the signed-in user's name, a role label (**System Admin**, **Area Admin · {area}**, **Maintenance**, or **Requestor**), **Sign out**, and only nav items allowed for that role. A nav item that lists `admin` or `system_admin` is shown to system admins, including a legacy `admin` session. An `area_admin` does not see those items.
+- Feature 1 catalog items: none. Later features add one item each: **Vehicle** (Feature 2, `system_admin` and `maintenance`), **Driver** (Feature 3, `system_admin`), **Destination** (Feature 4, `system_admin`), **Area** (Feature 5, `system_admin`), **Reservation** (Feature 6, `requestor` and `system_admin`). Feature 8 adds the admin schedule for `system_admin`. Feature 7 sends email and adds no nav item. Those full-access items are not shown to `area_admin`.
 
 ---
 
 ## Key Entities
 
-- **User**: account with name, email, and role (`requestor`, `admin`, or `maintenance`). A seeded admin or maintenance user exists before a Google subject. After the first successful sign-in, the account is identified by Google subject.
+- **User**: account with name, email, and role (`requestor`, `system_admin`, `area_admin`, or `maintenance`). An `area_admin` belongs to one area. A seeded system admin or maintenance user exists before a Google subject. After the first successful sign-in, the account is identified by Google subject.
+- **Area**: placeholder campus area (`Athletics`, `Support Central`, `Maintenance`, or a later name such as `Biology`) that an area admin can be assigned to. Area logos, notification email, and editing belong to Feature 5.
 - **Session**: server-side record tying a JWT token to a user; expires after 24 hours.
 
 ---
@@ -197,7 +202,8 @@ Feature 1 establishes identity. Later features decide which data a signed-in use
 | `lName`       | STRING      | Required                           |
 | `email`       | STRING      | Required, unique                   |
 | `googleSub`   | STRING(255) | Unique, nullable until the first successful sign-in. Required after `googleSub` is bound. Seed rows start as null. |
-| `role`        | STRING(20)  | `requestor`, `admin`, or `maintenance`. Seeded rows keep `admin` or `maintenance`. A user created at sign-in is `requestor`. Sign-in does not change `role`. A client-supplied role is ignored. |
+| `role`        | STRING(20)  | `requestor`, `system_admin`, `area_admin`, or `maintenance`. Seeded rows keep `system_admin` or `maintenance`. A legacy `admin` is rewritten to `system_admin`. A user created at sign-in is `requestor`. Sign-in does not otherwise change `role`. A client-supplied role is ignored. |
+| `areaId`      | INTEGER FK  | Nullable. Required for `area_admin`. Null for every other role. References `areas.id`. |
 
 ### `sessions` table
 
@@ -208,6 +214,24 @@ Feature 1 establishes identity. Later features decide which data a signed-in use
 | `email`          | STRING     | Required; copy of the user's email. Reuse looks up `userId`, not email |
 | `expirationDate` | DATE       | Required                        |
 | `userId`         | INTEGER FK | Required, references `users.id` |
+
+### `areas` table
+
+Placeholder identity for area assignment. Feature 5 adds logo, notification email, and editing.
+
+| Field  | Type        | Rules                                      |
+| ------ | ----------- | ------------------------------------------ |
+| `id`   | INTEGER PK  | Auto-increment                             |
+| `name` | STRING(50)  | Required, unique, trimmed, at most 50 characters |
+
+Seeded names when missing: `Athletics`, `Support Central`, `Maintenance`.
+
+### Associations
+
+| From | To | Relationship | On delete |
+| ---- | -- | ------------ | --------- |
+| `users` | `sessions` | one-to-many (`sessions.userId`) | CASCADE |
+| `areas` | `users` | one-to-many (`users.areaId`) | RESTRICT |
 
 ---
 
@@ -231,13 +255,13 @@ Feature 1 establishes identity. Later features decide which data a signed-in use
 #### Scenario: Seeded admin sign-in binds Google subject
 
 - **Given** I am on the login page
-- **And** a user exists with email `admin@eagles.oc.edu`, `fName` `Admin`, `lName` `User`, `role` `admin`, and `googleSub` null
+- **And** a user exists with email `admin@eagles.oc.edu`, `fName` `Admin`, `lName` `User`, `role` `system_admin`, and `googleSub` null
 - **And** no user exists with Google subject `google-sub-admin`
 - **When** I complete **Google Sign in** with an OC account whose `sub` is `google-sub-admin`, email is `admin@eagles.oc.edu`, and name is Alex Admin
 - **Then** the API returns `200`
 - **And** the existing user row is reused
 - **And** `googleSub` is `google-sub-admin`
-- **And** `role` is `admin`
+- **And** `role` is `system_admin`
 - **And** `fName` is `Alex` and `lName` is `Admin`
 - **And** no second user row is inserted
 
@@ -281,11 +305,11 @@ Feature 1 establishes identity. Later features decide which data a signed-in use
 
 #### Scenario: Returning sign-in keeps the stored role
 
-- **Given** a user already exists with `googleSub` `google-sub-admin`, email `admin@eagles.oc.edu`, and `role` `admin`
+- **Given** a user already exists with `googleSub` `google-sub-admin`, email `admin@eagles.oc.edu`, and `role` `system_admin`
 - **When** I complete **Google Sign in** with that same Google subject
 - **Then** the API returns `200`
 - **And** the existing user row is reused
-- **And** `role` is `admin`
+- **And** `role` is `system_admin`
 - **And** no second user row is inserted
 
 #### Scenario: Invalid Google credential stays on login
@@ -380,7 +404,7 @@ Feature 1 establishes identity. Later features decide which data a signed-in use
 
 #### Scenario: Admin MenuBar in Feature 1 has Sign out but no catalog links yet
 
-- **Given** I am signed in as a user with role `admin`
+- **Given** I am signed in as a user with role `system_admin`
 - **When** I view the `MenuBar`
 - **Then** **Sign out** is shown
 - **And** **Vehicle** is not shown
@@ -476,10 +500,10 @@ Do not implement behavior not in this spec.
 ## Delivered to Feature 2
 
 - `MenuBar` exists in `App.vue`, visible on `login` and `home`, with **Sign out** when a session exists and items filtered by `user.role`.
-- Feature 2 adds **Vehicle** (allowed roles `admin` and `maintenance`) to this `MenuBar`; it MUST NOT create a second `MenuBar`.
-- Feature 3 adds **Driver** (allowed role `admin`) to this `MenuBar`.
-- Feature 4 adds **Destination** (allowed role `admin`) to this `MenuBar`.
-- Feature 5 adds **Area** (allowed role `admin`) to this `MenuBar`.
-- Feature 6 adds **Reservation** (allowed roles `requestor` and `admin`) to this `MenuBar`.
+- Feature 2 adds **Vehicle** (allowed roles `system_admin` and `maintenance`) to this `MenuBar`; it MUST NOT create a second `MenuBar`. A legacy allowed-role value `admin` matches `system_admin` only.
+- Feature 3 adds **Driver** (allowed role `system_admin`) to this `MenuBar`.
+- Feature 4 adds **Destination** (allowed role `system_admin`) to this `MenuBar`.
+- Feature 5 adds **Area** (allowed role `system_admin`) to this `MenuBar`. `area_admin` is not a full-catalog administrator.
+- Feature 6 adds **Reservation** (allowed roles `requestor` and `system_admin`) to this `MenuBar`.
 - Feature 7 sends reservation email and adds no `MenuBar` item.
-- Feature 8 adds the admin schedule (allowed role `admin`) to this `MenuBar`.
+- Feature 8 adds the admin schedule (allowed role `system_admin`) to this `MenuBar`. Area-scoped access for an `area_admin` uses `canAccessArea` for that user's area.

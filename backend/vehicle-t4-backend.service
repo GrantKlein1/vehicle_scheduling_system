@@ -7,7 +7,8 @@ After=network.target
 [Service]
 Type=simple
 WorkingDirectory=/home/ubuntu/nodeapps/2026/project4/t4
-ExecStart=/usr/local/bin/node server.js
+Environment=PORT=3024
+ExecStart=/usr/bin/node server.js
 Restart=on-failure
 
 [Install]
