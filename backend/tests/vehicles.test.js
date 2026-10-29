@@ -770,6 +770,19 @@ describe("Feature 2 — Vehicle Management", () => {
       expect(stored.color).toBe("Blue");
     });
 
+    it("Adds status when an existing vehicles table does not have the column", async () => {
+      await db.vehicle.create(vehicleBody());
+      await db.sequelize.getQueryInterface().removeColumn("vehicles", "status");
+
+      await db.backfillVehicleStatuses();
+
+      const columns = await db.sequelize.getQueryInterface().describeTable("vehicles");
+      expect(columns.status.allowNull).toBe(false);
+      const stored = await db.vehicle.findAll();
+      expect(stored).toHaveLength(1);
+      expect(stored[0].status).toBe("available");
+    });
+
     it("Blank vehicle status is backfilled to available", async () => {
       const blank = await db.vehicle.create(vehicleBody());
       const kept = await db.vehicle.create(

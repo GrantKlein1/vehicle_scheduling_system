@@ -58,7 +58,33 @@ db.seedRoleUsers = async () => {
   }
 };
 
+function tableNameList(tables) {
+  return tables.map((table) => {
+    if (typeof table === "string") {
+      return table.toLowerCase();
+    }
+    const name = table.tableName || table.table_name || table.name || "";
+    return String(name).toLowerCase();
+  });
+}
+
 db.backfillVehicleStatuses = async () => {
+  const queryInterface = db.sequelize.getQueryInterface();
+  const tables = tableNameList(await queryInterface.showAllTables());
+  if (!tables.includes("vehicles")) {
+    return;
+  }
+
+  const columns = await queryInterface.describeTable("vehicles");
+  const columnNames = Object.keys(columns).map((name) => name.toLowerCase());
+  if (!columnNames.includes("status")) {
+    await queryInterface.addColumn("vehicles", "status", {
+      type: Sequelize.STRING(32),
+      allowNull: false,
+      defaultValue: DEFAULT_VEHICLE_STATUS,
+    });
+  }
+
   await db.vehicle.update(
     { status: DEFAULT_VEHICLE_STATUS },
     {
