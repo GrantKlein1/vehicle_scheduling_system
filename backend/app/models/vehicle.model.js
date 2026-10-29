@@ -1,3 +1,13 @@
+// String codes, not a database enum, so a later feature can add a status without a column change.
+export const VEHICLE_STATUSES = [
+  "available",
+  "checked_out",
+  "in_repair",
+  "out_of_service",
+];
+
+export const DEFAULT_VEHICLE_STATUS = "available";
+
 export default (sequelize, Sequelize) => {
   const Vehicle = sequelize.define(
     "vehicle",
@@ -47,6 +57,14 @@ export default (sequelize, Sequelize) => {
       areaAssigned: {
         type: Sequelize.STRING,
         allowNull: false,
+      },
+      status: {
+        type: Sequelize.STRING(32),
+        allowNull: false,
+        defaultValue: DEFAULT_VEHICLE_STATUS,
+        validate: {
+          isIn: [VEHICLE_STATUSES],
+        },
       },
     },
     {
