@@ -2,16 +2,16 @@
 import { computed } from "vue";
 import { useRouter } from "vue-router";
 import { clearCurrentUser, currentUser } from "../config/session.js";
+import { formatRoleLabel, roleMatchesNav } from "../config/roles.js";
 import { logout } from "../services/authServices.js";
 
 const router = useRouter();
 
-const navItems = [
-  { title: "Vehicle", to: { name: "vehicles" }, roles: ["admin", "maintenance"] },
-];
+// Feature 1 has no catalog pages. Vehicle lives on the vehicle-management branch.
+const navItems = [];
 
 const visibleNavItems = computed(() =>
-  navItems.filter((item) => item.roles.includes(currentUser.value?.role))
+  navItems.filter((item) => roleMatchesNav(currentUser.value, item.roles))
 );
 
 const showSessionActions = computed(() => Boolean(currentUser.value?.token));
@@ -22,6 +22,10 @@ const displayName = computed(() => {
   }
   return `${currentUser.value.fName} ${currentUser.value.lName}`.trim();
 });
+
+const roleLabel = computed(() =>
+  showSessionActions.value ? formatRoleLabel(currentUser.value) : ""
+);
 
 async function signOut() {
   try {
@@ -49,6 +53,7 @@ async function signOut() {
       </nav>
       <div v-if="showSessionActions" class="menu-bar__session">
         <span class="menu-bar__name">{{ displayName }}</span>
+        <span v-if="roleLabel" class="menu-bar__name">{{ roleLabel }}</span>
         <v-btn class="menu-bar__item" variant="text" @click="signOut">Sign out</v-btn>
       </div>
     </div>

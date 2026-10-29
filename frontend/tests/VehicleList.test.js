@@ -197,20 +197,30 @@ describe("Feature 2 — Vehicle Management", () => {
   });
 
   describe("US-2.1 — View Vehicle List Page", () => {
-    it("Signed-in admin navigates to the vehicle page", async () => {
+    it("Signed-in admin has no Vehicle menu button", async () => {
       const { wrapper } = await mountAppHome("admin");
 
-      await clickControl("Vehicle");
+      expect(
+        [...document.querySelectorAll("button, a")].some((node) => node.textContent.trim() === "Vehicle")
+      ).toBe(false);
+
+      await router.push({ name: "vehicles" });
+      await flushPromises();
 
       expect(router.currentRoute.value.path).toBe("/vehicle");
       expect(wrapper.text()).toContain("Vehicles");
       expect(pageText()).toContain("Add Vehicle");
     });
 
-    it("Signed-in maintenance user navigates to the vehicle page", async () => {
+    it("Signed-in maintenance user has no Vehicle menu button", async () => {
       const { wrapper } = await mountAppHome("maintenance");
 
-      await clickControl("Vehicle");
+      expect(
+        [...document.querySelectorAll("button, a")].some((node) => node.textContent.trim() === "Vehicle")
+      ).toBe(false);
+
+      await router.push({ name: "vehicles" });
+      await flushPromises();
 
       expect(router.currentRoute.value.path).toBe("/vehicle");
       expect(wrapper.text()).toContain("Vehicles");

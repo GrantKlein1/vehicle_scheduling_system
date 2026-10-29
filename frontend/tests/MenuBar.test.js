@@ -26,14 +26,17 @@ vi.mock("../src/services/vehicleServices.js", () => ({
 
 const catalogLabels = ["Vehicle", "Driver", "Destination", "Area", "Reservation"];
 
-function userWithRole(role) {
+function userWithRole(role, extra = {}) {
   return {
     userId: 1,
     email: "person@eagles.oc.edu",
     fName: "Jane",
     lName: "Doe",
     role,
+    areaId: null,
+    areaName: null,
     token: "session-token",
+    ...extra,
   };
 }
 
@@ -88,6 +91,7 @@ describe("Feature 1 — User Authentication & Session Management", () => {
       expect(wrapper.find(".menu-bar").exists()).toBe(true);
       expect(wrapper.text()).toContain("Sign out");
       expect(wrapper.text()).toContain("Jane Doe");
+      expect(wrapper.text()).toContain("Requestor");
     });
 
     it("Requestor MenuBar in Feature 1 has Sign out but no catalog links yet", async () => {
@@ -99,13 +103,37 @@ describe("Feature 1 — User Authentication & Session Management", () => {
       }
     });
 
-    it("Admin MenuBar in Feature 1 has Sign out but no catalog links yet", async () => {
-      const { wrapper } = await mountApp("/", userWithRole("admin"));
+    it("System admin MenuBar shows the role label and Sign out, with no catalog links", async () => {
+      const { wrapper } = await mountApp("/", userWithRole("system_admin"));
 
       expect(wrapper.text()).toContain("Sign out");
-      expect(wrapper.text()).toContain("Vehicle");
-      for (const label of catalogLabels.filter((item) => item !== "Vehicle")) {
+      expect(wrapper.text()).toContain("System Admin");
+      for (const label of catalogLabels) {
         expect(wrapper.text()).not.toContain(label);
+      }
+    });
+
+    it("Legacy admin MenuBar is shown as System Admin", async () => {
+      const { wrapper } = await mountApp("/", userWithRole("admin"));
+
+      expect(wrapper.text()).toContain("System Admin");
+      expect(wrapper.text()).toContain("Sign out");
+      for (const label of catalogLabels) {
+        expect(wrapper.text()).not.toContain(label);
+      }
+    });
+
+    it("Area admin MenuBar shows the assigned area and no catalog links yet", async () => {
+      const { wrapper } = await mountApp(
+        "/",
+        userWithRole("area_admin", { areaId: 5, areaName: "Athletics" })
+      );
+
+      expect(wrapper.text()).toContain("Sign out");
+      expect(wrapper.text()).toContain("Area Admin · Athletics");
+      const buttonText = wrapper.findAll("button").map((node) => node.text());
+      for (const label of catalogLabels) {
+        expect(buttonText.some((text) => text.trim() === label)).toBe(false);
       }
     });
 
@@ -113,8 +141,7 @@ describe("Feature 1 — User Authentication & Session Management", () => {
       const { wrapper } = await mountApp("/", userWithRole("maintenance"));
 
       expect(wrapper.text()).toContain("Sign out");
-      expect(wrapper.text()).toContain("Vehicle");
-      for (const label of catalogLabels.filter((item) => item !== "Vehicle")) {
+      for (const label of catalogLabels) {
         expect(wrapper.text()).not.toContain(label);
       }
     });
@@ -143,7 +170,8 @@ describe("Feature 2 — Vehicle Management", () => {
       expect(wrapper.find(".menu-bar__session").text()).toContain("Jane Doe");
       expect(wrapper.find(".menu-bar__session").text()).toContain("Sign out");
       const labels = wrapper.findAll(".menu-bar__item").map((item) => item.text());
-      expect(labels).toEqual(["Vehicle", "Sign out"]);
+      expect(labels).toEqual(["Sign out"]);
+      expect(wrapper.find(".menu-bar__nav").text()).not.toContain("Vehicle");
     });
 
     it("Maintenance sees their name and Sign out on the vehicle page", async () => {
@@ -151,7 +179,7 @@ describe("Feature 2 — Vehicle Management", () => {
 
       expect(wrapper.find(".menu-bar__session").text()).toContain("Jane Doe");
       expect(wrapper.find(".menu-bar__session").text()).toContain("Sign out");
-      expect(wrapper.find(".menu-bar__nav").text()).toContain("Vehicle");
+      expect(wrapper.find(".menu-bar__nav").text()).not.toContain("Vehicle");
     });
 
     it("Requestor keeps their name and Sign out with no catalog links", async () => {
