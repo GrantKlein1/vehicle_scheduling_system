@@ -26,14 +26,17 @@ vi.mock("../src/services/vehicleServices.js", () => ({
 
 const catalogLabels = ["Vehicle", "Driver", "Destination", "Area", "Reservation"];
 
-function userWithRole(role) {
+function userWithRole(role, extra = {}) {
   return {
     userId: 1,
     email: "person@eagles.oc.edu",
     fName: "Jane",
     lName: "Doe",
     role,
+    areaId: null,
+    areaName: null,
     token: "session-token",
+    ...extra,
   };
 }
 
@@ -88,6 +91,7 @@ describe("Feature 1 — User Authentication & Session Management", () => {
       expect(wrapper.find(".menu-bar").exists()).toBe(true);
       expect(wrapper.text()).toContain("Sign out");
       expect(wrapper.text()).toContain("Jane Doe");
+      expect(wrapper.text()).toContain("Requestor");
     });
 
     it("Requestor MenuBar in Feature 1 has Sign out but no catalog links yet", async () => {
@@ -99,9 +103,21 @@ describe("Feature 1 — User Authentication & Session Management", () => {
       }
     });
 
-    it("Admin MenuBar in Feature 1 has Sign out but no catalog links yet", async () => {
+    it("System admin MenuBar shows the role label, Sign out, and Vehicle", async () => {
+      const { wrapper } = await mountApp("/", userWithRole("system_admin"));
+
+      expect(wrapper.text()).toContain("Sign out");
+      expect(wrapper.text()).toContain("System Admin");
+      expect(wrapper.text()).toContain("Vehicle");
+      for (const label of catalogLabels.filter((item) => item !== "Vehicle")) {
+        expect(wrapper.text()).not.toContain(label);
+      }
+    });
+
+    it("Legacy admin MenuBar is shown as System Admin and includes Vehicle", async () => {
       const { wrapper } = await mountApp("/", userWithRole("admin"));
 
+      expect(wrapper.text()).toContain("System Admin");
       expect(wrapper.text()).toContain("Sign out");
       expect(wrapper.text()).toContain("Vehicle");
       for (const label of catalogLabels.filter((item) => item !== "Vehicle")) {
@@ -109,17 +125,25 @@ describe("Feature 1 — User Authentication & Session Management", () => {
       }
     });
 
-    it("System admin MenuBar shows Vehicle", async () => {
-      const { wrapper } = await mountApp("/", userWithRole("system_admin"));
+    it("Area admin MenuBar shows the assigned area and no catalog links yet", async () => {
+      const { wrapper } = await mountApp(
+        "/",
+        userWithRole("area_admin", { areaId: 5, areaName: "Athletics" })
+      );
 
       expect(wrapper.text()).toContain("Sign out");
-      expect(wrapper.text()).toContain("Vehicle");
+      expect(wrapper.text()).toContain("Area Admin · Athletics");
+      const buttonText = wrapper.findAll("button").map((node) => node.text());
+      for (const label of catalogLabels) {
+        expect(buttonText.some((text) => text.trim() === label)).toBe(false);
+      }
     });
 
-    it("Maintenance MenuBar in Feature 1 has Sign out but no catalog links yet", async () => {
+    it("Maintenance MenuBar shows Sign out and Vehicle", async () => {
       const { wrapper } = await mountApp("/", userWithRole("maintenance"));
 
       expect(wrapper.text()).toContain("Sign out");
+      expect(wrapper.text()).toContain("Maintenance");
       expect(wrapper.text()).toContain("Vehicle");
       for (const label of catalogLabels.filter((item) => item !== "Vehicle")) {
         expect(wrapper.text()).not.toContain(label);

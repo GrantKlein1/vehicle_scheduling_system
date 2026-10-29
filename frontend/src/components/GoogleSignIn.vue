@@ -8,7 +8,9 @@ const router = useRouter();
 const buttonHost = ref(null);
 const loading = ref(false);
 const errorMessage = ref("");
-const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || "";
+const clientId = String(import.meta.env.VITE_GOOGLE_CLIENT_ID || "")
+  .trim()
+  .replace(/^["']|["']$/g, "");
 
 let pollTimer = 0;
 
@@ -46,8 +48,6 @@ function renderGoogleButton() {
     auto_select: false,
     cancel_on_tap_outside: true,
     ux_mode: "popup",
-    use_fedcm_for_button: true,
-    button_auto_select: false,
   });
   google.accounts.id.renderButton(buttonHost.value, {
     type: "standard",

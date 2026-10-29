@@ -1,3 +1,5 @@
+import { ASSIGNABLE_ROLES } from "../authorization/roles.js";
+
 export default (sequelize, Sequelize) => {
   const User = sequelize.define(
     "user",
@@ -24,8 +26,12 @@ export default (sequelize, Sequelize) => {
         type: Sequelize.STRING(20),
         allowNull: false,
         validate: {
-          isIn: [["requestor", "admin", "system_admin", "maintenance"]],
+          isIn: [[...ASSIGNABLE_ROLES]],
         },
+      },
+      areaId: {
+        type: Sequelize.INTEGER,
+        allowNull: true,
       },
     },
     {
