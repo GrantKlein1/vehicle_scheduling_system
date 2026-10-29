@@ -33,7 +33,9 @@ import {
 } from "../services/vehicleServices.js";
 
 const display = useDisplay();
-const isAdmin = computed(() => currentUser.value?.role === "admin");
+const isAdmin = computed(
+  () => currentUser.value?.role === "admin" || currentUser.value?.role === "system_admin"
+);
 
 const vehicles = ref([]);
 const loadError = ref("");

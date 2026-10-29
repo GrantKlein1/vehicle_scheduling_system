@@ -24,7 +24,7 @@ export default (sequelize, Sequelize) => {
         type: Sequelize.STRING(20),
         allowNull: false,
         validate: {
-          isIn: [["requestor", "admin", "maintenance"]],
+          isIn: [["requestor", "admin", "system_admin", "maintenance"]],
         },
       },
     },

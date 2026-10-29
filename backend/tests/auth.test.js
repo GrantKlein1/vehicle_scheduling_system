@@ -106,6 +106,32 @@ describe("Feature 1 — User Authentication & Session Management", () => {
       expect(users[0].email).toBe("admin@eagles.oc.edu");
     });
 
+    it("System admin sign-in keeps that role", async () => {
+      const seeded = await db.user.create({
+        email: "admin@eagles.oc.edu",
+        fName: "Admin",
+        lName: "User",
+        role: "system_admin",
+        googleSub: "google-sub-admin",
+      });
+
+      mockGoogleProfile({
+        sub: "google-sub-admin",
+        email: "admin@eagles.oc.edu",
+        fName: "Alex",
+        lName: "Admin",
+      });
+
+      const response = await request(app).post("/vehicleScheduling/login").send({
+        credential: "google-credential-admin",
+      });
+
+      expect(response.status).toBe(200);
+      expect(response.body.role).toBe("system_admin");
+      expect(response.body.userId).toBe(seeded.id);
+      expect((await db.user.findByPk(seeded.id)).role).toBe("system_admin");
+    });
+
     it("Seeded maintenance sign-in binds Google subject", async () => {
       const seeded = await db.user.create({
         email: "maint@eagles.oc.edu",

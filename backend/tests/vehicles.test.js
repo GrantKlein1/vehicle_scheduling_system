@@ -430,6 +430,17 @@ describe("Feature 2 — Vehicle Management", () => {
       expect(list.status).toBe(200);
     });
 
+    it("System admin can read and create vehicles", async () => {
+      const token = await signIn("system_admin");
+
+      const created = await authed(token).post("/api/vehicle/vehicles").send(vehicleBody());
+      expect(created.status).toBe(201);
+
+      const list = await authed(token).get("/api/vehicle/vehicles");
+      expect(list.status).toBe(200);
+      expect(list.body).toHaveLength(1);
+    });
+
     it("Unauthenticated visit to the vehicle page redirects to login", async () => {
       const response = await request(app).get("/api/vehicle/vehicles");
 
