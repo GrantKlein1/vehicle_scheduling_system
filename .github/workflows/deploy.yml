@@ -60,7 +60,6 @@ jobs:
       AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
       CLIENT_ID: ${{ secrets.VUE_APP_CLIENT_ID }}
       CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
-      GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
       PORT: ${{ secrets.PORT }}
       NODE_ENV: production
       SEQUELIZE_SYNC_ALTER: ${{ secrets.SEQUELIZE_SYNC_ALTER }}
@@ -94,7 +93,6 @@ jobs:
           echo AUTH_SECRET="$AUTH_SECRET" >> .env
           echo CLIENT_ID="$CLIENT_ID" >> .env
           echo CLIENT_SECRET="$CLIENT_SECRET" >> .env
-          echo GOOGLE_CLIENT_ID="$GOOGLE_CLIENT_ID" >> .env
           echo PORT="$PORT" >> .env
           echo NODE_ENV="$NODE_ENV" >> .env
           echo SEQUELIZE_SYNC_ALTER="$SEQUELIZE_SYNC_ALTER" >> .env
