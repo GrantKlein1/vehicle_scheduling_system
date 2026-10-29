@@ -103,12 +103,13 @@ describe("Feature 1 — User Authentication & Session Management", () => {
       }
     });
 
-    it("Admin MenuBar in Feature 1 has Sign out but no catalog links yet", async () => {
+    it("System admin MenuBar shows the role label, Sign out, and Vehicle", async () => {
       const { wrapper } = await mountApp("/", userWithRole("system_admin"));
 
       expect(wrapper.text()).toContain("Sign out");
       expect(wrapper.text()).toContain("System Admin");
-      for (const label of catalogLabels) {
+      expect(wrapper.text()).toContain("Vehicle");
+      for (const label of catalogLabels.filter((item) => item !== "Vehicle")) {
         expect(wrapper.text()).not.toContain(label);
       }
     });

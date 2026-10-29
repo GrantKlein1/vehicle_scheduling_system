@@ -47,7 +47,9 @@ app.use("/api", apiRouter);
 app.use("/vehicle-t4", vehicleSchedulingRouter);
 app.use("/vehicle-t4", apiRouter);
 
-const PORT = process.env.PORT || 3024;
+// Apache on the server proxies to 3024, and deploy plus the systemd unit set PORT.
+// Local `npm run dev` does not, and the Vite app calls http://localhost:3200.
+const PORT = process.env.PORT || 3200;
 
 if (process.env.NODE_ENV !== "test") {
   app.listen(PORT, () => {

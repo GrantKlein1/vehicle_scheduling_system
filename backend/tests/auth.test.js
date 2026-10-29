@@ -185,7 +185,7 @@ describe("Feature 1 — User Authentication & Session Management", () => {
         lName: "Admin",
       });
 
-      const response = await request(app).post("/vehicleScheduling/login").send({
+      const response = await request(app).post("/vehicle-t4/login").send({
         credential: "google-credential-admin",
         role: "requestor",
         areaId: 9,
@@ -301,7 +301,7 @@ describe("Feature 1 — User Authentication & Session Management", () => {
         lName: "Coach",
       });
 
-      const response = await request(app).post("/vehicleScheduling/login").send({
+      const response = await request(app).post("/vehicle-t4/login").send({
         credential: "google-credential-area",
         role: "system_admin",
         areaId: 999,
