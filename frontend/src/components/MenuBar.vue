@@ -39,19 +39,25 @@ async function signOut() {
 </script>
 
 <template>
-  <v-app-bar class="menu-bar" color="primary" density="comfortable">
-    <v-btn
-      v-for="item in visibleNavItems"
-      :key="item.title"
-      variant="text"
-      :to="item.to"
-    >
-      {{ item.title }}
-    </v-btn>
-    <v-spacer />
-    <span v-if="displayName" class="mr-4">{{ displayName }}</span>
-    <span v-if="roleLabel" class="mr-4">{{ roleLabel }}</span>
-    <v-btn v-if="showSessionActions" variant="text" @click="signOut">Sign out</v-btn>
+  <v-app-bar class="menu-bar" color="primary" height="64" flat>
+    <div class="menu-bar__layout">
+      <nav class="menu-bar__nav" aria-label="Primary">
+        <v-btn
+          v-for="item in visibleNavItems"
+          :key="item.title"
+          class="menu-bar__item"
+          variant="text"
+          :to="item.to"
+        >
+          {{ item.title }}
+        </v-btn>
+      </nav>
+      <div v-if="showSessionActions" class="menu-bar__session">
+        <span class="menu-bar__name">{{ displayName }}</span>
+        <span v-if="roleLabel" class="menu-bar__name">{{ roleLabel }}</span>
+        <v-btn class="menu-bar__item" variant="text" @click="signOut">Sign out</v-btn>
+      </div>
+    </div>
   </v-app-bar>
 </template>
 
