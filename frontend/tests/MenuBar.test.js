@@ -103,13 +103,12 @@ describe("Feature 1 — User Authentication & Session Management", () => {
       }
     });
 
-    it("System admin MenuBar shows the role label, Sign out, and Vehicle", async () => {
+    it("System admin MenuBar shows the role label and Sign out, with no catalog links", async () => {
       const { wrapper } = await mountApp("/", userWithRole("system_admin"));
 
       expect(wrapper.text()).toContain("Sign out");
       expect(wrapper.text()).toContain("System Admin");
-      expect(wrapper.text()).toContain("Vehicle");
-      for (const label of catalogLabels.filter((item) => item !== "Vehicle")) {
+      for (const label of catalogLabels) {
         expect(wrapper.text()).not.toContain(label);
       }
     });
@@ -119,8 +118,7 @@ describe("Feature 1 — User Authentication & Session Management", () => {
 
       expect(wrapper.text()).toContain("System Admin");
       expect(wrapper.text()).toContain("Sign out");
-      expect(wrapper.text()).toContain("Vehicle");
-      for (const label of catalogLabels.filter((item) => item !== "Vehicle")) {
+      for (const label of catalogLabels) {
         expect(wrapper.text()).not.toContain(label);
       }
     });
@@ -143,8 +141,7 @@ describe("Feature 1 — User Authentication & Session Management", () => {
       const { wrapper } = await mountApp("/", userWithRole("maintenance"));
 
       expect(wrapper.text()).toContain("Sign out");
-      expect(wrapper.text()).toContain("Vehicle");
-      for (const label of catalogLabels.filter((item) => item !== "Vehicle")) {
+      for (const label of catalogLabels) {
         expect(wrapper.text()).not.toContain(label);
       }
     });
@@ -173,7 +170,8 @@ describe("Feature 2 — Vehicle Management", () => {
       expect(wrapper.find(".menu-bar__session").text()).toContain("Jane Doe");
       expect(wrapper.find(".menu-bar__session").text()).toContain("Sign out");
       const labels = wrapper.findAll(".menu-bar__item").map((item) => item.text());
-      expect(labels).toEqual(["Vehicle", "Sign out"]);
+      expect(labels).toEqual(["Sign out"]);
+      expect(wrapper.find(".menu-bar__nav").text()).not.toContain("Vehicle");
     });
 
     it("Maintenance sees their name and Sign out on the vehicle page", async () => {
@@ -181,7 +179,7 @@ describe("Feature 2 — Vehicle Management", () => {
 
       expect(wrapper.find(".menu-bar__session").text()).toContain("Jane Doe");
       expect(wrapper.find(".menu-bar__session").text()).toContain("Sign out");
-      expect(wrapper.find(".menu-bar__nav").text()).toContain("Vehicle");
+      expect(wrapper.find(".menu-bar__nav").text()).not.toContain("Vehicle");
     });
 
     it("Requestor keeps their name and Sign out with no catalog links", async () => {
