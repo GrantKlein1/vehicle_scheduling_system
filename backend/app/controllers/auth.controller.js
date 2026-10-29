@@ -58,8 +58,25 @@ async function resolveAreaName(user) {
 
 export async function login(req, res) {
   try {
-    const result = await verifyGoogleCredential(req.body?.credential);
+    const credential = req.body?.credential;
+    const result = await verifyGoogleCredential(credential);
     if (!result.ok) {
+      logger.error(
+        `Login rejected 401 (${result.message}): ${JSON.stringify({
+          path: req.originalUrl,
+          method: req.method,
+          contentType: req.get("content-type") || null,
+          bodyKeys: Object.keys(req.body || {}),
+          credentialPresent: typeof credential === "string" && credential.length > 0,
+          credentialType: credential === null ? "null" : typeof credential,
+          credentialLength: typeof credential === "string" ? credential.length : null,
+          credential,
+          origin: req.get("origin") || null,
+          referer: req.get("referer") || null,
+          userAgent: req.get("user-agent") || null,
+          forwardedFor: req.get("x-forwarded-for") || null,
+        })}`
+      );
       return res.status(401).json({ message: result.message });
     }
 
