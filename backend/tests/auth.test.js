@@ -122,7 +122,7 @@ describe("Feature 1 — User Authentication & Session Management", () => {
         lName: "Admin",
       });
 
-      const response = await request(app).post("/vehicleScheduling/login").send({
+      const response = await request(app).post("/api/login").send({
         credential: "google-credential-admin",
       });
 
