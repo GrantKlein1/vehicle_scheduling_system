@@ -109,6 +109,13 @@ describe("Feature 1 — User Authentication & Session Management", () => {
       }
     });
 
+    it("System admin MenuBar shows Vehicle", async () => {
+      const { wrapper } = await mountApp("/", userWithRole("system_admin"));
+
+      expect(wrapper.text()).toContain("Sign out");
+      expect(wrapper.text()).toContain("Vehicle");
+    });
+
     it("Maintenance MenuBar in Feature 1 has Sign out but no catalog links yet", async () => {
       const { wrapper } = await mountApp("/", userWithRole("maintenance"));
 

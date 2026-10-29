@@ -39,8 +39,13 @@ export async function authenticate(req, res, next) {
   return next();
 }
 
+function isFullAdmin(role) {
+  // Feature 1 rewrites `admin` to `system_admin` in a shared database.
+  return role === "admin" || role === "system_admin";
+}
+
 export function requireFleetAccess(req, res, next) {
-  if (req.user?.role === "admin" || req.user?.role === "maintenance") {
+  if (isFullAdmin(req.user?.role) || req.user?.role === "maintenance") {
     return next();
   }
 
@@ -48,7 +53,7 @@ export function requireFleetAccess(req, res, next) {
 }
 
 export function requireAdmin(req, res, next) {
-  if (req.user?.role === "admin") {
+  if (isFullAdmin(req.user?.role)) {
     return next();
   }
 
