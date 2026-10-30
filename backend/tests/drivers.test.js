@@ -5,6 +5,11 @@
 import request from "supertest";
 import app from "../server.js";
 import db from "../app/models/index.js";
+import {
+  addCalendarYears,
+  localToday,
+  statusForApprovedDate,
+} from "../app/controllers/driver.controller.js";
 import { createArea, createSession, createUser, syncTestDatabase } from "./helpers.js";
 
 function driverBody(overrides = {}) {
@@ -15,7 +20,7 @@ function driverBody(overrides = {}) {
     driverLicenseExpDate: "2030-09-20",
     insuranceProvider: "root",
     insuranceNumber: "11111111",
-    approvedDate: "2026-10-28",
+    approvedDate: localToday(),
     status: "valid",
     ...overrides,
   };
@@ -162,16 +167,65 @@ describe("Feature 3 — Driver Management", () => {
       expect(await db.driver.count()).toBe(0);
     });
 
-    it("Create with an invalid status is rejected", async () => {
+    it("Supplied status is ignored", async () => {
       const token = await signIn("system_admin");
 
       const response = await authed(token)
         .post("/api/driver/drivers")
         .send(driverBody({ status: "suspended" }));
 
-      expect(response.status).toBe(400);
-      expect(response.body).toEqual({ message: "Status must be valid or expired." });
-      expect(await db.driver.count()).toBe(0);
+      expect(response.status).toBe(201);
+      expect(response.body.status).toBe("valid");
+      const stored = await db.driver.findByPk(response.body.id);
+      expect(stored.status).toBe("valid");
+    });
+
+    it("Driver status expires one year after the approved date", async () => {
+      const token = await signIn("system_admin");
+      expect(statusForApprovedDate("2025-10-30", "2026-10-29")).toBe("valid");
+      expect(statusForApprovedDate("2025-10-30", "2026-10-30")).toBe("expired");
+      expect(statusForApprovedDate("2024-02-29", "2025-02-28")).toBe("valid");
+      expect(statusForApprovedDate("2024-02-29", "2025-03-01")).toBe("expired");
+
+      const expired = await authed(token)
+        .post("/api/driver/drivers")
+        .send(driverBody({ approvedDate: addCalendarYears(localToday(), -2), status: "valid" }));
+
+      expect(expired.status).toBe(201);
+      expect(expired.body.status).toBe("expired");
+
+      const current = await authed(token)
+        .post("/api/driver/drivers")
+        .send(
+          driverBody({
+            firstName: "Amy",
+            lastName: "Adams",
+            driverLicenseNumber: "22222222",
+            insuranceNumber: "22222222",
+            approvedDate: localToday(),
+            status: "expired",
+          })
+        );
+
+      expect(current.status).toBe(201);
+      expect(current.body.status).toBe("valid");
+    });
+
+    it("Listing drivers refreshes a status that has reached its anniversary", async () => {
+      const token = await signIn("system_admin");
+      const driver = await db.driver.create(
+        driverBody({
+          approvedDate: addCalendarYears(localToday(), -2),
+          status: "valid",
+        })
+      );
+
+      const response = await authed(token).get("/api/driver/drivers");
+
+      expect(response.status).toBe(200);
+      expect(response.body[0].status).toBe("expired");
+      const stored = await db.driver.findByPk(driver.id);
+      expect(stored.status).toBe("expired");
     });
 
     it("Create with an invalid expiration date is rejected", async () => {
@@ -240,7 +294,8 @@ describe("Feature 3 — Driver Management", () => {
         .send(
           driverBody({
             driverLicenseExpDate: "2031-01-15",
-            status: "expired",
+            approvedDate: addCalendarYears(localToday(), -2),
+            status: "valid",
           })
         );
 
@@ -261,7 +316,8 @@ describe("Feature 3 — Driver Management", () => {
         .send(
           amyAdams({
             driverLicenseExpDate: "2031-01-15",
-            status: "expired",
+            approvedDate: addCalendarYears(localToday(), -2),
+            status: "valid",
           })
         );
 

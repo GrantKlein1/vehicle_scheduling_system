@@ -47,7 +47,7 @@ A system admin is `system_admin`. A legacy `admin` session is a system admin. An
 **So that** the driver information remains accurate
 
 **Priority:** P2
-**Independent test:** Edit driver liscense expiration date/status and confirm changes persist in the list
+**Independent test:** Edit the driver license expiration date and approved date, and confirm the list shows the new date and the status derived from the approved date
 **Acceptance scenarios:** see ### US-3.4 under Acceptance Criteria
 
 ### US-3.5: Delete Driver
@@ -91,7 +91,7 @@ A system admin is `system_admin`. A legacy `admin` session is a system admin. An
 - **FR-006:** Every input string MUST be trimmed. A required string that is missing, empty, or whitespace-only MUST be rejected with HTTP `400`.
 - **FR-007:** A request with no token MUST return HTTP `401` with `{ "message": "Unauthorized! No token provided." }`. A request with an invalid or expired token MUST return HTTP `401` with `{ "message": "Unauthorized! Invalid or expired token." }`. A visitor with no session who opens `/driver` MUST be redirected to `/login`. A signed-in `requestor` who opens `/driver` MUST be redirected to home. A signed-in `area_admin` who opens `/driver` MUST stay on the driver list.
 - **FR-008:** `GET /api/driver/drivers` MUST return every driver, ordered by `lastName` ascending, then `firstName` ascending, then `id` ascending.
-- **FR-009:** `firstName`, `lastName`, `driverLicenseNumber`, `insuranceProvider`, `insuranceNumber`, and `status` MUST be required strings. `lastName` MUST be at most 50 characters. A missing or blank value MUST return HTTP `400`. A `lastName` longer than 50 characters MUST return HTTP `400` with `{ "message": "Last Name cannot exceed 50 characters." }`. `lastName` is not unique. `status` MUST be `valid` or `expired` after trim. Any other value MUST return HTTP `400` with `{ "message": "Status must be valid or expired." }`.
+- **FR-009:** `firstName`, `lastName`, `driverLicenseNumber`, `insuranceProvider`, and `insuranceNumber` MUST be required strings. `lastName` MUST be at most 50 characters. A missing or blank value MUST return HTTP `400`. A `lastName` longer than 50 characters MUST return HTTP `400` with `{ "message": "Last Name cannot exceed 50 characters." }`. `lastName` is not unique. `status` MUST be `valid` or `expired` and MUST be set from `approvedDate`, not from the request. It is `valid` before the calendar date one year after `approvedDate`, and `expired` on that anniversary and after. A `status` in the body MUST be ignored. Listing drivers, and startup, MUST store the current status when a saved row is out of date.
 - **FR-010:** `driverLicenseExpDate` and `approvedDate` MUST be required real calendar dates in `YYYY-MM-DD` form. A missing or invalid date MUST return HTTP `400`.
 - **FR-011:** `POST /api/driver/drivers` MUST return HTTP `201` and the saved driver, including `id`, and MUST NOT include `userId`. `PUT /api/driver/drivers/:driverId` MUST return HTTP `200` with `{ "message": "Driver was updated successfully." }`. `DELETE /api/driver/drivers/:driverId` MUST return HTTP `200` with `{ "message": "Driver was deleted successfully." }`. Update and delete of an id that does not exist MUST return HTTP `404` with `{ "message": "Driver with id=<driverId> not found." }`.
 - **FR-012:** This feature MUST add **Driver** to the existing `MenuBar` for a system admin, an `area_admin`, and `maintenance`, with path `/driver`. Allowed roles are `admin`, `system_admin`, `area_admin`, and `maintenance`. It MUST NOT create a second `MenuBar`. **Driver** MUST be hidden when there is no session and hidden for `requestor`.
@@ -114,7 +114,7 @@ A system admin is `system_admin`. A legacy `admin` session is a system admin. An
 - A required string that is missing, empty, or whitespace-only: HTTP `400`. No driver is stored. Input strings are trimmed before they are stored.
 - `lastName` longer than 50 characters: HTTP `400` with `"Last Name cannot exceed 50 characters."`. `lastName` is not unique, so two drivers may share one.
 - `driverLicenseExpDate` or `approvedDate` missing or not a real calendar date in `YYYY-MM-DD` form, such as `2030-13-40`: HTTP `400`. No driver is stored.
-- `status` missing or blank: HTTP `400`. `status` other than `valid` or `expired`, such as `suspended`: HTTP `400` with `"Status must be valid or expired."`. No driver is stored. The driver form offers only those two values in a **Status** dropdown.
+- A `status` sent on create or update, including a value such as `suspended`, is ignored. The stored status comes from `approvedDate`. The driver form does not ask for a status.
 - Update or delete of an id that does not exist: HTTP `404` with `"Driver with id=<driverId> not found."`.
 - A `maintenance` create, update, or delete of a driver: HTTP `403` with `"Admin role required."`. That user can still list every driver.
 - A `requestor` create, update, or delete of a driver: HTTP `403` with `"Admin role required."`. That user can still list every driver.
@@ -179,8 +179,7 @@ Acceptance criteria call this `POST /api/driver/drivers`.
   "driverLicenseExpDate": "2030-09-20",
   "insuranceProvider": "root",
   "insuranceNumber": "11111111",
-  "approvedDate": "2026-10-28",
-  "status": "valid"
+  "approvedDate": "2026-10-28"
 }
 ```
 
@@ -195,7 +194,7 @@ Every string is trimmed before it is stored. A `userId` property in the body is 
 | A required string is missing, empty, or whitespace-only | HTTP `400`. No driver is stored. |
 | `lastName` is longer than 50 characters | HTTP `400` with `{ "message": "Last Name cannot exceed 50 characters." }`. No driver is stored. |
 | `driverLicenseExpDate` or `approvedDate` is missing or is not a real calendar date in `YYYY-MM-DD` form | HTTP `400`. No driver is stored. |
-| `status` is not `valid` or `expired` | HTTP `400` with `{ "message": "Status must be valid or expired." }`. No driver is stored. |
+| `status` is included in the body | The value is ignored. Status is stored from `approvedDate`. |
 
 `lastName` is not unique.
 
@@ -211,7 +210,7 @@ Every string is trimmed before it is stored. A `userId` property in the body is 
 
 ### Update – `PUT /api/driver/drivers/:driverId`
 
-**Request body:** the same fields as create. A `userId` in the body is ignored. Validation matches create, including trim, the 50-character `lastName` limit, real `YYYY-MM-DD` dates, and a `status` of `valid` or `expired`.
+**Request body:** the same fields as create. A `userId` or `status` in the body is ignored. Validation matches create, including trim, the 50-character `lastName` limit, and real `YYYY-MM-DD` dates. `status` is recalculated from `approvedDate`.
 
 **Success** (`200`): `{ "message": "Driver was updated successfully." }`
 
@@ -251,7 +250,7 @@ Route name `drivers`, path `/driver`. One view, `Drivers.vue`. Create, edit, and
 **Add Driver dialog**
 
 - **Add Driver** opens the dialog. Title: **Add Driver**.
-- Fields: **First Name**, **Last Name**, **Driver License Number**, **Driver License Expiration Date**, **Insurance Provider**, **Insurance Number**, **Approved Date**, and **Status**. The two date fields are dates. **Status** is a dropdown of `valid` and `expired`.
+- Fields: **First Name**, **Last Name**, **Driver License Number**, **Driver License Expiration Date**, **Insurance Provider**, **Insurance Number**, and **Approved Date**. The two date fields are dates. Status is not a field. The dialog says status is set from the approved date and becomes expired one year later.
 - A required field left blank shows **Required field** and does not call the API.
 - Action: **Save**.
 - On success: the new driver appears in the table and the screen shows the snackbar **`Driver added successfully!`**
@@ -259,7 +258,7 @@ Route name `drivers`, path `/driver`. One view, `Drivers.vue`. Create, edit, and
 **Edit Driver dialog**
 
 - **Edit** on a row opens the edit driver dialog, filled with that driver.
-- The system admin or area admin can change the driver license expiration date and the status. **Status** is the same dropdown of `valid` and `expired`, filled with the driver's current status.
+- The system admin or area admin can change the driver license expiration date and the approved date. Status is not edited. Changing the approved date changes the stored status to match that date.
 - Action: **Update Driver**.
 - On success: the table shows the new expiration date and status.
 
@@ -289,7 +288,7 @@ Route name `drivers`, path `/driver`. One view, `Drivers.vue`. Create, edit, and
 | `insuranceProvider`    | STRING     | Requried       |
 | `insuranceNumber`      | STRING     | Requried       |
 | `approvedDate`         | DATE       | Required       |
-| `status`               | STRING     | Required. `valid` or `expired` |
+| `status`               | STRING     | Required. `valid` or `expired`, derived from `approvedDate` |
 
 ### Associations
 
@@ -352,7 +351,7 @@ Route name `drivers`, path `/driver`. One view, `Drivers.vue`. Create, edit, and
 - **Given** I am signed in as a system admin on the driver page
 - **When** I click **Add Driver**
 - **Then** the **Add Driver** dialog opens
-- **When** I enter first name `Jaxen`, last name `Roden`, driver license number `11111111`, driver license expiration date `2030-09-20`, insurance provider `root`, insurance number `11111111`, approved date `2026-10-28`, and status `valid`
+- **When** I enter first name `Jaxen`, last name `Roden`, driver license number `11111111`, driver license expiration date `2030-09-20`, insurance provider `root`, insurance number `11111111`, and approved date `2026-10-28`
 - **And** I click **Save**
 - **Then** `POST /api/driver/drivers` returns `201`
 - **And** the saved driver has `lastName` `Roden` and `status` `valid`
@@ -364,7 +363,7 @@ Route name `drivers`, path `/driver`. One view, `Drivers.vue`. Create, edit, and
 - **Given** I am signed in as an area admin on the driver page
 - **When** I click **Add Driver**
 - **Then** the **Add Driver** dialog opens
-- **When** I enter first name `Amy`, last name `Adams`, driver license number `22222222`, driver license expiration date `2030-09-20`, insurance provider `root`, insurance number `22222222`, approved date `2026-10-28`, and status `valid`
+- **When** I enter first name `Amy`, last name `Adams`, driver license number `22222222`, driver license expiration date `2030-09-20`, insurance provider `root`, insurance number `22222222`, and approved date `2026-10-28`
 - **And** I click **Save**
 - **Then** `POST /api/driver/drivers` returns `201`
 - **And** the saved driver has `lastName` `Adams` and `status` `valid`
@@ -390,11 +389,27 @@ Route name `drivers`, path `/driver`. One view, `Drivers.vue`. Create, edit, and
 - **Then** the API returns `400`
 - **And** no driver is stored
 
-#### Scenario: Create with an invalid status is rejected
+#### Scenario: Supplied status is ignored
 - **Given** I am signed in as a system admin
-- **When** I send `POST /api/driver/drivers` with a valid driver body whose `status` is `suspended`
-- **Then** the API returns `400` with `{ "message": "Status must be valid or expired." }`
-- **And** no driver is stored
+- **When** I send `POST /api/driver/drivers` with a valid driver body whose `status` is `suspended` and whose `approvedDate` is today
+- **Then** the API returns `201`
+- **And** the saved driver has `status` `valid`
+
+#### Scenario: Driver status expires one year after the approved date
+- **Given** I am signed in as a system admin
+- **When** I send `POST /api/driver/drivers` with a valid driver body whose `approvedDate` is two years ago
+- **Then** the API returns `201`
+- **And** the saved driver has `status` `expired`
+- **When** I send `POST /api/driver/drivers` with a valid driver body whose `approvedDate` is today and whose `status` is `expired`
+- **Then** the API returns `201`
+- **And** the saved driver has `status` `valid`
+
+#### Scenario: Listing drivers refreshes a status that has reached its anniversary
+- **Given** I am signed in as a system admin
+- **And** a driver exists with `status` `valid` and an `approvedDate` two years ago
+- **When** I send `GET /api/driver/drivers`
+- **Then** the API returns `200`
+- **And** that driver has `status` `expired`
 
 #### Scenario: Two drivers may share a last name
 - **Given** I am signed in as a system admin
@@ -454,7 +469,7 @@ Route name `drivers`, path `/driver`. One view, `Drivers.vue`. Create, edit, and
 - **And** driver `Jaxen Roden` exists with driver license expiration date `2030-09-20` and status `valid`
 - **When** I click **Edit** on `Jaxen Roden`
 - **Then** the edit driver dialog opens
-- **When** I change the driver license expiration date to `2031-01-15` and status to `expired`
+- **When** I change the driver license expiration date to `2031-01-15` and the approved date to two years ago
 - **And** I click **Update Driver**
 - **Then** `PUT /api/driver/drivers/:driverId` returns `{ "message": "Driver was updated successfully." }`
 - **And** `Jaxen Roden` shows expiration date `2031-01-15` and status `expired` in the driver table
@@ -464,7 +479,7 @@ Route name `drivers`, path `/driver`. One view, `Drivers.vue`. Create, edit, and
 - **And** driver `Amy Adams` exists with driver license expiration date `2030-09-20` and status `valid`
 - **When** I click **Edit** on `Amy Adams`
 - **Then** the edit driver dialog opens
-- **When** I change the driver license expiration date to `2031-01-15` and status to `expired`
+- **When** I change the driver license expiration date to `2031-01-15` and the approved date to two years ago
 - **And** I click **Update Driver**
 - **Then** `PUT /api/driver/drivers/:driverId` returns `{ "message": "Driver was updated successfully." }`
 - **And** `Amy Adams` shows expiration date `2031-01-15` and status `expired` in the driver table
@@ -582,7 +597,9 @@ Each Gherkin scenario above maps to at least one automated test. A system admin 
 | US-3.2 | Create without last name is rejected | `backend/tests/drivers.test.js` | `Create without last name is rejected` |
 | US-3.2 | Create with a last name that is too long is rejected | `backend/tests/drivers.test.js` | `Create with a last name that is too long is rejected` |
 | US-3.2 | Create with an invalid expiration date is rejected | `backend/tests/drivers.test.js` | `Create with an invalid expiration date is rejected` |
-| US-3.2 | Create with an invalid status is rejected | `backend/tests/drivers.test.js` | `Create with an invalid status is rejected` |
+| US-3.2 | Supplied status is ignored | `backend/tests/drivers.test.js` | `Supplied status is ignored` |
+| US-3.2 | Driver status expires one year after the approved date | `backend/tests/drivers.test.js` | `Driver status expires one year after the approved date` |
+| US-3.2 | Listing drivers refreshes a status that has reached its anniversary | `backend/tests/drivers.test.js` | `Listing drivers refreshes a status that has reached its anniversary` |
 | US-3.2 | Two drivers may share a last name | `backend/tests/drivers.test.js` | `Two drivers may share a last name` |
 | US-3.2 | Supplied userId is ignored | `backend/tests/drivers.test.js` | `Supplied userId is ignored` |
 | US-3.2 | Input strings are trimmed | `backend/tests/drivers.test.js` | `Input strings are trimmed` |

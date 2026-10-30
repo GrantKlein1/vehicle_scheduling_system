@@ -208,14 +208,13 @@ A `userId` in a create or update body is ignored. The `drivers` table has no `us
   "driverLicenseExpDate": "2030-09-20",
   "insuranceProvider": "root",
   "insuranceNumber": "11111111",
-  "approvedDate": "2026-10-28",
-  "status": "valid"
+  "approvedDate": "2026-10-28"
 }
 ```
 
 **201** returns the saved driver: `id`, `firstName`, `lastName`, `driverLicenseNumber`, `driverLicenseExpDate`, `insuranceProvider`, `insuranceNumber`, `approvedDate`, and `status`.
 
-Every string is trimmed before it is stored. `firstName`, `lastName`, `driverLicenseNumber`, `insuranceProvider`, `insuranceNumber`, and `status` are required. A missing, empty, or whitespace-only value returns **400** `{ "message": "<Label> cannot be empty." }`. `lastName` is at most 50 characters and is not unique. A longer value returns **400** `{ "message": "Last Name cannot exceed 50 characters." }`. `status` must be `valid` or `expired`. Any other value returns **400** `{ "message": "Status must be valid or expired." }`. `driverLicenseExpDate` and `approvedDate` are required real calendar dates in `YYYY-MM-DD` form. A missing or invalid date, such as `2030-13-40`, returns **400** `{ "message": "<Label> must be a valid date." }`. The driver form chooses status from a dropdown of `valid` and `expired`.
+Every string is trimmed before it is stored. `firstName`, `lastName`, `driverLicenseNumber`, `insuranceProvider`, and `insuranceNumber` are required. A missing, empty, or whitespace-only value returns **400** `{ "message": "<Label> cannot be empty." }`. `lastName` is at most 50 characters and is not unique. A longer value returns **400** `{ "message": "Last Name cannot exceed 50 characters." }`. `driverLicenseExpDate` and `approvedDate` are required real calendar dates in `YYYY-MM-DD` form. A missing or invalid date, such as `2030-13-40`, returns **400** `{ "message": "<Label> must be a valid date." }`. `status` is not an input. The server sets it from `approvedDate`: `valid` before the calendar date one year later, and `expired` on that anniversary and after. A `status` property in the body is ignored. February 29 rolls to March 1 in a non-leap year. Listing drivers stores that same status when a saved row is out of date, and startup does the same refresh. The driver form does not ask for a status.
 
 ### List – `GET /api/driver/drivers`
 
@@ -223,7 +222,7 @@ Every string is trimmed before it is stored. `firstName`, `lastName`, `driverLic
 
 ### Update – `PUT /api/driver/drivers/:driverId`
 
-The body uses the same fields and validation as create. A `userId` in the body is ignored.
+The body uses the same fields and validation as create. A `userId` or `status` in the body is ignored. `status` is recalculated from the new `approvedDate`.
 
 **200** `{ "message": "Driver was updated successfully." }`
 

@@ -4,8 +4,6 @@ import { currentUser } from "../config/session.js";
 import { isAnyAdmin } from "../config/roles.js";
 import { createDriver, deleteDriver, listDrivers, updateDriver } from "../services/driverServices.js";
 
-const DRIVER_STATUSES = ["valid", "expired"];
-
 const canChangeDrivers = computed(() => isAnyAdmin(currentUser.value));
 
 const drivers = ref([]);
@@ -32,7 +30,6 @@ const FIELDS = [
   ["insuranceProvider", "Insurance Provider"],
   ["insuranceNumber", "Insurance Number"],
   ["approvedDate", "Approved Date"],
-  ["status", "Status"],
 ];
 
 const DATE_FIELDS = ["driverLicenseExpDate", "approvedDate"];
@@ -47,7 +44,6 @@ function emptyDriver() {
     insuranceProvider: "",
     insuranceNumber: "",
     approvedDate: "",
-    status: "",
   };
 }
 
@@ -91,9 +87,6 @@ function fieldMessage(key, value) {
     const label = FIELDS.find(([field]) => field === key)?.[1] ?? "Date";
     return `${label} must be a valid date.`;
   }
-  if (key === "status" && !DRIVER_STATUSES.includes(String(value).trim())) {
-    return "Status must be valid or expired.";
-  }
   return "";
 }
 
@@ -116,7 +109,6 @@ function driverPayload() {
     insuranceProvider: String(form.value.insuranceProvider).trim(),
     insuranceNumber: String(form.value.insuranceNumber).trim(),
     approvedDate: String(form.value.approvedDate).trim(),
-    status: String(form.value.status).trim(),
   };
 }
 
@@ -163,7 +155,6 @@ function openEdit(driver) {
     insuranceProvider: driver.insuranceProvider,
     insuranceNumber: driver.insuranceNumber,
     approvedDate: dateOnly(driver.approvedDate),
-    status: driver.status,
   };
   driverErrors.value = {};
   driverDialog.value = true;
@@ -262,20 +253,17 @@ onMounted(loadDrivers);
           <v-form @submit.prevent="saveDriver">
             <v-row>
               <v-col v-for="[key, label] in FIELDS" :key="key" cols="12" sm="6">
-                <v-select
-                  v-if="key === 'status'"
-                  v-model="form.status"
-                  label="Status"
-                  :items="DRIVER_STATUSES"
-                  :error-messages="driverErrors.status"
-                />
                 <v-text-field
-                  v-else
                   v-model="form[key]"
                   :label="label"
                   :type="DATE_FIELDS.includes(key) ? 'date' : 'text'"
                   :error-messages="driverErrors[key]"
                 />
+              </v-col>
+              <v-col cols="12">
+                <p class="text-body-2 mb-0">
+                  Status is set from the approved date. It stays valid for one year, then becomes expired.
+                </p>
               </v-col>
             </v-row>
           </v-form>

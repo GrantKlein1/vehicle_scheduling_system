@@ -18,6 +18,35 @@ vi.mock("../src/services/driverServices.js", () => ({
   deleteDriver: vi.fn(),
 }));
 
+function localToday(now = new Date()) {
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function addCalendarYears(dateOnlyValue, years) {
+  const [year, month, day] = dateOnlyValue.split("-").map(Number);
+  const shifted = new Date(Date.UTC(year + years, month - 1, day));
+  const shiftedYear = shifted.getUTCFullYear();
+  const shiftedMonth = String(shifted.getUTCMonth() + 1).padStart(2, "0");
+  const shiftedDay = String(shifted.getUTCDate()).padStart(2, "0");
+  return `${shiftedYear}-${shiftedMonth}-${shiftedDay}`;
+}
+
+function statusForApprovedDate(approvedDate, today = localToday()) {
+  const anniversary = addCalendarYears(approvedDate, 1);
+  return today >= anniversary ? "expired" : "valid";
+}
+
+function savedDriver(body, previous = {}) {
+  return {
+    ...previous,
+    ...body,
+    status: statusForApprovedDate(body.approvedDate ?? previous.approvedDate),
+  };
+}
+
 const jaxen = {
   id: 1,
   firstName: "Jaxen",
@@ -26,7 +55,7 @@ const jaxen = {
   driverLicenseExpDate: "2030-09-20",
   insuranceProvider: "root",
   insuranceNumber: "11111111",
-  approvedDate: "2026-10-28",
+  approvedDate: localToday(),
   status: "valid",
 };
 
@@ -38,7 +67,7 @@ const amy = {
   driverLicenseExpDate: "2030-09-20",
   insuranceProvider: "root",
   insuranceNumber: "22222222",
-  approvedDate: "2026-10-28",
+  approvedDate: localToday(),
   status: "valid",
 };
 
@@ -162,7 +191,6 @@ async function fillDriver(wrapper, driver) {
   await setLabeled(wrapper, "Insurance Provider", driver.insuranceProvider);
   await setLabeled(wrapper, "Insurance Number", driver.insuranceNumber);
   await setLabeled(wrapper, "Approved Date", driver.approvedDate);
-  await setLabeled(wrapper, "Status", driver.status);
 }
 
 describe("Feature 3 — Driver Management", () => {
@@ -222,7 +250,7 @@ describe("Feature 3 — Driver Management", () => {
     it("Signed-in system admin creates a new driver", async () => {
       setCurrentUser(userWithRole("system_admin"));
       createDriver.mockImplementation(async (body) => {
-        const saved = { id: 1, ...body };
+        const saved = { id: 1, ...savedDriver(body) };
         catalog = [saved];
         return { status: 201, data: saved };
       });
@@ -230,6 +258,8 @@ describe("Feature 3 — Driver Management", () => {
 
       await clickControl("Add Driver");
       expect(document.querySelector('[role="dialog"]').textContent).toContain("Add Driver");
+      expect(pageText()).toContain("Status is set from the approved date.");
+      expect(labeled(wrapper, "Status")).toBeUndefined();
       await fillDriver(wrapper, jaxen);
       await clickDialogButton("Save");
 
@@ -238,6 +268,7 @@ describe("Feature 3 — Driver Management", () => {
       expect(result.data.lastName).toBe("Roden");
       expect(result.data.status).toBe("valid");
       expect(result.data.userId).toBeUndefined();
+      expect(createDriver.mock.calls[0][0].status).toBeUndefined();
       expect(createDriver.mock.calls[0][0].userId).toBeUndefined();
       expect(rowFor("Jaxen Roden").textContent).toContain("valid");
       expect(pageText()).toContain("Driver added successfully!");
@@ -246,7 +277,7 @@ describe("Feature 3 — Driver Management", () => {
     it("Signed-in area admin creates a new driver", async () => {
       setCurrentUser(userWithRole("area_admin", { areaId: 5, areaName: "Athletics" }));
       createDriver.mockImplementation(async (body) => {
-        const saved = { id: 2, ...body };
+        const saved = { id: 2, ...savedDriver(body) };
         catalog = [saved];
         return { status: 201, data: saved };
       });
@@ -324,7 +355,9 @@ describe("Feature 3 — Driver Management", () => {
       setCurrentUser(userWithRole("system_admin"));
       catalog = [{ ...jaxen }];
       updateDriver.mockImplementation(async (id, body) => {
-        catalog = catalog.map((driver) => (driver.id === id ? { ...driver, ...body } : driver));
+        catalog = catalog.map((driver) =>
+          driver.id === id ? { ...driver, ...savedDriver(body, driver) } : driver
+        );
         return { status: 200, data: { message: "Driver was updated successfully." } };
       });
       const { wrapper } = await mountDrivers();
@@ -335,9 +368,9 @@ describe("Feature 3 — Driver Management", () => {
       expect(labeled(wrapper, "Driver License Expiration Date").find("input").element.value).toBe(
         "2030-09-20"
       );
-      expect(labeled(wrapper, "Status").props("modelValue")).toBe("valid");
+      expect(labeled(wrapper, "Status")).toBeUndefined();
       await setLabeled(wrapper, "Driver License Expiration Date", "2031-01-15");
-      await setLabeled(wrapper, "Status", "expired");
+      await setLabeled(wrapper, "Approved Date", addCalendarYears(localToday(), -2));
       await clickDialogButton("Update Driver");
 
       const result = await updateDriver.mock.results[0].value;
@@ -350,7 +383,9 @@ describe("Feature 3 — Driver Management", () => {
       setCurrentUser(userWithRole("area_admin", { areaId: 5, areaName: "Athletics" }));
       catalog = [{ ...amy }];
       updateDriver.mockImplementation(async (id, body) => {
-        catalog = catalog.map((driver) => (driver.id === id ? { ...driver, ...body } : driver));
+        catalog = catalog.map((driver) =>
+          driver.id === id ? { ...driver, ...savedDriver(body, driver) } : driver
+        );
         return { status: 200, data: { message: "Driver was updated successfully." } };
       });
       const { wrapper } = await mountDrivers();
@@ -360,9 +395,9 @@ describe("Feature 3 — Driver Management", () => {
       expect(labeled(wrapper, "Driver License Expiration Date").find("input").element.value).toBe(
         "2030-09-20"
       );
-      expect(labeled(wrapper, "Status").props("modelValue")).toBe("valid");
+      expect(labeled(wrapper, "Status")).toBeUndefined();
       await setLabeled(wrapper, "Driver License Expiration Date", "2031-01-15");
-      await setLabeled(wrapper, "Status", "expired");
+      await setLabeled(wrapper, "Approved Date", addCalendarYears(localToday(), -2));
       await clickDialogButton("Update Driver");
 
       const result = await updateDriver.mock.results[0].value;

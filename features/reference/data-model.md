@@ -126,7 +126,7 @@ No `createdAt` or `updatedAt`. Introduced in Feature 2.
 | `insuranceProvider` | STRING | Required. Trimmed |
 | `insuranceNumber` | STRING | Required. Trimmed |
 | `approvedDate` | DATEONLY | Required. Real `YYYY-MM-DD` date |
-| `status` | STRING | Required. Trimmed. `valid` or `expired`. A string code, not a database enum |
+| `status` | STRING | Required. `valid` or `expired`. Stored from `approvedDate`: `valid` before the one-year anniversary, `expired` on that date and after. Not accepted from the request body. A string code, not a database enum |
 
 There is no `userId` column. No `createdAt` or `updatedAt`. Introduced in Feature 3.
 

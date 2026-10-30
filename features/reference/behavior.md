@@ -107,7 +107,7 @@ They do **not** authorize new scope — implement only from `features/feature-*.
 | The driver list is ordered by last name, then first name, then id. `lastName` is not unique and is at most 50 characters | `GET /api/driver/drivers` and driver validation | Feature 3 |
 | Required strings are trimmed. A missing, empty, or whitespace-only required string is rejected. A `lastName` longer than 50 characters returns `Last Name cannot exceed 50 characters.` | Driver create/update | Feature 3 |
 | `driverLicenseExpDate` and `approvedDate` must be real `YYYY-MM-DD` dates | Driver create/update | Feature 3 |
-| A driver status is `valid` or `expired`. Any other value returns `Status must be valid or expired.` The add and edit dialogs choose status from that dropdown | Driver model, create/update, and `Drivers.vue` | Feature 3 |
+| A driver status is `valid` or `expired`, set from `approvedDate`. It stays `valid` until the calendar date one year later, and becomes `expired` on that anniversary. A status sent with create or update is ignored. The add and edit dialogs do not ask for a status | Driver create/update, list refresh, and `Drivers.vue` | Feature 3 |
 | The driver screen shows **Add Driver**, **Edit**, and **Delete** for a system admin or an `area_admin`. A maintenance user sees the list and does not see those actions | `Drivers.vue` | Feature 3 |
 | Create, edit, and delete happen in dialogs on `/driver`. A blank required field shows **Required field** and does not call the API. **Cancel** on delete leaves the driver in the list | `Drivers.vue` | Feature 3 |
 | A successful create shows the snackbar **Driver added successfully!** and the new row. A successful update or delete refreshes the table | `Drivers.vue` | Feature 3 |
