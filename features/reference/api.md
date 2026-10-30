@@ -20,7 +20,7 @@ API health stays on `/api/health`. Authentication routes are mounted at `/vehicl
 | `POST` | `/api/vehicle/vehicles/:vehicleId/service-logs` | `admin`, `maintenance` | Append a service log | Feature 2 |
 | `PATCH` | `/api/vehicle/vehicles/:vehicleId/service-logs/:serviceLogId` | `admin`, `maintenance` | Update comments on a service log | Feature 2 |
 | `POST` | `/api/driver/drivers` | system admin, `area_admin` | Create a driver | Feature 3 |
-| `GET` | `/api/driver/drivers` | any authenticated role | List every driver by last name, first name, then id | Feature 3 |
+| `GET` | `/api/driver/drivers` | any authenticated role | List drivers by last name, first name, then id. System admin and `area_admin` receive every driver. `maintenance` and `requestor` receive `valid` drivers only | Feature 3 |
 | `PUT` | `/api/driver/drivers/:driverId` | system admin, `area_admin` | Update a driver | Feature 3 |
 | `DELETE` | `/api/driver/drivers/:driverId` | system admin, `area_admin` | Delete a driver | Feature 3 |
 
@@ -194,7 +194,7 @@ A new reading must be greater than the highest `currentMileage` already stored f
 
 ## Drivers
 
-Driver routes are mounted at `/api/driver`. Every driver route uses `authenticate`. `GET /api/driver/drivers` is allowed for any authenticated role, including `requestor` and `maintenance`. `POST`, `PUT`, and `DELETE` use `requireAnyAdmin`: a system admin (`system_admin` or legacy `admin`) or an `area_admin` passes. A `maintenance` user or `requestor` receives `403` `{ "message": "Admin role required." }` on those writes. The list is not filtered by the caller's area or role.
+Driver routes are mounted at `/api/driver`. Every driver route uses `authenticate`. `GET /api/driver/drivers` is allowed for any authenticated role, including `requestor` and `maintenance`. `POST`, `PUT`, and `DELETE` use `requireAnyAdmin`: a system admin (`system_admin` or legacy `admin`) or an `area_admin` passes. A `maintenance` user or `requestor` receives `403` `{ "message": "Admin role required." }` on those writes. The list is not filtered by the caller's area. A system admin or `area_admin` receives every driver, including `expired`. A `maintenance` user or `requestor` receives only drivers whose status is `valid` after the list refreshes stored status.
 
 A `userId` in a create or update body is ignored. The `drivers` table has no `userId` column, and responses do not include `userId`.
 
@@ -218,7 +218,7 @@ Every string is trimmed before it is stored. `firstName`, `lastName`, `driverLic
 
 ### List – `GET /api/driver/drivers`
 
-**200** returns a JSON array of every driver, ordered by `lastName` ascending, then `firstName` ascending, then `id` ascending. Each item has the create fields.
+**200** returns a JSON array ordered by `lastName` ascending, then `firstName` ascending, then `id` ascending. Each item has the create fields. A system admin or `area_admin` receives every driver, including `expired`. A `maintenance` user or `requestor` receives only `valid` drivers. An `expired` driver is left in the database and is not in that array.
 
 ### Update – `PUT /api/driver/drivers/:driverId`
 

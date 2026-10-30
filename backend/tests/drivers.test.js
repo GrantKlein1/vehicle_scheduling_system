@@ -80,7 +80,12 @@ describe("Feature 3 — Driver Management", () => {
     it("Area admin sees every driver", async () => {
       const token = await signIn("area_admin");
       await db.driver.create(driverBody());
-      await db.driver.create(amyAdams());
+      await db.driver.create(
+        amyAdams({
+          approvedDate: addCalendarYears(localToday(), -2),
+          status: "expired",
+        })
+      );
 
       const response = await authed(token).get("/api/driver/drivers");
 
@@ -88,6 +93,48 @@ describe("Feature 3 — Driver Management", () => {
       const names = response.body.map(fullName);
       expect(names).toContain("Jaxen Roden");
       expect(names).toContain("Amy Adams");
+      expect(response.body.find((driver) => fullName(driver) === "Amy Adams").status).toBe(
+        "expired"
+      );
+    });
+
+    it("System admin sees expired drivers", async () => {
+      const token = await signIn("system_admin");
+      await db.driver.create(driverBody());
+      await db.driver.create(
+        amyAdams({
+          approvedDate: addCalendarYears(localToday(), -2),
+          status: "expired",
+        })
+      );
+
+      const response = await authed(token).get("/api/driver/drivers");
+
+      expect(response.status).toBe(200);
+      const names = response.body.map(fullName);
+      expect(names).toContain("Jaxen Roden");
+      expect(names).toContain("Amy Adams");
+      expect(response.body.find((driver) => fullName(driver) === "Amy Adams").status).toBe(
+        "expired"
+      );
+    });
+
+    it("Maintenance list omits expired drivers", async () => {
+      const token = await signIn("maintenance");
+      await db.driver.create(driverBody());
+      const expired = await db.driver.create(
+        amyAdams({
+          approvedDate: addCalendarYears(localToday(), -2),
+          status: "valid",
+        })
+      );
+
+      const response = await authed(token).get("/api/driver/drivers");
+
+      expect(response.status).toBe(200);
+      expect(response.body.map(fullName)).toEqual(["Jaxen Roden"]);
+      const stored = await db.driver.findByPk(expired.id);
+      expect(stored.status).toBe("expired");
     });
 
     it("Driver list is sorted by last name", async () => {
@@ -402,6 +449,22 @@ describe("Feature 3 — Driver Management", () => {
       const names = listed.body.map(fullName);
       expect(names).toContain("Jaxen Roden");
       expect(names).toContain("Amy Adams");
+    });
+
+    it("Requestor list omits expired drivers", async () => {
+      const token = await signIn("requestor");
+      await db.driver.create(driverBody());
+      await db.driver.create(
+        amyAdams({
+          approvedDate: addCalendarYears(localToday(), -2),
+          status: "expired",
+        })
+      );
+
+      const response = await authed(token).get("/api/driver/drivers");
+
+      expect(response.status).toBe(200);
+      expect(response.body.map(fullName)).toEqual(["Jaxen Roden"]);
     });
 
     it("Maintenance cannot create, update, or delete a driver", async () => {

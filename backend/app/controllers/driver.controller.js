@@ -1,4 +1,5 @@
 import db from "../models/index.js";
+import { isAnyAdmin } from "../authorization/roles.js";
 
 const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
 const LAST_NAME_LIMIT = 50;
@@ -157,7 +158,7 @@ export async function createDriver(req, res) {
   return res.status(201).json(driverJson(driver));
 }
 
-export async function listDrivers(_req, res) {
+export async function listDrivers(req, res) {
   const drivers = await db.driver.findAll({
     order: [
       ["lastName", "ASC"],
@@ -170,7 +171,11 @@ export async function listDrivers(_req, res) {
     await syncDriverStatus(driver, today);
   }
 
-  return res.status(200).json(drivers.map(driverJson));
+  const visible = isAnyAdmin(req.user)
+    ? drivers
+    : drivers.filter((driver) => driver.status === "valid");
+
+  return res.status(200).json(visible.map(driverJson));
 }
 
 export async function updateDriver(req, res) {
