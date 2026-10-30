@@ -91,8 +91,8 @@ A system admin is `system_admin`. A legacy `admin` session is a system admin. An
 
 - **FR-001:** Every driver endpoint MUST require authentication (`authenticate` middleware).
 - **FR-002:** An authenticated system admin or `area_admin` MUST be able to list drivers, create a driver, update a driver, and delete a driver. `system_admin` and a legacy `admin` are system admins (`isSystemAdmin`). An `area_admin` passes `isAnyAdmin`.
-- **FR-003:** An authenticated `maintenance` user MUST be able to list every driver. An `area_admin` list is the same full list and MUST NOT be limited to that admin's area. `POST`, `PUT`, and `DELETE` MUST succeed for a system admin or an `area_admin`.
-- **FR-004:** A `maintenance` or `requestor` user who calls `POST`, `PUT`, or `DELETE` MUST receive HTTP `403` with `{ "message": "Admin role required." }`. A `requestor` who calls `GET /api/driver/drivers` MUST receive the same `403`.
+- **FR-003:** An authenticated `maintenance` user or `requestor` MUST be able to list every driver. An `area_admin` list is the same full list and MUST NOT be limited to that admin's area. `POST`, `PUT`, and `DELETE` MUST succeed for a system admin or an `area_admin`.
+- **FR-004:** A `maintenance` or `requestor` user who calls `POST`, `PUT`, or `DELETE` MUST receive HTTP `403` with `{ "message": "Admin role required." }`.
 - **FR-005:** A driver MUST NOT have a `userId`. A driver is a catalog row, not a user account. A `userId` in the request body MUST be ignored and MUST NOT be stored.
 - **FR-006:** Every input string MUST be trimmed. A required string that is missing, empty, or whitespace-only MUST be rejected with HTTP `400`.
 - **FR-007:** A request with no token MUST return HTTP `401` with `{ "message": "Unauthorized! No token provided." }`. A request with an invalid or expired token MUST return HTTP `401` with `{ "message": "Unauthorized! Invalid or expired token." }`. A visitor with no session who opens `/driver` MUST be redirected to `/login`. A signed-in `requestor` who opens `/driver` MUST be redirected to home. A signed-in `area_admin` who opens `/driver` MUST stay on the driver list.
@@ -116,38 +116,45 @@ A system admin is `system_admin`. A legacy `admin` session is a system admin. An
 
 ## Edge Cases
 
-- Missing required fields: triggers client-side validation ("Required field") without making API calls.
-- Duplicate `courseNumber`: API returns HTTP `400 Bad Request` with `"Course number already exists"`.
-- Invalid ID on Update/Delete: API returns HTTP `404 Not Found` with `"Course with id= not found."`.
-- Faculty Mutation Attempt: API returns HTTP `403 Forbbiden`.
-- Unauthenticated Access: Direct navigation to `/course` redirects to `/login`; API calls return HTTP `401`.
+- A required field left blank on the form shows **Required field** and does not call the API.
+- A required string that is missing, empty, or whitespace-only: HTTP `400`. No driver is stored. Input strings are trimmed before they are stored.
+- `lastName` longer than 50 characters: HTTP `400` with `"Last Name cannot exceed 50 characters."`. `lastName` is not unique, so two drivers may share one.
+- `driverLicenseExpDate` or `approvedDate` missing or not a real calendar date in `YYYY-MM-DD` form, such as `2030-13-40`: HTTP `400`. No driver is stored.
+- Update or delete of an id that does not exist: HTTP `404` with `"Driver with id=<driverId> not found."`.
+- A `maintenance` create, update, or delete of a driver: HTTP `403` with `"Admin role required."`. That user can still list every driver.
+- A `requestor` create, update, or delete of a driver: HTTP `403` with `"Admin role required."`. That user can still list every driver.
+- No session on `/driver`: redirect to `/login`. A driver API call with no token: HTTP `401` with `"Unauthorized! No token provided."`. An invalid or expired token: HTTP `401` with `"Unauthorized! Invalid or expired token."`.
+- A signed-in `requestor` opening `/driver`: redirect to home. **Driver** is not in that user's `MenuBar`.
+- An `area_admin` list is every driver, not only drivers for that admin's area. Create, update, and delete succeed for that role.
+- Cancelling a delete leaves the driver in the list and does not call `DELETE`.
+- A `userId` sent with a create or update is dropped. The stored row and the response have no `userId`.
 
 ## Success criteria
 
 - **SC-001**: Every Gherkin scenario is covered by automated unit/integration tests.
 - **SC-002**: A system admin or an area admin can perform complete CRUD operations on drivers within a single screen using dialogs.
-- **SC-003**: A maintenance user can list every driver and cannot create, update, or delete one. A requestor cannot call driver endpoints.
+- **SC-003**: A maintenance user and a requestor can list every driver and cannot create, update, or delete one.
 - **SC-004**: All test suites (`npm test`) pass completely without failiures.
 
 ## Data Ownership & Isolation
 
-Drivers belong to a list and are not tied to individual user accounts (`userId` is not present in the course schema). A system admin or an area admin manages every list entry. A maintenance user has read-only access to every driver. A requestor has no access.
+Drivers belong to a list and are not tied to individual user accounts (`userId` is not present in the course schema). A system admin or an area admin manages every list entry. A maintenance user and a requestor have read-only access to every driver.
 
 | Rule | Requirement |
 |------|-------------|
-| **Read scope** | `GET /vehicle/drivers` returns all drivers to an authenticated system admin, `area_admin`, or `maintenance` user. The rows are not filtered by the caller's area. A `requestor` receives `403`. |
+| **Read scope** | `GET /vehicle/drivers` returns all drivers to an authenticated system admin, `area_admin`, `maintenance` user, or `requestor`. The rows are not filtered by the caller's area or role. |
 | **Write scope** | `PUT` / `DELETE` `/vehicle/drivers/:driverId` succeed for a system admin or an `area_admin`. A `maintenance` user or `requestor` receives `403`. |
 | **Create scope** | `POST /vehicle/drivers` succeeds for a system admin or an `area_admin`. Driver data is saved without a `userId` owner field. |
 | **Cross-user access** | Any system admin or area admin can update or delete any driver in the list. No `userId` validation exists for driver rows. |
 | **UI scope** | `Driver.vue` view and `Driver` option in `MenuBar` render for a system admin, an `area_admin`, or a `maintenance` user. **Add Driver**, **Edit**, and **Delete** render for a system admin or an `area_admin`. |
-| **Implementation** | `authenticate` middleware in `backend/app/routes/` verifies session. Mutations (`POST`, `PUT`, `DELETE`) use `isAnyAdmin`. List allows a system admin, an `area_admin`, or `maintenance`. |
+| **Implementation** | `authenticate` middleware in `backend/app/routes/` verifies session. Mutations (`POST`, `PUT`, `DELETE`) use `isAnyAdmin`. List allows any authenticated role. |
 
 ---
 
 ## Key Entities
 
 - **Driver**: one shared catalog row with no `userId`. It has a first name, last name, driver license number, driver license expiration date, insurance provider, insurance number, approved date, and status. Last name is at most 50 characters and is not unique. The two dates are real calendar dates in `YYYY-MM-DD` form.
-- **User / Session**: required for `/driver` and every driver endpoint. Roles are `requestor`, `system_admin`, `area_admin`, and `maintenance` (Feature 1). A system admin or an area admin creates, updates, and deletes every driver. A maintenance user reads every driver. A requestor cannot read or change drivers.
+- **User / Session**: required for `/driver` and every driver endpoint. Roles are `requestor`, `system_admin`, `area_admin`, and `maintenance` (Feature 1). A system admin or an area admin creates, updates, and deletes every driver. A maintenance user or a requestor reads every driver and cannot change drivers.
 - **Reservation**: a later trip row that will reference `driverId` (Feature 6). This feature does not create reservation rows.
 
 ---
@@ -159,7 +166,7 @@ Mount prefix: `/driver` (see `backend/server.js`). Flat JSON; errors `{ "message
 | Method | Endpoint | Auth | Purpose |
 |--------|----------|------|---------|
 | `POST` | `/vehicle/drivers` | system admin, `area_admin` | Create a driver |
-| `GET` | `/vehicle/drivers` | system admin, `area_admin`, `maintenance` | List all drivers, sorted by `lastName` ascending |
+| `GET` | `/vehicle/drivers` | any authenticated role | List all drivers, sorted by `lastName` ascending |
 | `PUT` | `/vehicle/drivers/:driverId` | system admin, `area_admin` | Update a driver |
 | `DELETE` | `/vehicle/drivers/:driverId` | system admin, `area_admin` | Delete a driver |
 
@@ -202,7 +209,7 @@ Every string is trimmed before it is stored. A `userId` property in the body is 
 
 ### List all – `GET /api/driver/drivers`
 
-**Success** (`200`): a JSON array of every driver, ordered by `lastName` ascending, then `firstName` ascending, then `id` ascending. Each item has the same fields as the create success body. A system admin, an `area_admin`, or a `maintenance` user may call this. The array is not filtered by the caller's area. A `requestor` receives `403` `{ "message": "Admin role required." }`.
+**Success** (`200`): a JSON array of every driver, ordered by `lastName` ascending, then `firstName` ascending, then `id` ascending. Each item has the same fields as the create success body. Any authenticated role may call this, including a `requestor`. The array is not filtered by the caller's area or role.
 
 **Unauthorized:** the same `401` messages as create.
 
@@ -523,13 +530,17 @@ Route name `drivers`, path `/driver`. One view, `Drivers.vue`. Create, edit, and
 
 ### US-3.7 — Role-Based Access Control
 
-#### Scenario: Requestor driver access is restricted
+#### Scenario: Requestor can list drivers but cannot change them
 - **Given** I am signed in as a requestor
+- **And** drivers `Jaxen Roden` and `Amy Adams` exist
 - **When** I navigate directly to `/driver`
 - **Then** I am redirected to home
-- **When** I send `GET /api/driver/drivers`, `POST /api/driver/drivers`, `PUT /api/driver/drivers/1`, or `DELETE /api/driver/drivers/1`
+- **When** I send `POST /api/driver/drivers`, `PUT /api/driver/drivers/1`, or `DELETE /api/driver/drivers/1`
 - **Then** each response is `403` with `{ "message": "Admin role required." }`
 - **And** the driver list is unchanged
+- **When** I send `GET /api/driver/drivers`
+- **Then** the API returns `200`
+- **And** both `Jaxen Roden` and `Amy Adams` are returned
 
 #### Scenario: Maintenance cannot create, update, or delete a driver
 - **Given** I am signed in as a maintenance user
@@ -554,7 +565,7 @@ Route name `drivers`, path `/driver`. One view, `Drivers.vue`. Create, edit, and
 
 ## Test Coverage Map
 
-Each Gherkin scenario above maps to at least one automated test. A system admin or an area admin creates, updates, and deletes drivers. A system admin, an area admin, or a maintenance user can open **Driver** and read every driver. A requestor receives `403` on every driver endpoint. A maintenance user receives `403` on driver create, update, and delete.
+Each Gherkin scenario above maps to at least one automated test. A system admin or an area admin creates, updates, and deletes drivers. A system admin, an area admin, or a maintenance user can open **Driver** and read every driver. A requestor or a maintenance user receives `403` on driver create, update, and delete, and can read every driver.
 
 | Story | Scenario | Test file | Test name |
 | ----- | -------- | --------- | --------- |
@@ -586,7 +597,7 @@ Each Gherkin scenario above maps to at least one automated test. A system admin 
 | US-3.6 | Requestor does not see Driver in the menu | `frontend/tests/MenuBar.test.js` | `Requestor does not see Driver in the menu` |
 | US-3.6 | Area admin sees Driver in the menu | `frontend/tests/MenuBar.test.js` | `Area admin sees Driver in the menu` |
 | US-3.6 | Signed-out menu does not show Driver | `frontend/tests/MenuBar.test.js` | `Signed-out menu does not show Driver` |
-| US-3.7 | Requestor driver access is restricted | `backend/tests/drivers.test.js`, `frontend/tests/DriverList.test.js` | `Requestor driver access is restricted` |
+| US-3.7 | Requestor can list drivers but cannot change them | `backend/tests/drivers.test.js`, `frontend/tests/DriverList.test.js` | `Requestor can list drivers but cannot change them` |
 | US-3.7 | Maintenance cannot create, update, or delete a driver | `backend/tests/drivers.test.js` | `Maintenance cannot create, update, or delete a driver` |
 | US-3.7 | Unauthenticated visit to the driver page redirects to login | `backend/tests/drivers.test.js`, `frontend/tests/router.test.js` | `Unauthenticated visit to the driver page redirects to login` |
 | US-3.7 | Invalid token is rejected | `backend/tests/drivers.test.js` | `Invalid token is rejected` |
@@ -637,7 +648,7 @@ Do not implement behavior not in this spec.
 
 ## Delivered to later features
 
-- A driver is a list row (`firstName`, `lastName`, `driverLicenseNumber`, `driverLicenseExpDate`, `insuranceProvider`, `insuranceNumber`, `approvedDate`, `status`) with no `userId`. A system admin or an area admin creates, updates, and deletes every driver. A maintenance user can read every driver.
+- A driver is a list row (`firstName`, `lastName`, `driverLicenseNumber`, `driverLicenseExpDate`, `insuranceProvider`, `insuranceNumber`, `approvedDate`, `status`) with no `userId`. A system admin or an area admin creates, updates, and deletes every driver. A maintenance user or a requestor can read every driver.
 - **Driver** in `MenuBar` routes a system admin, an area admin, and a maintenance user to `/driver`. Allowed roles are `admin`, `system_admin`, `area_admin`, and `maintenance`. This feature does not add a second `MenuBar`.
 - Feature 4 adds **Destination** (allowed role `system_admin`) to this `MenuBar`.
 - Feature 5 adds **Area** (allowed role `system_admin`) to this `MenuBar`.
