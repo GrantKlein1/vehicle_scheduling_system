@@ -7,6 +7,7 @@ import userModel from "./user.model.js";
 import sessionModel from "./session.model.js";
 import areaModel from "./area.model.js";
 import vehicleModel, { DEFAULT_VEHICLE_STATUS } from "./vehicle.model.js";
+import driverModel from "./driver.model.js";
 import mileageLogModel from "./mileageLog.model.js";
 import serviceLogModel from "./serviceLog.model.js";
 
@@ -17,6 +18,7 @@ db.area = areaModel(sequelize, Sequelize);
 db.user = userModel(sequelize, Sequelize);
 db.session = sessionModel(sequelize, Sequelize);
 db.vehicle = vehicleModel(sequelize, Sequelize);
+db.driver = driverModel(sequelize, Sequelize);
 db.mileageLog = mileageLogModel(sequelize, Sequelize);
 db.serviceLog = serviceLogModel(sequelize, Sequelize);
 
