@@ -15,7 +15,7 @@ A system admin is `system_admin`. A legacy `admin` session is a system admin. An
 
 ### US-3.1: View Driver List Page
 
-**As a** signed-in system admin
+**As a** signed-in system admin, area admin, and maintenance
 **I want to** select "Driver" from the navigation menu
 **So that** I can access the driver management screen
  
