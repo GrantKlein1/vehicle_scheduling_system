@@ -1,6 +1,6 @@
 # Behavior & Rules Reference
 
-**Living snapshot** of product rules currently implemented through Feature 2.
+**Living snapshot** of product rules currently implemented through Feature 3.
 
 These files answer: *"What rules does the app enforce right now?"*  
 They do **not** authorize new scope — implement only from `features/feature-*.md`.
@@ -63,6 +63,10 @@ They do **not** authorize new scope — implement only from `features/feature-*.
 | A signed-out menu and a `requestor` menu do not show **Vehicle** | `MenuBar` | Feature 2 |
 | `/vehicle` without a session redirects to `login` | Router `beforeEach` | Feature 2 |
 | A signed-in `requestor` who opens `/vehicle` is redirected to `home` | Router `beforeEach` | Feature 2 |
+| **Driver** is in `MenuBar` for `admin`, `system_admin`, `area_admin`, and `maintenance`, and opens `/driver` | `MenuBar` | Feature 3 |
+| A signed-out menu and a `requestor` menu do not show **Driver** | `MenuBar` | Feature 3 |
+| `/driver` without a session redirects to `login` | Router `beforeEach` | Feature 3 |
+| A signed-in `requestor` who opens `/driver` is redirected to `home`. A system admin, area admin, or maintenance user stays on the driver list | Router `beforeEach` | Feature 3 |
 
 ## Vehicles
 
@@ -92,3 +96,18 @@ They do **not** authorize new scope — implement only from `features/feature-*.
 | An empty catalog shows **No vehicles yet.** A load failure shows the API message in an error alert | `Vehicles.vue` | Feature 2 |
 | A vehicle status is `available`, `checked_out`, `in_repair`, or `out_of_service`. New vehicles, and rows with a blank status, are `available`. Create and update accept a status; omitting it on update keeps the stored value. The vehicle list, detail panel, and add/edit dialog show the status and do not edit it | Vehicle model, create/update, and `Vehicles.vue` | Vehicle status |
 | Create, update, delete, and log success use the snackbar text from the Feature 2 screen spec. Failures show the API `message` | `Vehicles.vue` | Feature 2 |
+
+## Drivers
+
+| Rule | Enforcement | Introduced |
+|------|-------------|------------|
+| Drivers are one shared catalog and have no `userId` | `drivers` table and create/update ignore `userId` | Feature 3 |
+| A system admin or an `area_admin` can list, create, update, and delete every driver. The list is not limited to the caller's area | `requireAnyAdmin` on writes and `GET /api/driver/drivers` | Feature 3 |
+| A `maintenance` user or `requestor` can list every driver and receives `403` `{ "message": "Admin role required." }` on create, update, and delete | Driver routes | Feature 3 |
+| The driver list is ordered by last name, then first name, then id. `lastName` is not unique and is at most 50 characters | `GET /api/driver/drivers` and driver validation | Feature 3 |
+| Required strings are trimmed. A missing, empty, or whitespace-only required string is rejected. A `lastName` longer than 50 characters returns `Last Name cannot exceed 50 characters.` | Driver create/update | Feature 3 |
+| `driverLicenseExpDate` and `approvedDate` must be real `YYYY-MM-DD` dates | Driver create/update | Feature 3 |
+| A driver status is `valid` or `expired`. Any other value returns `Status must be valid or expired.` The add and edit dialogs choose status from that dropdown | Driver model, create/update, and `Drivers.vue` | Feature 3 |
+| The driver screen shows **Add Driver**, **Edit**, and **Delete** for a system admin or an `area_admin`. A maintenance user sees the list and does not see those actions | `Drivers.vue` | Feature 3 |
+| Create, edit, and delete happen in dialogs on `/driver`. A blank required field shows **Required field** and does not call the API. **Cancel** on delete leaves the driver in the list | `Drivers.vue` | Feature 3 |
+| A successful create shows the snackbar **Driver added successfully!** and the new row. A successful update or delete refreshes the table | `Drivers.vue` | Feature 3 |

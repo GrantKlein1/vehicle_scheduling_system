@@ -1,4 +1,4 @@
-# Feature: Course Management
+# Feature: Driver Management
 
 **Feature ID:** 3
 **Branch pattern:** `feature/3-driver-management`
@@ -91,7 +91,7 @@ A system admin is `system_admin`. A legacy `admin` session is a system admin. An
 - **FR-006:** Every input string MUST be trimmed. A required string that is missing, empty, or whitespace-only MUST be rejected with HTTP `400`.
 - **FR-007:** A request with no token MUST return HTTP `401` with `{ "message": "Unauthorized! No token provided." }`. A request with an invalid or expired token MUST return HTTP `401` with `{ "message": "Unauthorized! Invalid or expired token." }`. A visitor with no session who opens `/driver` MUST be redirected to `/login`. A signed-in `requestor` who opens `/driver` MUST be redirected to home. A signed-in `area_admin` who opens `/driver` MUST stay on the driver list.
 - **FR-008:** `GET /api/driver/drivers` MUST return every driver, ordered by `lastName` ascending, then `firstName` ascending, then `id` ascending.
-- **FR-009:** `firstName`, `lastName`, `driverLicenseNumber`, `insuranceProvider`, `insuranceNumber`, and `status` MUST be required strings. `lastName` MUST be at most 50 characters. A missing or blank value MUST return HTTP `400`. A `lastName` longer than 50 characters MUST return HTTP `400` with `{ "message": "Last Name cannot exceed 50 characters." }`. `lastName` is not unique.
+- **FR-009:** `firstName`, `lastName`, `driverLicenseNumber`, `insuranceProvider`, `insuranceNumber`, and `status` MUST be required strings. `lastName` MUST be at most 50 characters. A missing or blank value MUST return HTTP `400`. A `lastName` longer than 50 characters MUST return HTTP `400` with `{ "message": "Last Name cannot exceed 50 characters." }`. `lastName` is not unique. `status` MUST be `valid` or `expired` after trim. Any other value MUST return HTTP `400` with `{ "message": "Status must be valid or expired." }`.
 - **FR-010:** `driverLicenseExpDate` and `approvedDate` MUST be required real calendar dates in `YYYY-MM-DD` form. A missing or invalid date MUST return HTTP `400`.
 - **FR-011:** `POST /api/driver/drivers` MUST return HTTP `201` and the saved driver, including `id`, and MUST NOT include `userId`. `PUT /api/driver/drivers/:driverId` MUST return HTTP `200` with `{ "message": "Driver was updated successfully." }`. `DELETE /api/driver/drivers/:driverId` MUST return HTTP `200` with `{ "message": "Driver was deleted successfully." }`. Update and delete of an id that does not exist MUST return HTTP `404` with `{ "message": "Driver with id=<driverId> not found." }`.
 - **FR-012:** This feature MUST add **Driver** to the existing `MenuBar` for a system admin, an `area_admin`, and `maintenance`, with path `/driver`. Allowed roles are `admin`, `system_admin`, `area_admin`, and `maintenance`. It MUST NOT create a second `MenuBar`. **Driver** MUST be hidden when there is no session and hidden for `requestor`.
@@ -114,6 +114,7 @@ A system admin is `system_admin`. A legacy `admin` session is a system admin. An
 - A required string that is missing, empty, or whitespace-only: HTTP `400`. No driver is stored. Input strings are trimmed before they are stored.
 - `lastName` longer than 50 characters: HTTP `400` with `"Last Name cannot exceed 50 characters."`. `lastName` is not unique, so two drivers may share one.
 - `driverLicenseExpDate` or `approvedDate` missing or not a real calendar date in `YYYY-MM-DD` form, such as `2030-13-40`: HTTP `400`. No driver is stored.
+- `status` missing or blank: HTTP `400`. `status` other than `valid` or `expired`, such as `suspended`: HTTP `400` with `"Status must be valid or expired."`. No driver is stored. The driver form offers only those two values in a **Status** dropdown.
 - Update or delete of an id that does not exist: HTTP `404` with `"Driver with id=<driverId> not found."`.
 - A `maintenance` create, update, or delete of a driver: HTTP `403` with `"Admin role required."`. That user can still list every driver.
 - A `requestor` create, update, or delete of a driver: HTTP `403` with `"Admin role required."`. That user can still list every driver.
@@ -132,7 +133,7 @@ A system admin is `system_admin`. A legacy `admin` session is a system admin. An
 
 ## Data Ownership & Isolation
 
-Drivers belong to a list and are not tied to individual user accounts (`userId` is not present in the course schema). A system admin or an area admin manages every list entry. A maintenance user and a requestor have read-only access to every driver.
+Drivers belong to a list and are not tied to individual user accounts (`userId` is not present in the driver schema). A system admin or an area admin manages every list entry. A maintenance user and a requestor have read-only access to every driver.
 
 | Rule | Requirement |
 |------|-------------|
@@ -147,7 +148,7 @@ Drivers belong to a list and are not tied to individual user accounts (`userId` 
 
 ## Key Entities
 
-- **Driver**: one shared catalog row with no `userId`. It has a first name, last name, driver license number, driver license expiration date, insurance provider, insurance number, approved date, and status. Last name is at most 50 characters and is not unique. The two dates are real calendar dates in `YYYY-MM-DD` form.
+- **Driver**: one shared catalog row with no `userId`. It has a first name, last name, driver license number, driver license expiration date, insurance provider, insurance number, approved date, and status. Status is `valid` or `expired`. Last name is at most 50 characters and is not unique. The two dates are real calendar dates in `YYYY-MM-DD` form.
 - **User / Session**: required for `/driver` and every driver endpoint. Roles are `requestor`, `system_admin`, `area_admin`, and `maintenance` (Feature 1). A system admin or an area admin creates, updates, and deletes every driver. A maintenance user or a requestor reads every driver and cannot change drivers.
 - **Reservation**: a later trip row that will reference `driverId` (Feature 6). This feature does not create reservation rows.
 
@@ -194,6 +195,7 @@ Every string is trimmed before it is stored. A `userId` property in the body is 
 | A required string is missing, empty, or whitespace-only | HTTP `400`. No driver is stored. |
 | `lastName` is longer than 50 characters | HTTP `400` with `{ "message": "Last Name cannot exceed 50 characters." }`. No driver is stored. |
 | `driverLicenseExpDate` or `approvedDate` is missing or is not a real calendar date in `YYYY-MM-DD` form | HTTP `400`. No driver is stored. |
+| `status` is not `valid` or `expired` | HTTP `400` with `{ "message": "Status must be valid or expired." }`. No driver is stored. |
 
 `lastName` is not unique.
 
@@ -209,7 +211,7 @@ Every string is trimmed before it is stored. A `userId` property in the body is 
 
 ### Update – `PUT /api/driver/drivers/:driverId`
 
-**Request body:** the same fields as create. A `userId` in the body is ignored. Validation matches create, including trim, the 50-character `lastName` limit, and real `YYYY-MM-DD` dates.
+**Request body:** the same fields as create. A `userId` in the body is ignored. Validation matches create, including trim, the 50-character `lastName` limit, real `YYYY-MM-DD` dates, and a `status` of `valid` or `expired`.
 
 **Success** (`200`): `{ "message": "Driver was updated successfully." }`
 
@@ -249,7 +251,7 @@ Route name `drivers`, path `/driver`. One view, `Drivers.vue`. Create, edit, and
 **Add Driver dialog**
 
 - **Add Driver** opens the dialog. Title: **Add Driver**.
-- Fields: **First Name**, **Last Name**, **Driver License Number**, **Driver License Expiration Date**, **Insurance Provider**, **Insurance Number**, **Approved Date**, and **Status**. The two date fields are dates.
+- Fields: **First Name**, **Last Name**, **Driver License Number**, **Driver License Expiration Date**, **Insurance Provider**, **Insurance Number**, **Approved Date**, and **Status**. The two date fields are dates. **Status** is a dropdown of `valid` and `expired`.
 - A required field left blank shows **Required field** and does not call the API.
 - Action: **Save**.
 - On success: the new driver appears in the table and the screen shows the snackbar **`Driver added successfully!`**
@@ -257,7 +259,7 @@ Route name `drivers`, path `/driver`. One view, `Drivers.vue`. Create, edit, and
 **Edit Driver dialog**
 
 - **Edit** on a row opens the edit driver dialog, filled with that driver.
-- The system admin or area admin can change the driver license expiration date and the status.
+- The system admin or area admin can change the driver license expiration date and the status. **Status** is the same dropdown of `valid` and `expired`, filled with the driver's current status.
 - Action: **Update Driver**.
 - On success: the table shows the new expiration date and status.
 
@@ -287,7 +289,7 @@ Route name `drivers`, path `/driver`. One view, `Drivers.vue`. Create, edit, and
 | `insuranceProvider`    | STRING     | Requried       |
 | `insuranceNumber`      | STRING     | Requried       |
 | `approvedDate`         | DATE       | Required       |
-| `Status`               | STRING     | Required       |
+| `status`               | STRING     | Required. `valid` or `expired` |
 
 ### Associations
 
@@ -386,6 +388,12 @@ Route name `drivers`, path `/driver`. One view, `Drivers.vue`. Create, edit, and
 - **Given** I am signed in as a system admin
 - **When** I send `POST /api/driver/drivers` with a valid driver body whose `driverLicenseExpDate` is `2030-13-40`
 - **Then** the API returns `400`
+- **And** no driver is stored
+
+#### Scenario: Create with an invalid status is rejected
+- **Given** I am signed in as a system admin
+- **When** I send `POST /api/driver/drivers` with a valid driver body whose `status` is `suspended`
+- **Then** the API returns `400` with `{ "message": "Status must be valid or expired." }`
 - **And** no driver is stored
 
 #### Scenario: Two drivers may share a last name
@@ -574,6 +582,7 @@ Each Gherkin scenario above maps to at least one automated test. A system admin 
 | US-3.2 | Create without last name is rejected | `backend/tests/drivers.test.js` | `Create without last name is rejected` |
 | US-3.2 | Create with a last name that is too long is rejected | `backend/tests/drivers.test.js` | `Create with a last name that is too long is rejected` |
 | US-3.2 | Create with an invalid expiration date is rejected | `backend/tests/drivers.test.js` | `Create with an invalid expiration date is rejected` |
+| US-3.2 | Create with an invalid status is rejected | `backend/tests/drivers.test.js` | `Create with an invalid status is rejected` |
 | US-3.2 | Two drivers may share a last name | `backend/tests/drivers.test.js` | `Two drivers may share a last name` |
 | US-3.2 | Supplied userId is ignored | `backend/tests/drivers.test.js` | `Supplied userId is ignored` |
 | US-3.2 | Input strings are trimmed | `backend/tests/drivers.test.js` | `Input strings are trimmed` |
@@ -605,7 +614,7 @@ Each Gherkin scenario above maps to at least one automated test. A system admin 
 Copy when asking Cursor to implement this feature (`@` this file):
 
 ```text
-Implement Feature 3 from @features/feature-3-course-management.md on branch `feature/3-course-management`.
+Implement Feature 3 from @features/feature-3-driver-management.md on branch `feature/3-driver-management`.
 
 Follow layer order in @features/framework.md (models → routes → backend tests → frontend → frontend tests).
 Map every Gherkin scenario in the Test Coverage Map; run `npm test` before finishing.
@@ -620,13 +629,13 @@ Do not implement behavior not in this spec.
 
 ## Definition of Done
 
-- [ ] Backend and frontend implemented per this spec (**FR-00N** satisfied)
-- [ ] **Success Criteria (SC-00N)** met
-- [ ] All mapped tests pass (`npm test`)
-- [ ] Test Coverage Map complete
-- [ ] `features/reference/data-model.md` updated (if schema changed)
-- [ ] `features/reference/api.md` updated (if API changed)
-- [ ] `features/reference/behavior.md` updated (if product rules changed)
+- [x] Backend and frontend implemented per this spec (**FR-00N** satisfied)
+- [x] **Success Criteria (SC-00N)** met
+- [x] All mapped tests pass (`npm test`)
+- [x] Test Coverage Map complete
+- [x] `features/reference/data-model.md` updated (if schema changed)
+- [x] `features/reference/api.md` updated (if API changed)
+- [x] `features/reference/behavior.md` updated (if product rules changed)
 
 ---
 
@@ -642,7 +651,7 @@ Do not implement behavior not in this spec.
 
 ## Delivered to later features
 
-- A driver is a list row (`firstName`, `lastName`, `driverLicenseNumber`, `driverLicenseExpDate`, `insuranceProvider`, `insuranceNumber`, `approvedDate`, `status`) with no `userId`. A system admin or an area admin creates, updates, and deletes every driver. A maintenance user or a requestor can read every driver.
+- A driver is a list row (`firstName`, `lastName`, `driverLicenseNumber`, `driverLicenseExpDate`, `insuranceProvider`, `insuranceNumber`, `approvedDate`, `status`) with no `userId`. `status` is `valid` or `expired`. A system admin or an area admin creates, updates, and deletes every driver. A maintenance user or a requestor can read every driver.
 - **Driver** in `MenuBar` routes a system admin, an area admin, and a maintenance user to `/driver`. Allowed roles are `admin`, `system_admin`, `area_admin`, and `maintenance`. This feature does not add a second `MenuBar`.
 - Feature 4 adds **Destination** (allowed role `system_admin`) to this `MenuBar`.
 - Feature 5 adds **Area** (allowed role `system_admin`) to this `MenuBar`.

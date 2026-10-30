@@ -1,6 +1,6 @@
 # Data Model Reference
 
-**Status:** Feature 1 users and sessions, plus system admin / area admin, and Feature 2 vehicles, mileage logs, and service logs.
+**Status:** Feature 1 users and sessions, plus system admin / area admin, Feature 2 vehicles, mileage logs, and service logs, and Feature 3 drivers.
 
 Sequelize model names: `user` → table `users`, `session` → table `sessions`, `area` → table `areas`. None of these tables use `createdAt` / `updatedAt`.
 
@@ -113,6 +113,24 @@ No `createdAt` or `updatedAt`. Introduced in Feature 2.
 | `vehicleId` | INTEGER FK | Required, references `vehicles.id` |
 
 No `createdAt` or `updatedAt`. Introduced in Feature 2.
+
+### `drivers`
+
+| Field | Type | Rules |
+|-------|------|-------|
+| `id` | INTEGER PK | Auto-increment |
+| `firstName` | STRING | Required. Trimmed |
+| `lastName` | STRING(50) | Required. Trimmed. At most 50 characters. Not unique |
+| `driverLicenseNumber` | STRING | Required. Trimmed |
+| `driverLicenseExpDate` | DATEONLY | Required. Real `YYYY-MM-DD` date |
+| `insuranceProvider` | STRING | Required. Trimmed |
+| `insuranceNumber` | STRING | Required. Trimmed |
+| `approvedDate` | DATEONLY | Required. Real `YYYY-MM-DD` date |
+| `status` | STRING | Required. Trimmed. `valid` or `expired`. A string code, not a database enum |
+
+There is no `userId` column. No `createdAt` or `updatedAt`. Introduced in Feature 3.
+
+Reservation rows are Feature 6. This feature does not create a `reservations` table or a `driverId` foreign key.
 
 ## Associations
 

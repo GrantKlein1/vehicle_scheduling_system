@@ -109,7 +109,7 @@ describe("Feature 1 — User Authentication & Session Management", () => {
       expect(wrapper.text()).toContain("Sign out");
       expect(wrapper.text()).toContain("System Admin");
       expect(wrapper.text()).toContain("Vehicle");
-      for (const label of catalogLabels.filter((item) => item !== "Vehicle")) {
+      for (const label of catalogLabels.filter((item) => item !== "Vehicle" && item !== "Driver")) {
         expect(wrapper.text()).not.toContain(label);
       }
     });
@@ -120,7 +120,7 @@ describe("Feature 1 — User Authentication & Session Management", () => {
       expect(wrapper.text()).toContain("System Admin");
       expect(wrapper.text()).toContain("Sign out");
       expect(wrapper.text()).toContain("Vehicle");
-      for (const label of catalogLabels.filter((item) => item !== "Vehicle")) {
+      for (const label of catalogLabels.filter((item) => item !== "Vehicle" && item !== "Driver")) {
         expect(wrapper.text()).not.toContain(label);
       }
     });
@@ -133,8 +133,8 @@ describe("Feature 1 — User Authentication & Session Management", () => {
 
       expect(wrapper.text()).toContain("Sign out");
       expect(wrapper.text()).toContain("Area Admin · Athletics");
-      const buttonText = wrapper.findAll("button").map((node) => node.text());
-      for (const label of catalogLabels) {
+      const buttonText = wrapper.findAll("button, a").map((node) => node.text());
+      for (const label of catalogLabels.filter((item) => item !== "Driver")) {
         expect(buttonText.some((text) => text.trim() === label)).toBe(false);
       }
     });
@@ -145,7 +145,7 @@ describe("Feature 1 — User Authentication & Session Management", () => {
       expect(wrapper.text()).toContain("Sign out");
       expect(wrapper.text()).toContain("Maintenance");
       expect(wrapper.text()).toContain("Vehicle");
-      for (const label of catalogLabels.filter((item) => item !== "Vehicle")) {
+      for (const label of catalogLabels.filter((item) => item !== "Vehicle" && item !== "Driver")) {
         expect(wrapper.text()).not.toContain(label);
       }
     });
@@ -174,7 +174,7 @@ describe("Feature 2 — Vehicle Management", () => {
       expect(wrapper.find(".menu-bar__session").text()).toContain("Jane Doe");
       expect(wrapper.find(".menu-bar__session").text()).toContain("Sign out");
       const labels = wrapper.findAll(".menu-bar__item").map((item) => item.text());
-      expect(labels).toEqual(["Vehicle", "Sign out"]);
+      expect(labels).toEqual(["Vehicle", "Driver", "Sign out"]);
     });
 
     it("Maintenance sees their name and Sign out on the vehicle page", async () => {
@@ -199,6 +199,38 @@ describe("Feature 2 — Vehicle Management", () => {
       const { wrapper } = await mountApp("/", userWithRole("requestor"));
 
       expect(wrapper.text()).not.toContain("Vehicle");
+    });
+  });
+});
+
+describe("Feature 3 — Driver Management", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    clearCurrentUser();
+    logout.mockReset();
+    logout.mockResolvedValue({ data: { message: "Signed out." } });
+  });
+
+  describe("US-3.6 — Role-Based Menu Access", () => {
+    it("Requestor does not see Driver in the menu", async () => {
+      const { wrapper } = await mountApp("/", userWithRole("requestor"));
+
+      expect(wrapper.find(".menu-bar__nav").text()).not.toContain("Driver");
+    });
+
+    it("Area admin sees Driver in the menu", async () => {
+      const { wrapper } = await mountApp(
+        "/",
+        userWithRole("area_admin", { areaId: 5, areaName: "Athletics" })
+      );
+
+      expect(wrapper.find(".menu-bar__nav").text()).toContain("Driver");
+    });
+
+    it("Signed-out menu does not show Driver", async () => {
+      const { wrapper } = await mountApp("/login");
+
+      expect(wrapper.find(".menu-bar__nav").text()).not.toContain("Driver");
     });
   });
 });
