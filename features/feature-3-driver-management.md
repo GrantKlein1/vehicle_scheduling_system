@@ -14,7 +14,6 @@ A system admin is `system_admin`. A legacy `admin` session is a system admin. An
 ## User Stories
 
 ### US-3.1: View Driver List Page
-
 **As a** signed-in system admin, area admin, and maintenance
 **I want to** select "Driver" from the navigation menu
 **So that** I can access the driver management screen
@@ -24,7 +23,6 @@ A system admin is `system_admin`. A legacy `admin` session is a system admin. An
 **Acceptance scenarios:** See ### US-3.1 under Acceptance Criteria
 
 ### US-3.2: Create Driver
-
 **As a** signed-in system admin or area admin
 **I want to** create a new driver using a modal dialog
 **So that** it is added to the list of valid drivers
@@ -35,7 +33,6 @@ A system admin is `system_admin`. A legacy `admin` session is a system admin. An
 
 
 ### US-3.3: Row Action Icons
-
 **As a** signed-in system admin or area admin
 **I want to** see Edit and Delete icons on each row in the driver table
 **So that** I can trigger actions directly for a specific driver
@@ -54,7 +51,6 @@ A system admin is `system_admin`. A legacy `admin` session is a system admin. An
 **Acceptance scenarios:** see ### US-3.4 under Acceptance Criteria
 
 ### US-3.5: Delete Driver
-
 **As a** signed-in system admin or area admin
 **I want** to delete a driver after confirmation
 **So that** obsolete drivers are removed from the system
@@ -64,8 +60,7 @@ A system admin is `system_admin`. A legacy `admin` session is a system admin. An
 **Acceptance scenarios:** see ### US-3.5 under Acceptance Criteria
 
 ### US-3.6: Role-Based Menu Access
-
-**As** the application
+**As the** the application
 **I want** to show **Driver** to a system admin, an area admin, and a maintenance user
 **So that** a requestor does not open the driver screen from the menu
 
@@ -74,8 +69,7 @@ A system admin is `system_admin`. A legacy `admin` session is a system admin. An
 **Acceptance scenarios:** see ### US-3.6 under Acceptance Criteria
 
 ### US-3.7: Role-Based Access Control
-
-**As** the application
+**As the** the application
 **I want** to restrict driver list changes to a system admin or an area admin
 **So that** a maintenance user and a requestor cannot change drivers
 
