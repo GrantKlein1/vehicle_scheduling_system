@@ -4,6 +4,7 @@ import cors from "cors";
 import morgan from "morgan";
 import db from "./app/models/index.js";
 import logger from "./app/config/logger.js";
+import { refreshDriverStatuses } from "./app/controllers/driver.controller.js";
 
 const shouldAlterSchema =
   process.env.SEQUELIZE_SYNC_ALTER === "true" ||
@@ -18,6 +19,7 @@ if (process.env.NODE_ENV !== "test") {
     .then(async () => {
       await db.prepareAdminTypes();
       await db.backfillVehicleStatuses();
+      await refreshDriverStatuses();
       if (syncOptions.alter) {
         logger.info("Database sync completed with alter: true.");
       }

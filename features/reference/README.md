@@ -32,3 +32,4 @@ They do **not** authorize new scope — implement only from `features/feature-*.
 | Users, sessions, Google sign-in, `MenuBar` | Feature 1 |
 | `system_admin`, `area_admin`, placeholder `areas`, area authorization | Admin types on `feature/1-user-auth-implement` |
 | Vehicles, mileage logs, service logs, **Vehicle** nav item | Feature 2 |
+| Drivers, **Driver** nav item | Feature 3 |
