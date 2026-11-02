@@ -1,6 +1,6 @@
 # API Reference
 
-**Status:** Feature 1 authentication and Feature 2 vehicle catalog are implemented.
+**Status:** Feature 1 authentication, Feature 2 vehicle catalog, and Feature 3 driver catalog are implemented.
 
 API health stays on `/api/health`. Authentication routes are mounted at `/vehicle-t4`.
 
@@ -19,6 +19,10 @@ API health stays on `/api/health`. Authentication routes are mounted at `/vehicl
 | `POST` | `/api/vehicle/vehicles/:vehicleId/mileage-logs` | `admin`, `maintenance` | Append a mileage log | Feature 2 |
 | `POST` | `/api/vehicle/vehicles/:vehicleId/service-logs` | `admin`, `maintenance` | Append a service log | Feature 2 |
 | `PATCH` | `/api/vehicle/vehicles/:vehicleId/service-logs/:serviceLogId` | `admin`, `maintenance` | Update comments on a service log | Feature 2 |
+| `POST` | `/api/driver/drivers` | system admin, `area_admin` | Create a driver | Feature 3 |
+| `GET` | `/api/driver/drivers` | any authenticated role | List drivers by last name, first name, then id. System admin and `area_admin` receive every driver. `maintenance` and `requestor` receive `valid` drivers only | Feature 3 |
+| `PUT` | `/api/driver/drivers/:driverId` | system admin, `area_admin` | Update a driver | Feature 3 |
+| `DELETE` | `/api/driver/drivers/:driverId` | system admin, `area_admin` | Delete a driver | Feature 3 |
 
 ## Conventions
 
@@ -187,3 +191,47 @@ A new reading must be greater than the highest `currentMileage` already stored f
 **400** `{ "message": "Comments must be text." }` or `{ "message": "Comments cannot exceed 500 characters." }`
 
 **404** `{ "message": "Vehicle with id=<vehicleId> not found." }` or `{ "message": "Service log with id=<serviceLogId> not found." }`
+
+## Drivers
+
+Driver routes are mounted at `/api/driver`. Every driver route uses `authenticate`. `GET /api/driver/drivers` is allowed for any authenticated role, including `requestor` and `maintenance`. `POST`, `PUT`, and `DELETE` use `requireAnyAdmin`: a system admin (`system_admin` or legacy `admin`) or an `area_admin` passes. A `maintenance` user or `requestor` receives `403` `{ "message": "Admin role required." }` on those writes. The list is not filtered by the caller's area. A system admin or `area_admin` receives every driver, including `expired`. A `maintenance` user or `requestor` receives only drivers whose status is `valid` after the list refreshes stored status.
+
+A `userId` in a create or update body is ignored. The `drivers` table has no `userId` column, and responses do not include `userId`.
+
+### Create – `POST /api/driver/drivers`
+
+```json
+{
+  "firstName": "Jaxen",
+  "lastName": "Roden",
+  "driverLicenseNumber": "11111111",
+  "driverLicenseExpDate": "2030-09-20",
+  "insuranceProvider": "root",
+  "insuranceNumber": "11111111",
+  "approvedDate": "2026-10-28"
+}
+```
+
+**201** returns the saved driver: `id`, `firstName`, `lastName`, `driverLicenseNumber`, `driverLicenseExpDate`, `insuranceProvider`, `insuranceNumber`, `approvedDate`, and `status`.
+
+Every string is trimmed before it is stored. `firstName`, `lastName`, `driverLicenseNumber`, `insuranceProvider`, and `insuranceNumber` are required. A missing, empty, or whitespace-only value returns **400** `{ "message": "<Label> cannot be empty." }`. `lastName` is at most 50 characters and is not unique. A longer value returns **400** `{ "message": "Last Name cannot exceed 50 characters." }`. `driverLicenseExpDate` and `approvedDate` are required real calendar dates in `YYYY-MM-DD` form. A missing or invalid date, such as `2030-13-40`, returns **400** `{ "message": "<Label> must be a valid date." }`. `status` is not an input. The server sets it from `approvedDate`: `valid` before the calendar date one year later, and `expired` on that anniversary and after. A `status` property in the body is ignored. February 29 rolls to March 1 in a non-leap year. Listing drivers stores that same status when a saved row is out of date, and startup does the same refresh. The driver form does not ask for a status.
+
+### List – `GET /api/driver/drivers`
+
+**200** returns a JSON array ordered by `lastName` ascending, then `firstName` ascending, then `id` ascending. Each item has the create fields. A system admin or `area_admin` receives every driver, including `expired`. A `maintenance` user or `requestor` receives only `valid` drivers. An `expired` driver is left in the database and is not in that array.
+
+### Update – `PUT /api/driver/drivers/:driverId`
+
+The body uses the same fields and validation as create. A `userId` or `status` in the body is ignored. `status` is recalculated from the new `approvedDate`.
+
+**200** `{ "message": "Driver was updated successfully." }`
+
+**404** `{ "message": "Driver with id=<driverId> not found." }`
+
+### Delete – `DELETE /api/driver/drivers/:driverId`
+
+**200** `{ "message": "Driver was deleted successfully." }`
+
+**404** `{ "message": "Driver with id=<driverId> not found." }`
+
+Missing bearer token is `401` `{ "message": "Unauthorized! No token provided." }`. An invalid or expired token is `401` `{ "message": "Unauthorized! Invalid or expired token." }`.
