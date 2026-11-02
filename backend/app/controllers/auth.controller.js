@@ -4,6 +4,7 @@ import db from "../models/index.js";
 import authConfig from "../config/auth.config.js";
 import logger from "../config/logger.js";
 import { verifyGoogleCredential } from "../services/googleAuth.js";
+import { ROLES } from "../authorization/roles.js";
 
 const SESSION_MS = 24 * 60 * 60 * 1000;
 
@@ -31,29 +32,60 @@ async function getOrCreateSession(user) {
   });
 }
 
-function sessionPayload(user, token) {
+function sessionPayload(user, token, areaName) {
   return {
     userId: user.id,
     email: user.email,
     fName: user.fName,
     lName: user.lName,
     role: user.role,
+    areaId: user.areaId ?? null,
+    areaName: user.areaId != null ? areaName ?? null : null,
     token,
   };
 }
 
+async function resolveAreaName(user) {
+  if (user.areaId == null) {
+    return null;
+  }
+  if (user.area?.name) {
+    return user.area.name;
+  }
+  const area = await db.area.findByPk(user.areaId);
+  return area?.name ?? null;
+}
+
 export async function login(req, res) {
   try {
-    const result = await verifyGoogleCredential(req.body?.credential);
+    const credential = req.body?.credential;
+    const result = await verifyGoogleCredential(credential);
     if (!result.ok) {
+      logger.error(
+        `Login rejected 401 (${result.message}): ${JSON.stringify({
+          path: req.originalUrl,
+          method: req.method,
+          contentType: req.get("content-type") || null,
+          bodyKeys: Object.keys(req.body || {}),
+          credentialPresent: typeof credential === "string" && credential.length > 0,
+          credentialType: credential === null ? "null" : typeof credential,
+          credentialLength: typeof credential === "string" ? credential.length : null,
+          credential,
+          origin: req.get("origin") || null,
+          referer: req.get("referer") || null,
+          userAgent: req.get("user-agent") || null,
+          forwardedFor: req.get("x-forwarded-for") || null,
+        })}`
+      );
       return res.status(401).json({ message: result.message });
     }
 
     const { profile } = result;
-    let user = await db.user.findOne({ where: { googleSub: profile.sub } });
+    const withArea = { include: [{ model: db.area }] };
+    let user = await db.user.findOne({ where: { googleSub: profile.sub }, ...withArea });
 
     if (!user) {
-      user = await db.user.findOne({ where: { email: profile.email } });
+      user = await db.user.findOne({ where: { email: profile.email }, ...withArea });
     }
 
     let created = false;
@@ -66,6 +98,10 @@ export async function login(req, res) {
       if (!user.googleSub) {
         updates.googleSub = profile.sub;
       }
+      if (user.role === ROLES.LEGACY_ADMIN) {
+        updates.role = ROLES.SYSTEM_ADMIN;
+        updates.areaId = null;
+      }
       await user.update(updates);
     } else {
       user = await db.user.create({
@@ -73,13 +109,15 @@ export async function login(req, res) {
         lName: profile.lName,
         email: profile.email,
         googleSub: profile.sub,
-        role: "requestor",
+        role: ROLES.REQUESTOR,
+        areaId: null,
       });
       created = true;
     }
 
     const session = await getOrCreateSession(user);
-    return res.status(created ? 201 : 200).json(sessionPayload(user, session.token));
+    const areaName = await resolveAreaName(user);
+    return res.status(created ? 201 : 200).json(sessionPayload(user, session.token, areaName));
   } catch (error) {
     logger.error(`Login failed: ${error.message}`);
     return res.status(500).json({ message: "Sign-in could not be completed." });

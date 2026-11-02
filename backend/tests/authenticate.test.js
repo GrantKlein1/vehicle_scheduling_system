@@ -22,7 +22,7 @@ describe("Feature 1 — User Authentication & Session Management", () => {
       const session = await createSession(user);
 
       const response = await request(app)
-        .post("/vehicleScheduling/logout")
+        .post("/vehicle-t4/logout")
         .set("Authorization", `Bearer ${session.token}`);
 
       expect(response.status).toBe(200);
@@ -35,7 +35,7 @@ describe("Feature 1 — User Authentication & Session Management", () => {
       await session.update({ expirationDate: new Date(Date.now() - 60 * 1000) });
 
       const response = await request(app)
-        .post("/vehicleScheduling/logout")
+        .post("/vehicle-t4/logout")
         .set("Authorization", `Bearer ${session.token}`);
 
       expect(response.status).toBe(401);
@@ -45,7 +45,7 @@ describe("Feature 1 — User Authentication & Session Management", () => {
 
   describe("US-1.5 — Block unauthenticated access", () => {
     it("Unauthenticated user accesses a protected route", async () => {
-      const response = await request(app).post("/vehicleScheduling/logout");
+      const response = await request(app).post("/vehicle-t4/logout");
 
       expect(response.status).toBe(401);
       expect(response.body).toEqual({ message: "Unauthorized! No token provided." });

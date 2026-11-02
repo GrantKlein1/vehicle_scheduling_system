@@ -45,3 +45,41 @@ describe("Feature 1 — User Authentication & Session Management", () => {
     });
   });
 });
+
+describe("Feature 2 — Vehicle Management", () => {
+  beforeEach(async () => {
+    clearCurrentUser();
+    await router.push({ name: "login" });
+    await router.isReady();
+  });
+
+  describe("US-2.7 — Role-Based Access Control", () => {
+    it("Unauthenticated visit to the vehicle page redirects to login", async () => {
+      clearCurrentUser();
+
+      await router.push("/vehicle");
+      await router.isReady();
+
+      expect(router.currentRoute.value.name).toBe("login");
+    });
+  });
+});
+
+describe("Feature 3 — Driver Management", () => {
+  beforeEach(async () => {
+    clearCurrentUser();
+    await router.push({ name: "login" });
+    await router.isReady();
+  });
+
+  describe("US-3.7 — Role-Based Access Control", () => {
+    it("Unauthenticated visit to the driver page redirects to login", async () => {
+      clearCurrentUser();
+
+      await router.push("/driver");
+      await router.isReady();
+
+      expect(router.currentRoute.value.name).toBe("login");
+    });
+  });
+});

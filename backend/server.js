@@ -4,6 +4,7 @@ import cors from "cors";
 import morgan from "morgan";
 import db from "./app/models/index.js";
 import logger from "./app/config/logger.js";
+import { refreshDriverStatuses } from "./app/controllers/driver.controller.js";
 
 const shouldAlterSchema =
   process.env.SEQUELIZE_SYNC_ALTER === "true" ||
@@ -16,7 +17,9 @@ if (process.env.NODE_ENV !== "test") {
   db.sequelize
     .sync(syncOptions)
     .then(async () => {
-      await db.seedRoleUsers();
+      await db.prepareAdminTypes();
+      await db.backfillVehicleStatuses();
+      await refreshDriverStatuses();
       if (syncOptions.alter) {
         logger.info("Database sync completed with alter: true.");
       }
@@ -42,8 +45,13 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.use("/api", apiRouter);
-app.use("/vehicleScheduling", vehicleSchedulingRouter);
+// Team 4 Apache rule keeps the prefix:
+// ProxyPass /vehicle-t4 http://localhost:3024/vehicle-t4
+app.use("/vehicle-t4", vehicleSchedulingRouter);
+app.use("/vehicle-t4", apiRouter);
 
+// Apache on the server proxies to 3024, and deploy plus the systemd unit set PORT.
+// Local `npm run dev` does not, and the Vite app calls http://localhost:3200.
 const PORT = process.env.PORT || 3200;
 
 if (process.env.NODE_ENV !== "test") {
