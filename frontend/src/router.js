@@ -3,6 +3,7 @@ import Home from "./views/Home.vue";
 import Login from "./views/Login.vue";
 import Vehicles from "./views/Vehicles.vue";
 import Drivers from "./views/Drivers.vue";
+import Destinations from "./views/Destinations.vue";
 import Utils from "./config/utils.js";
 import { isAnyAdmin, ROLES } from "./config/roles.js";
 
@@ -30,6 +31,11 @@ const router = createRouter({
       component: Drivers,
     },
     {
+      path: "/destination",
+      name: "destinations",
+      component: Destinations,
+    },
+    {
       path: "/:pathMatch(.*)*",
       redirect: { name: "home" },
     },
@@ -55,6 +61,12 @@ router.beforeEach((to) => {
     }
     if (!isAnyAdmin(user) && user.role !== ROLES.MAINTENANCE) {
       return { name: "home" };
+    }
+  }
+
+  if (to.name === "destinations") {
+    if (!signedIn) {
+      return { name: "login" };
     }
   }
 

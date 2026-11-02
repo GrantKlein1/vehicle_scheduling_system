@@ -96,7 +96,7 @@ Roles are `requestor`, `system_admin`, `area_admin`, and `maintenance`. A legacy
 - **FR-011:** `zip` MUST match `^\d{5}(-\d{4})?$` after trim. A missing value or a value that does not match MUST return HTTP `400` with `{ "message": "Zip must be 5 digits or ZIP+4." }`.
 - **FR-012:** `POST /api/vehicle/destinations` MUST return HTTP `201` and the saved destination: `id`, `name`, `addressLine1`, `addressLine2`, `city`, `state`, `zip`, `createdAt`, and `updatedAt`. It MUST NOT include `userId`. Build that object in the controller the way `vehicleJson` does. `PUT /api/vehicle/destinations/:destinationId` MUST return HTTP `200` with `{ "message": "Destination was updated successfully." }`. `DELETE /api/vehicle/destinations/:destinationId` MUST return HTTP `200` with `{ "message": "Destination was deleted successfully." }`. Update and delete of an id that does not exist, including a non-integer id, MUST return HTTP `404` with `{ "message": "Destination with id=<destinationId> not found." }`, using the raw path param the way `findVehicle` does. A `requestor` receives `403` before that lookup on update and delete. A `maintenance` user receives `403` before that lookup on delete.
 - **FR-013:** This feature MUST add one item to the existing `navItems` array in `frontend/src/components/MenuBar.vue`, after **Vehicle**: `{ title: "Destination", to: { name: "destinations" }, roles: ["admin", "system_admin", "area_admin", "maintenance"] }`. Visibility uses `roleMatchesNav`. A list of only `admin` or `system_admin` hides the item from an area admin, so `area_admin` MUST be in `roles`. It MUST NOT create a second `MenuBar`. **Destination** MUST be hidden when there is no session and hidden for `requestor`. Hiding the menu item MUST NOT block a requestor from `/destination` or from list and create.
-- **FR-014:** Create, edit, and delete MUST happen in dialogs on `/destination`. The page heading is **Destinations**. **Add Destination** opens the create dialog for every signed-in user, including a requestor. Do not hide it with the `isAdmin` check in `Vehicles.vue` (`admin` and `system_admin` only). The create dialog title is **Add Destination** and its submit button is **Save**. The edit dialog submit button is **Update Destination**. Both dialogs have **Close**, which does not call the API. Each row MUST show button text **Edit** when `isSystemAdmin`, `isAreaAdmin`, or `role === "maintenance"` from `frontend/src/config/roles.js`. Each row MUST show button text **Delete** when `isAnyAdmin` (`isSystemAdmin` or `isAreaAdmin`), including a legacy `admin`. A `maintenance` user MUST NOT see **Delete**. A requestor MUST NOT see **Edit** or **Delete**. A required field left blank MUST show **Required field** and MUST NOT call the API. **Delete** opens a dialog titled **Delete this destination?** with **Cancel** and **Delete**. **Cancel** does not call `DELETE`. **Delete** sends it. An API error shows that response `message` in an error snackbar and leaves the row unchanged. HTTP `401` already clears the session in the `apiClient` interceptor and opens `login`; a `403` MUST NOT sign the user out.
+- **FR-014:** Create, edit, and delete MUST happen in dialogs on `/destination`. The page heading is **Destinations**. **Add Destination** opens the create dialog for every signed-in user, including a requestor. Do not hide it with the `isAdmin` check in `Vehicles.vue` (`admin` and `system_admin` only). The create dialog title is **Add Destination** and its submit button is **Save**. The edit dialog submit button is **Update Destination**. Both dialogs have **Close**, which does not call the API. Each row MUST show a pencil icon button (`mdi-pencil`, `aria-label` **Edit**) when `isSystemAdmin`, `isAreaAdmin`, or `role === "maintenance"` from `frontend/src/config/roles.js`. Each row MUST show a trash icon button (`mdi-delete`, `aria-label` **Delete**) when `isAnyAdmin` (`isSystemAdmin` or `isAreaAdmin`), including a legacy `admin`. A `maintenance` user MUST NOT see **Delete**. A requestor MUST NOT see **Edit** or **Delete**. A required field left blank MUST show **Required field** and MUST NOT call the API. **Delete** opens a dialog titled **Delete this destination?** with **Cancel** and **Delete**. **Cancel** does not call `DELETE`. **Delete** sends it. An API error shows that response `message` in an error snackbar and leaves the row unchanged. HTTP `401` already clears the session in the `apiClient` interceptor and opens `login`; a `403` MUST NOT sign the user out.
 - **FR-015:** After a successful create, the new destination MUST appear in the table and the screen MUST show the snackbar **Destination added successfully!** After a successful update or delete, the table MUST show the new data or the removal.
 - **FR-016:** A `maintenance` user who calls `DELETE /api/vehicle/destinations/:destinationId` MUST receive HTTP `403` with `{ "message": "Maintenance cannot delete destinations." }`. The destination MUST be unchanged, including when the id does not exist. Role is checked before the id lookup. A `maintenance` list, create, or update MUST NOT receive `403`.
 
@@ -264,7 +264,7 @@ Route name `destinations`, path `/destination`, view `frontend/src/views/Destina
 - One row per destination, in API order (`name`, then `city`, then `id`).
 - Each row shows the name, address line 1, city, state, and zip. Address line 2 is shown when it is present.
 - After a successful create, the new destination appears in the table. After a successful update, the row shows the new data. After a successful delete, the row is gone.
-- Row actions: button text **Edit** on every destination row for a system admin (including a legacy `admin` through `isSystemAdmin`), an area admin, and a maintenance user. Button text **Delete** on every destination row for a system admin and an area admin. A maintenance user does not see **Delete**. A requestor does not see **Edit** or **Delete**. These are text buttons, not the icon-only `aria-label`s **Edit vehicle** and **Delete vehicle** on the vehicle screen.
+- Row actions use the same icon buttons as the vehicle screen: a pencil (`mdi-pencil`, `aria-label` **Edit**) on every destination row for a system admin (including a legacy `admin` through `isSystemAdmin`), an area admin, and a maintenance user. A trash can (`mdi-delete`, `aria-label` **Delete**) on every destination row for a system admin and an area admin. A maintenance user does not see **Delete**. A requestor does not see **Edit** or **Delete**.
 
 **Add Destination dialog**
 
@@ -709,13 +709,13 @@ Do not implement behavior not in this spec.
 
 ## Definition of Done
 
-- [ ] Backend and frontend implemented per this spec (**FR-00N** satisfied)
-- [ ] **Success Criteria (SC-00N)** met
-- [ ] All mapped tests pass (`npm test`)
-- [ ] Test Coverage Map complete
-- [ ] `features/reference/data-model.md` updated (if schema changed)
-- [ ] `features/reference/api.md` updated (if API changed)
-- [ ] `features/reference/behavior.md` updated (if product rules changed)
+- [x] Backend and frontend implemented per this spec (**FR-00N** satisfied)
+- [x] **Success Criteria (SC-00N)** met
+- [x] All mapped tests pass (`npm test`)
+- [x] Test Coverage Map complete
+- [x] `features/reference/data-model.md` updated (if schema changed)
+- [x] `features/reference/api.md` updated (if API changed)
+- [x] `features/reference/behavior.md` updated (if product rules changed)
 
 ---
 
