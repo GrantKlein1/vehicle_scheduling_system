@@ -8,7 +8,7 @@
 **Depends on:** [Feature 1 — User Authentication](feature-1-user-auth.md)
 **Related:** [ADR-0001](../docs/adr/0001-system-and-area-admins.md)
 
-Roles are `requestor`, `system_admin`, `area_admin`, and `maintenance`. A legacy `admin` session is a system admin. A requestor can list destinations and create a destination. A requestor cannot update or delete one. An area admin, a maintenance user, and a system admin can list, create, update, and delete destinations. **Destination** is in the menu for a system admin, an area admin, and a maintenance user. It is hidden from a requestor and from a visitor with no session. A requestor still opens `/destination`, sees the list, and can add a destination. See [ADR-0001](../docs/adr/0001-system-and-area-admins.md) for the role names. This feature does not limit destinations to `isSystemAdmin`.
+Roles are `requestor`, `system_admin`, `area_admin`, and `maintenance`. A legacy `admin` session is a system admin. A requestor can list destinations and create a destination. A requestor cannot update or delete one. A maintenance user can list, create, and update destinations, and cannot delete one. An area admin and a system admin can list, create, update, and delete destinations. Delete is limited to an admin (`isAnyAdmin`: `system_admin`, `area_admin`, or legacy `admin`). **Destination** is in the menu for a system admin, an area admin, and a maintenance user. It is hidden from a requestor and from a visitor with no session. A requestor still opens `/destination`, sees the list, and can add a destination. See [ADR-0001](../docs/adr/0001-system-and-area-admins.md) for the role names. This feature does not limit destinations to `isSystemAdmin`.
 
 ---
 
@@ -33,12 +33,12 @@ Roles are `requestor`, `system_admin`, `area_admin`, and `maintenance`. A legacy
 **Acceptance scenarios:** see ### US-4.2 under Acceptance Criteria
 
 ### US-4.3: Row Action Icons
-**As a** signed-in system admin, area admin, or maintenance user
+**As a** signed-in system admin or area admin
 **I want to** see Edit and Delete on each destination row
-**So that** I can change or remove that destination, while a requestor cannot
+**So that** I can change or remove that destination, while a maintenance user can change one and cannot remove one, and a requestor can do neither
 
 **Priority:** P1
-**Independent test:** Sign in as a system admin and confirm every destination row shows Edit and Delete. Sign in as a requestor and confirm those actions are not shown.
+**Independent test:** Sign in as a system admin and confirm every destination row shows Edit and Delete. Sign in as a maintenance user and confirm Edit is shown and Delete is not. Sign in as a requestor and confirm those actions are not shown.
 **Acceptance scenarios:** see ### US-4.3 under Acceptance Criteria
 
 ### US-4.4: Edit Destination
@@ -51,7 +51,7 @@ Roles are `requestor`, `system_admin`, `area_admin`, and `maintenance`. A legacy
 **Acceptance scenarios:** see ### US-4.4 under Acceptance Criteria
 
 ### US-4.5: Delete Destination
-**As a** signed-in system admin, area admin, or maintenance user
+**As a** signed-in system admin or area admin
 **I want to** delete a destination after I confirm
 **So that** a place that is no longer used is removed
 
@@ -70,11 +70,11 @@ Roles are `requestor`, `system_admin`, `area_admin`, and `maintenance`. A legacy
 
 ### US-4.7: Role-Based Access Control
 **As the** application
-**I want to** let a requestor list and create destinations, and let every other signed-in role list, create, update, and delete them
-**So that** a requestor can add a destination when reserving, and cannot change or remove one
+**I want to** let a requestor list and create destinations, let a maintenance user list, create, and update them, and let an admin list, create, update, and delete them
+**So that** a requestor can add a destination when reserving, a maintenance user can correct one, and only an admin can remove one
 
 **Priority:** P1
-**Independent test:** Sign in as a requestor and confirm list and create succeed, and update and delete return 403. Sign in as an area admin, a maintenance user, and a system admin and confirm each can list, create, update, and delete. Confirm a call with no token returns 401.
+**Independent test:** Sign in as a requestor and confirm list and create succeed, and update and delete return 403. Sign in as a maintenance user and confirm list, create, and update succeed, and delete returns 403. Sign in as an area admin and a system admin and confirm each can list, create, update, and delete. Confirm a call with no token returns 401.
 **Acceptance scenarios:** see ### US-4.7 under Acceptance Criteria
 
 ---
@@ -84,7 +84,7 @@ Roles are `requestor`, `system_admin`, `area_admin`, and `maintenance`. A legacy
 ### Functional Requirements
 
 - **FR-001:** Every destination endpoint MUST require authentication (`authenticate` middleware).
-- **FR-002:** An authenticated `system_admin`, `area_admin`, `maintenance` user, or legacy `admin` MUST be able to list destinations, create a destination, update a destination, and delete a destination. An authenticated `requestor` MUST be able to list destinations and create a destination.
+- **FR-002:** An authenticated `system_admin`, `area_admin`, or legacy `admin` MUST be able to list destinations, create a destination, update a destination, and delete a destination. An authenticated `maintenance` user MUST be able to list destinations, create a destination, and update a destination, and MUST NOT be able to delete a destination. An authenticated `requestor` MUST be able to list destinations and create a destination.
 - **FR-003:** A `requestor` who calls `PUT /api/vehicle/destinations/:destinationId` or `DELETE /api/vehicle/destinations/:destinationId` MUST receive HTTP `403` with `{ "message": "Requestors cannot update or delete destinations." }`. The destination MUST be unchanged. A `requestor` list or create MUST NOT receive `403`.
 - **FR-004:** A destination MUST NOT have a `userId`. A destination is a catalog row, not a user account. A `userId` in the request body MUST be ignored and MUST NOT be stored.
 - **FR-005:** Every input string MUST be trimmed. A required value that is missing, not a string, empty, or whitespace-only MUST be rejected with HTTP `400`. Treat a non-string the way `trimmedString` in `backend/app/controllers/vehicle.controller.js` does: it is an empty string. Check fields in this order and return the first error: `name`, `addressLine1`, `addressLine2`, `city`, `state`, `zip`.
@@ -94,14 +94,15 @@ Roles are `requestor`, `system_admin`, `area_admin`, and `maintenance`. A legacy
 - **FR-009:** `name` and `addressLine1` MUST be at most 100 characters. `addressLine2`, when present, MUST be at most 100 characters. `city` MUST be at most 50 characters. A longer value MUST return HTTP `400` with the message in the API error table. None of these fields is unique.
 - **FR-010:** `state` MUST be exactly two letters. It MUST be stored uppercase. A missing value or a value that is not two letters MUST return HTTP `400` with `{ "message": "State must be a 2-letter abbreviation." }`.
 - **FR-011:** `zip` MUST match `^\d{5}(-\d{4})?$` after trim. A missing value or a value that does not match MUST return HTTP `400` with `{ "message": "Zip must be 5 digits or ZIP+4." }`.
-- **FR-012:** `POST /api/vehicle/destinations` MUST return HTTP `201` and the saved destination: `id`, `name`, `addressLine1`, `addressLine2`, `city`, `state`, `zip`, `createdAt`, and `updatedAt`. It MUST NOT include `userId`. Build that object in the controller the way `vehicleJson` does. `PUT /api/vehicle/destinations/:destinationId` MUST return HTTP `200` with `{ "message": "Destination was updated successfully." }`. `DELETE /api/vehicle/destinations/:destinationId` MUST return HTTP `200` with `{ "message": "Destination was deleted successfully." }`. Update and delete of an id that does not exist, including a non-integer id, MUST return HTTP `404` with `{ "message": "Destination with id=<destinationId> not found." }`, using the raw path param the way `findVehicle` does. A `requestor` receives `403` before that lookup.
+- **FR-012:** `POST /api/vehicle/destinations` MUST return HTTP `201` and the saved destination: `id`, `name`, `addressLine1`, `addressLine2`, `city`, `state`, `zip`, `createdAt`, and `updatedAt`. It MUST NOT include `userId`. Build that object in the controller the way `vehicleJson` does. `PUT /api/vehicle/destinations/:destinationId` MUST return HTTP `200` with `{ "message": "Destination was updated successfully." }`. `DELETE /api/vehicle/destinations/:destinationId` MUST return HTTP `200` with `{ "message": "Destination was deleted successfully." }`. Update and delete of an id that does not exist, including a non-integer id, MUST return HTTP `404` with `{ "message": "Destination with id=<destinationId> not found." }`, using the raw path param the way `findVehicle` does. A `requestor` receives `403` before that lookup on update and delete. A `maintenance` user receives `403` before that lookup on delete.
 - **FR-013:** This feature MUST add one item to the existing `navItems` array in `frontend/src/components/MenuBar.vue`, after **Vehicle**: `{ title: "Destination", to: { name: "destinations" }, roles: ["admin", "system_admin", "area_admin", "maintenance"] }`. Visibility uses `roleMatchesNav`. A list of only `admin` or `system_admin` hides the item from an area admin, so `area_admin` MUST be in `roles`. It MUST NOT create a second `MenuBar`. **Destination** MUST be hidden when there is no session and hidden for `requestor`. Hiding the menu item MUST NOT block a requestor from `/destination` or from list and create.
-- **FR-014:** Create, edit, and delete MUST happen in dialogs on `/destination`. The page heading is **Destinations**. **Add Destination** opens the create dialog for every signed-in user, including a requestor. Do not hide it with the `isAdmin` check in `Vehicles.vue` (`admin` and `system_admin` only). The create dialog title is **Add Destination** and its submit button is **Save**. The edit dialog submit button is **Update Destination**. Both dialogs have **Close**, which does not call the API. Each row MUST show button text **Edit** and **Delete** when `isSystemAdmin`, `isAreaAdmin`, or `role === "maintenance"` from `frontend/src/config/roles.js`. A requestor MUST NOT see those buttons. A required field left blank MUST show **Required field** and MUST NOT call the API. **Delete** opens a dialog titled **Delete this destination?** with **Cancel** and **Delete**. **Cancel** does not call `DELETE`. **Delete** sends it. An API error shows that response `message` in an error snackbar and leaves the row unchanged. HTTP `401` already clears the session in the `apiClient` interceptor and opens `login`; a `403` MUST NOT sign the user out.
+- **FR-014:** Create, edit, and delete MUST happen in dialogs on `/destination`. The page heading is **Destinations**. **Add Destination** opens the create dialog for every signed-in user, including a requestor. Do not hide it with the `isAdmin` check in `Vehicles.vue` (`admin` and `system_admin` only). The create dialog title is **Add Destination** and its submit button is **Save**. The edit dialog submit button is **Update Destination**. Both dialogs have **Close**, which does not call the API. Each row MUST show button text **Edit** when `isSystemAdmin`, `isAreaAdmin`, or `role === "maintenance"` from `frontend/src/config/roles.js`. Each row MUST show button text **Delete** when `isAnyAdmin` (`isSystemAdmin` or `isAreaAdmin`), including a legacy `admin`. A `maintenance` user MUST NOT see **Delete**. A requestor MUST NOT see **Edit** or **Delete**. A required field left blank MUST show **Required field** and MUST NOT call the API. **Delete** opens a dialog titled **Delete this destination?** with **Cancel** and **Delete**. **Cancel** does not call `DELETE`. **Delete** sends it. An API error shows that response `message` in an error snackbar and leaves the row unchanged. HTTP `401` already clears the session in the `apiClient` interceptor and opens `login`; a `403` MUST NOT sign the user out.
 - **FR-015:** After a successful create, the new destination MUST appear in the table and the screen MUST show the snackbar **Destination added successfully!** After a successful update or delete, the table MUST show the new data or the removal.
+- **FR-016:** A `maintenance` user who calls `DELETE /api/vehicle/destinations/:destinationId` MUST receive HTTP `403` with `{ "message": "Maintenance cannot delete destinations." }`. The destination MUST be unchanged, including when the id does not exist. Role is checked before the id lookup. A `maintenance` list, create, or update MUST NOT receive `403`.
 
 ## Assumptions
 
-- Feature 1 user authentication is merged and active on `dev`. Roles are `requestor`, `system_admin`, `area_admin`, and `maintenance`. A legacy `admin` is a system admin (`isSystemAdmin`). A requestor can list and create destinations. A system admin, an area admin, a maintenance user, and a legacy `admin` can list, create, update, and delete destinations.
+- Feature 1 user authentication is merged and active on `dev`. Roles are `requestor`, `system_admin`, `area_admin`, and `maintenance`. A legacy `admin` is a system admin (`isSystemAdmin`). A requestor can list and create destinations. A maintenance user can list, create, and update destinations, and cannot delete one. A system admin, an area admin, and a legacy `admin` can list, create, update, and delete destinations.
 - The `MenuBar` component exists. **Destination** is the next `navItems` entry after **Vehicle**, with `to: { name: "destinations" }` and roles `admin`, `system_admin`, `area_admin`, and `maintenance`. `roleMatchesNav` shows it to a system admin, a legacy `admin`, an area admin, and a maintenance user. A requestor does not see that item. A requestor can still open `/destination`, list destinations, and create a destination.
 - An `area_admin` user row must have an `areaId` for an existing area. `db.user.create({ role: "area_admin" })` throws. Backend tests use `createArea`, then `createUser({ role: "area_admin", areaId })` from `backend/tests/helpers.js`.
 - `db.user.create({ role: "admin" })` rewrites the role to `system_admin` in the user model's `beforeValidate` hook. A test of the stored legacy role uses `insertLegacyAdmin` from that same helpers file.
@@ -124,9 +125,10 @@ Roles are `requestor`, `system_admin`, `area_admin`, and `maintenance`. A legacy
 - `state` missing or not exactly two letters, such as `Oklahoma` or `1K`: HTTP `400` with `"State must be a 2-letter abbreviation."`. `ok` is stored as `OK`.
 - `zip` missing or not five digits or ZIP+4, such as `7301` or `73013-12`: HTTP `400` with `"Zip must be 5 digits or ZIP+4."`.
 - Two destinations may share a `name`.
-- Update or delete of an id that does not exist, or that is not an integer: HTTP `404` with `"Destination with id=<destinationId> not found."`. The message uses the raw path param. A requestor still receives `403` before that lookup.
+- Update or delete of an id that does not exist, or that is not an integer: HTTP `404` with `"Destination with id=<destinationId> not found."`. The message uses the raw path param. A requestor still receives `403` before that lookup on update and delete. A maintenance user still receives `403` before that lookup on delete.
 - A signed-in `requestor` can list and create destinations. A requestor `PUT` or `DELETE` returns HTTP `403` with `"Requestors cannot update or delete destinations."` and leaves the destination unchanged, including when the id does not exist.
-- A signed-in `area_admin`, `maintenance` user, `system_admin`, or legacy `admin` can list, create, update, and delete destinations.
+- A signed-in `maintenance` user can list, create, and update destinations. A maintenance `DELETE` returns HTTP `403` with `"Maintenance cannot delete destinations."` and leaves the destination unchanged, including when the id does not exist.
+- A signed-in `area_admin`, `system_admin`, or legacy `admin` can list, create, update, and delete destinations.
 - No session on `/destination`: redirect to `/login`. A destination API call with no token: HTTP `401` with `"Unauthorized! No token provided."`. An invalid or expired token: HTTP `401` with `"Unauthorized! Invalid or expired token."`.
 - A signed-in requestor, area admin, maintenance user, or system admin opening `/destination` stays on the destination list. **Destination** is in the menu for an area admin, a maintenance user, and a system admin. It is not in a requestor's menu.
 - Cancelling a delete leaves the destination in the list and does not call `DELETE`.
@@ -135,29 +137,29 @@ Roles are `requestor`, `system_admin`, `area_admin`, and `maintenance`. A legacy
 ## Success Criteria
 
 - **SC-001:** Every Gherkin scenario is covered by an automated test in the Test Coverage Map.
-- **SC-002:** A requestor can view and create a destination on one screen, using the add dialog. A system admin, an area admin, and a maintenance user can also update and delete a destination on that screen.
-- **SC-003:** A requestor can list and create destinations and cannot update or delete them. An area admin, a maintenance user, and a system admin can list, create, update, and delete destinations. A requestor does not see **Destination** in the menu. A visitor with no session cannot open the screen.
+- **SC-002:** A requestor can view and create a destination on one screen, using the add dialog. A maintenance user can also update a destination on that screen and cannot delete one. A system admin and an area admin can also update and delete a destination on that screen.
+- **SC-003:** A requestor can list and create destinations and cannot update or delete them. A maintenance user can list, create, and update destinations and cannot delete them. An area admin and a system admin can list, create, update, and delete destinations. A requestor does not see **Destination** in the menu. A visitor with no session cannot open the screen.
 - **SC-004:** `npm test` passes.
 
 ## Data Ownership & Isolation
 
-Destinations belong to one shared catalog. There is no `userId` on a destination. Every signed-in user can read every row. A requestor can create a row and cannot update or delete one. The catalog is not filtered by role or area.
+Destinations belong to one shared catalog. There is no `userId` on a destination. Every signed-in user can read every row. A requestor can create a row and cannot update or delete one. A maintenance user can create and update a row and cannot delete one. Only an admin can delete a row. The catalog is not filtered by role or area.
 
 | Rule | Requirement |
 |------|-------------|
 | **Read scope** | `GET /api/vehicle/destinations` returns every destination to any authenticated user. The rows are not filtered by role or area. |
-| **Write scope** | `PUT` and `DELETE` `/api/vehicle/destinations/:destinationId` succeed for a `system_admin`, `area_admin`, `maintenance` user, and legacy `admin`. A `requestor` receives `403` and the row is unchanged. |
+| **Write scope** | `PUT /api/vehicle/destinations/:destinationId` succeeds for a `system_admin`, `area_admin`, `maintenance` user, and legacy `admin`. `DELETE /api/vehicle/destinations/:destinationId` succeeds for a `system_admin`, `area_admin`, and legacy `admin`. A `requestor` receives `403` on update and delete, and the row is unchanged. A `maintenance` user receives `403` on delete, and the row is unchanged. |
 | **Create scope** | `POST /api/vehicle/destinations` succeeds for any authenticated user, including a requestor adding a place for a reservation. The row is saved with no `userId`. |
-| **Cross-role access** | A `requestor` can list and create. A `requestor` cannot update or delete. A `system_admin`, `area_admin`, `maintenance` user, or legacy `admin` can list, create, update, and delete. |
-| **UI scope** | `Destinations.vue` and **Add Destination** render for every signed-in user, including a requestor. **Edit** and **Delete** render when `isSystemAdmin`, `isAreaAdmin`, or the role is `maintenance`, and do not render for `requestor`. The **Destination** item in `MenuBar` uses `roleMatchesNav` with `admin`, `system_admin`, `area_admin`, and `maintenance`. |
-| **Implementation** | `authenticate` runs first. `GET` and `POST` use no other role middleware. `PUT` and `DELETE` return `403` when `req.user.role === "requestor"`, before the id lookup. They do not use `requireSystemAdmin`, `requireAdmin`, `requireAnyAdmin`, or `requireFleetAccess`. |
+| **Cross-role access** | A `requestor` can list and create. A `requestor` cannot update or delete. A `maintenance` user can list, create, and update, and cannot delete. A `system_admin`, `area_admin`, or legacy `admin` can list, create, update, and delete. |
+| **UI scope** | `Destinations.vue` and **Add Destination** render for every signed-in user, including a requestor. **Edit** renders when `isSystemAdmin`, `isAreaAdmin`, or the role is `maintenance`, and does not render for `requestor`. **Delete** renders when `isAnyAdmin` and does not render for `maintenance` or `requestor`. The **Destination** item in `MenuBar` uses `roleMatchesNav` with `admin`, `system_admin`, `area_admin`, and `maintenance`. |
+| **Implementation** | `authenticate` runs first. `GET` and `POST` use no other role middleware. `PUT` returns `403` when `req.user.role === "requestor"`, before the id lookup. `DELETE` returns `403` for a `requestor`, then `403` for `maintenance`, before the id lookup. Update and delete do not use `requireSystemAdmin`, `requireAdmin`, `requireAnyAdmin`, or `requireFleetAccess`. |
 
 ---
 
 ## Key Entities
 
 - **Destination**: one shared catalog row with no `userId`. It has a name, address line 1, an optional address line 2, city, state, and zip. Name and address line 1 are at most 100 characters. Address line 2, when present, is at most 100 characters. City is at most 50 characters. State is a two-letter abbreviation stored uppercase. Zip is five digits or ZIP+4. Name is not unique.
-- **User / Session**: required for `/destination` and every destination endpoint. Roles are `requestor`, `system_admin`, `area_admin`, and `maintenance` (Feature 1). A legacy `admin` is a system admin. A requestor lists and creates destinations. A system admin, an area admin, a maintenance user, and a legacy `admin` list, create, update, and delete every destination.
+- **User / Session**: required for `/destination` and every destination endpoint. Roles are `requestor`, `system_admin`, `area_admin`, and `maintenance` (Feature 1). A legacy `admin` is a system admin. A requestor lists and creates destinations. A maintenance user lists, creates, and updates destinations, and cannot delete one. A system admin, an area admin, and a legacy `admin` list, create, update, and delete every destination.
 - **Reservation**: a later trip row that will reference `destinationId` (Feature 6). This feature does not create reservation rows.
 
 ---
@@ -166,7 +168,7 @@ Destinations belong to one shared catalog. There is no `userId` on a destination
 
 `backend/server.js` mounts `apiRouter` at `/api` and again at `/vehicle-t4`. `backend/app/routes/index.js` already mounts the vehicle router with `apiRouter.use("/vehicle", vehicleRoutes)`. Add the destination paths on that existing router in `backend/app/routes/vehicle.routes.js`. Do not add a second `apiRouter.use`, and do not add a `/destination` or `/api/destination` prefix. Router paths are `/destinations` and `/destinations/:destinationId`. Tests call the full path the same way `backend/tests/vehicles.test.js` calls `/api/vehicle/vehicles`: `GET /api/vehicle/destinations` and `PUT /api/vehicle/destinations/1`.
 
-Handlers live in `backend/app/controllers/destination.controller.js`. `GET` and `POST` use `authenticate` only. `PUT` and `DELETE` use `authenticate`, then return `403` when `req.user.role === "requestor"`, before loading the row. Do not use `requireSystemAdmin`, `requireAdmin`, `requireAnyAdmin`, or `requireFleetAccess`. Those helpers leave out `area_admin` or `maintenance`, and their `403` body is `{ "message": "Admin role required." }` or `{ "message": "System admin role required." }`. A legacy `admin` is not a requestor, so this check allows that role. Do not gate update and delete with `isSystemAdmin`: that helper blocks an area admin and a maintenance user. Row buttons use `isSystemAdmin`, `isAreaAdmin`, and `maintenance`. The menu uses `roleMatchesNav`.
+Handlers live in `backend/app/controllers/destination.controller.js`. `GET` and `POST` use `authenticate` only. `PUT` uses `authenticate`, then returns `403` when `req.user.role === "requestor"`, before loading the row. `DELETE` uses `authenticate`, then returns `403` when `req.user.role === "requestor"`, then returns `403` when `req.user.role === "maintenance"`, before loading the row. Do not use `requireSystemAdmin`, `requireAdmin`, `requireAnyAdmin`, or `requireFleetAccess` on these routes. `requireAnyAdmin` would block a maintenance update, and its `403` body is `{ "message": "Admin role required." }` instead of the messages in **FR-003** and **FR-016**. `requireAdmin` and `requireSystemAdmin` block an area admin. A legacy `admin` is not a requestor or a maintenance user, so the role checks allow that role to update and delete. Do not gate update with `isSystemAdmin`: that helper blocks an area admin and a maintenance user. Do not gate delete with `isSystemAdmin`: that helper blocks an area admin. Gate delete with `isAnyAdmin` after the requestor and maintenance messages, or reject those two roles explicitly. **Edit** uses `isSystemAdmin`, `isAreaAdmin`, and `maintenance`. **Delete** uses `isAnyAdmin`. The menu uses `roleMatchesNav`.
 
 The catalog client is the named export `{ apiClient }` from `frontend/src/services/services.js`, which `frontend/src/services/vehicleServices.js` uses. The default export of `services.js` is the scheduling client for `login` and `logout` only. In dev, `apiClient` uses `http://localhost:3200/api/`. Deployed, its base is `/vehicle-t4/`, and that prefix also mounts `apiRouter`. Add `frontend/src/services/destinationServices.js` and call `vehicle/destinations` with no leading slash, the same way vehicles call `vehicle/vehicles`.
 
@@ -177,7 +179,7 @@ Responses are flat JSON. Errors are `{ "message": "..." }`. Do not wrap success 
 | `POST` | `/api/vehicle/destinations` | any signed-in user | Create a destination |
 | `GET` | `/api/vehicle/destinations` | any signed-in user | List all destinations, ordered by `name`, then `city`, then `id` |
 | `PUT` | `/api/vehicle/destinations/:destinationId` | system admin, area admin, maintenance, or legacy `admin` | Update a destination |
-| `DELETE` | `/api/vehicle/destinations/:destinationId` | system admin, area admin, maintenance, or legacy `admin` | Delete a destination |
+| `DELETE` | `/api/vehicle/destinations/:destinationId` | system admin, area admin, or legacy `admin` | Delete a destination |
 
 ### Create – `POST /api/vehicle/destinations`
 
@@ -240,7 +242,7 @@ Every string is trimmed before it is stored. `state` is stored uppercase. A blan
 
 **Not found:** `404` `{ "message": "Destination with id=<destinationId> not found." }` A non-integer `:destinationId` uses this same `404`. The message keeps the raw path param.
 
-**Caller:** a signed-in area admin, maintenance user, system admin, or legacy `admin` can delete a destination. A `requestor` receives `403` `{ "message": "Requestors cannot update or delete destinations." }`. The destination is unchanged. Role is checked before the id, so a missing or non-integer id also returns `403` for a requestor.
+**Caller:** a signed-in area admin, system admin, or legacy `admin` can delete a destination. A `requestor` receives `403` `{ "message": "Requestors cannot update or delete destinations." }`. A `maintenance` user receives `403` `{ "message": "Maintenance cannot delete destinations." }`. The destination is unchanged. Role is checked before the id, so a missing or non-integer id also returns `403` for a requestor and for a maintenance user. Check the requestor role first so a requestor still receives the requestor message.
 
 ---
 
@@ -253,7 +255,7 @@ Route name `destinations`, path `/destination`, view `frontend/src/views/Destina
 **Shell**
 
 - Page heading: **Destinations**.
-- A system admin, an area admin, or a maintenance user who selects **Destination** in the navigation menu lands on `/destination` and sees every destination, **Add Destination**, **Edit**, and **Delete**. A requestor does not see **Destination** in the menu. A requestor who opens `/destination` sees the list and **Add Destination**, and does not see **Edit** or **Delete**.
+- A system admin or an area admin who selects **Destination** in the navigation menu lands on `/destination` and sees every destination, **Add Destination**, **Edit**, and **Delete**. A maintenance user who selects **Destination** lands on `/destination` and sees every destination, **Add Destination**, and **Edit**, and does not see **Delete**. A requestor does not see **Destination** in the menu. A requestor who opens `/destination` sees the list and **Add Destination**, and does not see **Edit** or **Delete**.
 - Primary action: **Add Destination**, shown for every signed-in role. The vehicle screen hides **Add Vehicle** unless the role is `admin` or `system_admin`. This screen does not.
 - A visitor with no session who opens `/destination` is redirected to `/login`. A signed-in user who opens `/destination` stays on the destination list, including a `requestor` and an `area_admin`.
 
@@ -262,7 +264,7 @@ Route name `destinations`, path `/destination`, view `frontend/src/views/Destina
 - One row per destination, in API order (`name`, then `city`, then `id`).
 - Each row shows the name, address line 1, city, state, and zip. Address line 2 is shown when it is present.
 - After a successful create, the new destination appears in the table. After a successful update, the row shows the new data. After a successful delete, the row is gone.
-- Row actions: button text **Edit** and **Delete** on every destination row for a system admin (including a legacy `admin` through `isSystemAdmin`), an area admin, and a maintenance user. A requestor does not see those buttons. These are text buttons, not the icon-only `aria-label`s **Edit vehicle** and **Delete vehicle** on the vehicle screen.
+- Row actions: button text **Edit** on every destination row for a system admin (including a legacy `admin` through `isSystemAdmin`), an area admin, and a maintenance user. Button text **Delete** on every destination row for a system admin and an area admin. A maintenance user does not see **Delete**. A requestor does not see **Edit** or **Delete**. These are text buttons, not the icon-only `aria-label`s **Edit vehicle** and **Delete vehicle** on the vehicle screen.
 
 **Add Destination dialog**
 
@@ -348,7 +350,8 @@ Do not add a `Reservation` association in this feature. `models/index.js` only a
 - **When** I select **Destination** from the navigation menu
 - **Then** I am on `/destination`
 - **And** the destination list is displayed
-- **And** **Add Destination**, **Edit**, and **Delete** are displayed
+- **And** **Add Destination** and **Edit** are displayed
+- **And** **Delete** is not displayed
 
 #### Scenario: Destination list is sorted by name
 - **Given** I am signed in as a requestor
@@ -467,6 +470,13 @@ Do not add a `Reservation` association in this feature. `models/index.js` only a
 - **Then** I do not see **Edit** or **Delete**
 - **And** I see **Add Destination**
 
+#### Scenario: Maintenance user sees Edit and does not see Delete
+- **Given** I am signed in as a maintenance user on the destination page
+- **And** at least one destination is listed
+- **When** I view the destination table
+- **Then** I see **Edit** on each destination row
+- **And** I do not see **Delete**
+
 ---
 
 ### US-4.4 — Edit Destination
@@ -575,7 +585,7 @@ Do not add a `Reservation` association in this feature. `models/index.js` only a
 - **When** I send `DELETE /api/vehicle/destinations/1`
 - **Then** the API returns `200` with `{ "message": "Destination was deleted successfully." }`
 
-#### Scenario: Maintenance user can list, create, update, and delete a destination
+#### Scenario: Maintenance user can list, create, and update a destination but cannot delete
 - **Given** I am signed in as a maintenance user
 - **When** I open `/destination`
 - **Then** I stay on `/destination`
@@ -587,7 +597,8 @@ Do not add a `Reservation` association in this feature. `models/index.js` only a
 - **When** I send `PUT /api/vehicle/destinations/1` with a valid destination body
 - **Then** the API returns `200` with `{ "message": "Destination was updated successfully." }`
 - **When** I send `DELETE /api/vehicle/destinations/1`
-- **Then** the API returns `200` with `{ "message": "Destination was deleted successfully." }`
+- **Then** the API returns `403` with `{ "message": "Maintenance cannot delete destinations." }`
+- **And** the destination remains in the list
 
 #### Scenario: System admin can list, create, update, and delete a destination
 - **Given** I am signed in as a system admin
@@ -632,7 +643,7 @@ Do not add a `Reservation` association in this feature. `models/index.js` only a
 
 ## Test Coverage Map
 
-Each Gherkin scenario above maps to at least one automated test. A requestor can list and create destinations and cannot update or delete them. A system admin, an area admin, and a maintenance user can list, create, update, and delete destinations. A visitor with no session cannot.
+Each Gherkin scenario above maps to at least one automated test. A requestor can list and create destinations and cannot update or delete them. A maintenance user can list, create, and update destinations and cannot delete them. A system admin and an area admin can list, create, update, and delete destinations. A visitor with no session cannot.
 
 | Story | Scenario | Test file | Test name |
 | ----- | -------- | --------- | --------- |
@@ -656,6 +667,7 @@ Each Gherkin scenario above maps to at least one automated test. A requestor can
 | US-4.2 | Empty required field shows Required field | `frontend/tests/DestinationList.test.js` | `Empty required field shows Required field` |
 | US-4.3 | Row action buttons visible for a system admin | `frontend/tests/DestinationList.test.js` | `Row action buttons visible for a system admin` |
 | US-4.3 | Requestor does not see Edit or Delete | `frontend/tests/DestinationList.test.js` | `Requestor does not see Edit or Delete` |
+| US-4.3 | Maintenance user sees Edit and does not see Delete | `frontend/tests/DestinationList.test.js` | `Maintenance user sees Edit and does not see Delete` |
 | US-4.4 | System admin updates destination details | `backend/tests/destinations.test.js`, `frontend/tests/DestinationList.test.js` | `System admin updates destination details` |
 | US-4.4 | Update of an unknown destination is rejected | `backend/tests/destinations.test.js` | `Update of an unknown destination is rejected` |
 | US-4.5 | System admin deletes a destination with confirmation | `backend/tests/destinations.test.js`, `frontend/tests/DestinationList.test.js` | `System admin deletes a destination with confirmation` |
@@ -668,7 +680,7 @@ Each Gherkin scenario above maps to at least one automated test. A requestor can
 | US-4.6 | Signed-out menu does not show Destination | `frontend/tests/MenuBar.test.js` | `Signed-out menu does not show Destination` |
 | US-4.7 | Requestor can list and create a destination but cannot update or delete | `backend/tests/destinations.test.js`, `frontend/tests/router.test.js` | `Requestor can list and create a destination but cannot update or delete` |
 | US-4.7 | Area admin can list, create, update, and delete a destination | `backend/tests/destinations.test.js`, `frontend/tests/router.test.js` | `Area admin can list, create, update, and delete a destination` |
-| US-4.7 | Maintenance user can list, create, update, and delete a destination | `backend/tests/destinations.test.js`, `frontend/tests/router.test.js` | `Maintenance user can list, create, update, and delete a destination` |
+| US-4.7 | Maintenance user can list, create, and update a destination but cannot delete | `backend/tests/destinations.test.js`, `frontend/tests/router.test.js` | `Maintenance user can list, create, and update a destination but cannot delete` |
 | US-4.7 | System admin can list, create, update, and delete a destination | `backend/tests/destinations.test.js`, `frontend/tests/router.test.js` | `System admin can list, create, update, and delete a destination` |
 | US-4.7 | Legacy admin can update and delete a destination | `backend/tests/destinations.test.js` | `Legacy admin can update and delete a destination` |
 | US-4.7 | A requestor's destination is in the shared list | `backend/tests/destinations.test.js` | `A requestor's destination is in the shared list` |
@@ -722,6 +734,6 @@ Do not implement behavior not in this spec.
 
 ## Delivered to later features
 
-- A destination is a catalog row (`name`, `addressLine1`, `addressLine2`, `city`, `state`, `zip`) with no `userId`. A requestor lists and creates destinations and cannot update or delete them. A system admin, an area admin, a maintenance user, and a legacy `admin` list, create, update, and delete every destination. A destination added by a requestor is in the shared list.
+- A destination is a catalog row (`name`, `addressLine1`, `addressLine2`, `city`, `state`, `zip`) with no `userId`. A requestor lists and creates destinations and cannot update or delete them. A maintenance user lists, creates, and updates destinations and cannot delete them. A system admin, an area admin, and a legacy `admin` list, create, update, and delete every destination. A destination added by a requestor is in the shared list.
 - **Destination** in `MenuBar` routes a system admin, a legacy `admin`, an area admin, and a maintenance user to `/destination`. The `navItems` entry uses `to: { name: "destinations" }` and roles `admin`, `system_admin`, `area_admin`, and `maintenance`. A requestor does not see **Destination**. This feature does not add a second `MenuBar`.
 - Feature 6 adds **Reservation** and owns reservation rows that reference `destinationId`.
