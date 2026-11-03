@@ -147,7 +147,9 @@ async function clickRowAction(name, action) {
   if (!row) {
     throw new Error(`Missing row ${name}`);
   }
-  const button = [...row.querySelectorAll("button")].find((node) => node.textContent.trim() === action);
+  const button = [...row.querySelectorAll("button")].find(
+    (node) => node.getAttribute("aria-label") === action || node.textContent.trim() === action
+  );
   if (!button) {
     throw new Error(`Missing ${action} on ${name}`);
   }
@@ -319,9 +321,11 @@ describe("Feature 3 — Driver Management", () => {
       const rows = [...document.querySelectorAll("tbody tr")];
       expect(rows.length).toBe(2);
       for (const row of rows) {
-        const labels = [...row.querySelectorAll("button")].map((node) => node.textContent.trim());
+        const labels = [...row.querySelectorAll("button")].map((node) => node.getAttribute("aria-label"));
         expect(labels).toContain("Edit");
         expect(labels).toContain("Delete");
+        expect(row.querySelector(".mdi-pencil")).toBeTruthy();
+        expect(row.querySelector(".mdi-delete")).toBeTruthy();
       }
     });
 
@@ -332,8 +336,8 @@ describe("Feature 3 — Driver Management", () => {
       await mountDrivers();
 
       expect(rowFor("Jaxen Roden")).toBeTruthy();
-      expect(pageText()).not.toContain("Edit");
-      expect(pageText()).not.toContain("Delete");
+      expect(document.querySelector('[aria-label="Edit"]')).toBeNull();
+      expect(document.querySelector('[aria-label="Delete"]')).toBeNull();
     });
 
     it("Area admin row shows edit and delete", async () => {
@@ -342,11 +346,12 @@ describe("Feature 3 — Driver Management", () => {
 
       await mountDrivers();
 
-      const labels = [...rowFor("Jaxen Roden").querySelectorAll("button")].map((node) =>
-        node.textContent.trim()
-      );
+      const row = rowFor("Jaxen Roden");
+      const labels = [...row.querySelectorAll("button")].map((node) => node.getAttribute("aria-label"));
       expect(labels).toContain("Edit");
       expect(labels).toContain("Delete");
+      expect(row.querySelector(".mdi-pencil")).toBeTruthy();
+      expect(row.querySelector(".mdi-delete")).toBeTruthy();
     });
   });
 

@@ -1,6 +1,6 @@
 # Data Model Reference
 
-**Status:** Feature 1 users and sessions, plus system admin / area admin, Feature 2 vehicles, mileage logs, and service logs, and Feature 3 drivers.
+**Status:** Feature 1 users and sessions, plus system admin / area admin, Feature 2 vehicles, mileage logs, and service logs, Feature 3 drivers, and Feature 4 destinations.
 
 Sequelize model names: `user` → table `users`, `session` → table `sessions`, `area` → table `areas`. None of these tables use `createdAt` / `updatedAt`.
 
@@ -131,6 +131,24 @@ No `createdAt` or `updatedAt`. Introduced in Feature 2.
 There is no `userId` column. No `createdAt` or `updatedAt`. Introduced in Feature 3.
 
 Reservation rows are Feature 6. This feature does not create a `reservations` table or a `driverId` foreign key.
+
+### `destinations`
+
+| Field | Type | Rules |
+|-------|------|-------|
+| `id` | INTEGER PK | Auto-increment |
+| `name` | STRING(100) | Required. Trimmed. Not unique |
+| `addressLine1` | STRING(100) | Required. Trimmed |
+| `addressLine2` | STRING(100) | Optional. Trimmed. Blank or omitted stored as `null` |
+| `city` | STRING(50) | Required. Trimmed |
+| `state` | STRING(2) | Required. Exactly two letters. Stored uppercase |
+| `zip` | STRING(10) | Required. Trimmed. Matches `^\d{5}(-\d{4})?$` |
+| `createdAt` | DATE | Set by Sequelize |
+| `updatedAt` | DATE | Set by Sequelize |
+
+There is no `userId` column. Destinations are one shared catalog and are not scoped to an area. Introduced in Feature 4.
+
+Feature 6 adds `Reservation` belongsTo `Destination`. This feature does not create a `reservations` table or a destination association.
 
 ## Associations
 
