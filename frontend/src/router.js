@@ -2,7 +2,10 @@ import { createRouter, createWebHistory } from "vue-router";
 import Home from "./views/Home.vue";
 import Login from "./views/Login.vue";
 import Vehicles from "./views/Vehicles.vue";
+import Drivers from "./views/Drivers.vue";
+import Destinations from "./views/Destinations.vue";
 import Utils from "./config/utils.js";
+import { isAnyAdmin, ROLES } from "./config/roles.js";
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -23,6 +26,16 @@ const router = createRouter({
       component: Vehicles,
     },
     {
+      path: "/driver",
+      name: "drivers",
+      component: Drivers,
+    },
+    {
+      path: "/destination",
+      name: "destinations",
+      component: Destinations,
+    },
+    {
       path: "/:pathMatch(.*)*",
       redirect: { name: "home" },
     },
@@ -39,6 +52,21 @@ router.beforeEach((to) => {
     }
     if (user.role !== "admin" && user.role !== "system_admin" && user.role !== "maintenance") {
       return { name: "home" };
+    }
+  }
+
+  if (to.name === "drivers") {
+    if (!signedIn) {
+      return { name: "login" };
+    }
+    if (!isAnyAdmin(user) && user.role !== ROLES.MAINTENANCE) {
+      return { name: "home" };
+    }
+  }
+
+  if (to.name === "destinations") {
+    if (!signedIn) {
+      return { name: "login" };
     }
   }
 
