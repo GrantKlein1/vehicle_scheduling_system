@@ -129,7 +129,7 @@ describe("Feature 1 — User Authentication & Session Management", () => {
       }
     });
 
-    it("Area admin MenuBar shows the assigned area and no catalog links yet", async () => {
+    it("Area admin MenuBar shows the assigned area and Vehicle", async () => {
       const { wrapper } = await mountApp(
         "/",
         userWithRole("area_admin", { areaId: 5, areaName: "Athletics" })
@@ -137,8 +137,11 @@ describe("Feature 1 — User Authentication & Session Management", () => {
 
       expect(wrapper.text()).toContain("Sign out");
       expect(wrapper.text()).toContain("Area Admin · Athletics");
+      expect(wrapper.find(".menu-bar__nav").text()).toContain("Vehicle");
       const buttonText = wrapper.findAll("button, a").map((node) => node.text());
-      for (const label of catalogLabels.filter((item) => item !== "Driver" && item !== "Destination")) {
+      for (const label of catalogLabels.filter(
+        (item) => item !== "Driver" && item !== "Destination" && item !== "Vehicle"
+      )) {
         expect(buttonText.some((text) => text.trim() === label)).toBe(false);
       }
     });
@@ -167,6 +170,15 @@ describe("Feature 2 — Vehicle Management", () => {
   });
 
   describe("US-2.1 — View Vehicle List Page", () => {
+    it("Area admin sees Vehicle in the menu", async () => {
+      const { wrapper } = await mountApp(
+        "/",
+        userWithRole("area_admin", { areaId: 5, areaName: "Athletics" })
+      );
+
+      expect(wrapper.find(".menu-bar__nav").text()).toContain("Vehicle");
+    });
+
     it("Requestor does not see Vehicle in the menu", async () => {
       const { wrapper } = await mountApp("/", userWithRole("requestor"));
 

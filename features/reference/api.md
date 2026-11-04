@@ -11,14 +11,14 @@ API health stays on `/api/health`. Authentication routes are mounted at `/vehicl
 | `GET` | `/api/health` | No | Process health check | Starter |
 | `POST` | `/vehicle-t4/login` | No | Verify a Google credential and return a session | Feature 1 |
 | `POST` | `/vehicle-t4/logout` | Yes | Invalidate the current session token | Feature 1 |
-| `POST` | `/api/vehicle/vehicles` | `admin` | Create a shared catalog vehicle | Feature 2 |
-| `GET` | `/api/vehicle/vehicles` | `admin`, `maintenance` | List vehicles by make, model, then id | Feature 2 |
-| `GET` | `/api/vehicle/vehicles/:vehicleId` | `admin`, `maintenance` | Fetch one vehicle with mileage and service logs | Feature 2 |
-| `PUT` | `/api/vehicle/vehicles/:vehicleId` | `admin` | Update a vehicle | Feature 2 |
-| `DELETE` | `/api/vehicle/vehicles/:vehicleId` | `admin` | Delete a vehicle and its logs | Feature 2 |
-| `POST` | `/api/vehicle/vehicles/:vehicleId/mileage-logs` | `admin`, `maintenance` | Append a mileage log | Feature 2 |
-| `POST` | `/api/vehicle/vehicles/:vehicleId/service-logs` | `admin`, `maintenance` | Append a service log | Feature 2 |
-| `PATCH` | `/api/vehicle/vehicles/:vehicleId/service-logs/:serviceLogId` | `admin`, `maintenance` | Update comments on a service log | Feature 2 |
+| `POST` | `/api/vehicle/vehicles` | system admin, `area_admin` | Create a shared catalog vehicle. The list is not filtered by the caller's area | Feature 2 |
+| `GET` | `/api/vehicle/vehicles` | system admin, `area_admin`, `maintenance` | List every vehicle by make, model, then id | Feature 2 |
+| `GET` | `/api/vehicle/vehicles/:vehicleId` | system admin, `area_admin`, `maintenance` | Fetch one vehicle with mileage and service logs | Feature 2 |
+| `PUT` | `/api/vehicle/vehicles/:vehicleId` | system admin, `area_admin` | Update a vehicle | Feature 2 |
+| `DELETE` | `/api/vehicle/vehicles/:vehicleId` | system admin, `area_admin` | Delete a vehicle and its logs | Feature 2 |
+| `POST` | `/api/vehicle/vehicles/:vehicleId/mileage-logs` | system admin, `area_admin`, `maintenance` | Append a mileage log | Feature 2 |
+| `POST` | `/api/vehicle/vehicles/:vehicleId/service-logs` | system admin, `area_admin`, `maintenance` | Append a service log | Feature 2 |
+| `PATCH` | `/api/vehicle/vehicles/:vehicleId/service-logs/:serviceLogId` | system admin, `area_admin`, `maintenance` | Update comments on a service log | Feature 2 |
 | `POST` | `/api/driver/drivers` | system admin, `area_admin` | Create a driver | Feature 3 |
 | `GET` | `/api/driver/drivers` | any authenticated role | List drivers by last name, first name, then id. System admin and `area_admin` receive every driver. `maintenance` and `requestor` receive `valid` drivers only | Feature 3 |
 | `PUT` | `/api/driver/drivers/:driverId` | system admin, `area_admin` | Update a driver | Feature 3 |
@@ -118,7 +118,7 @@ Authenticated handlers set `req.user.id` and `req.user.role` from the session's 
 
 ## Vehicles
 
-Vehicle routes are mounted at `/api/vehicle`. Every vehicle route uses `authenticate`. A `requestor` receives `403` `{ "message": "Admin role required." }` on every vehicle route. A `maintenance` user receives that same `403` on `POST`, `PUT`, and `DELETE` `/api/vehicle/vehicles`. List, fetch, mileage logs, service logs, and service comment updates are allowed for `admin` and `maintenance`.
+Vehicle routes are mounted at `/api/vehicle`. Every vehicle route uses `authenticate`. A `requestor` receives `403` `{ "message": "Admin role required." }` on every vehicle route. A `maintenance` user receives that same `403` on `POST`, `PUT`, and `DELETE` `/api/vehicle/vehicles`. Those writes use `requireAnyAdmin`, so a system admin (`system_admin` or legacy `admin`) and an `area_admin` pass. List, fetch, mileage logs, service logs, and service comment updates use `requireFleetAccess` and are allowed for a system admin, an `area_admin`, and `maintenance`. The list is the whole fleet. It is not filtered by the area admin's area. An area admin can create, update, delete, and log a vehicle whose `areaAssigned` is not their area.
 
 A `userId` in a create or update body is ignored. Responses do not include `userId`.
 

@@ -59,10 +59,10 @@ They do **not** authorize new scope — implement only from `features/feature-*.
 | Home shows `Welcome, {first name}.` | `Home.vue` | Feature 1 |
 | Failed Google sign-in stays on the login page and shows `<v-alert type="error">` | `GoogleSignIn.vue` | Feature 1 |
 | Login shows Google's **Sign in with Google** button. A progress indicator is shown while the login request is in flight | `GoogleSignIn.vue` | Feature 1 |
-| **Vehicle** is in `MenuBar` for `admin`, `system_admin`, and `maintenance`, and opens `/vehicle`. An area admin does not see it | `MenuBar` | Feature 2, admin types |
+| **Vehicle** is in `MenuBar` for `admin`, `system_admin`, `area_admin`, and `maintenance`, and opens `/vehicle` | `MenuBar` | Feature 2, admin types |
 | A signed-out menu and a `requestor` menu do not show **Vehicle** | `MenuBar` | Feature 2 |
 | `/vehicle` without a session redirects to `login` | Router `beforeEach` | Feature 2 |
-| A signed-in `requestor` who opens `/vehicle` is redirected to `home` | Router `beforeEach` | Feature 2 |
+| A signed-in `requestor` who opens `/vehicle` is redirected to `home`. A system admin, area admin, or maintenance user stays on the vehicle list | Router `beforeEach` | Feature 2 |
 | **Driver** is in `MenuBar` for `admin`, `system_admin`, `area_admin`, and `maintenance`, and opens `/driver` | `MenuBar` | Feature 3 |
 | A signed-out menu and a `requestor` menu do not show **Driver** | `MenuBar` | Feature 3 |
 | `/driver` without a session redirects to `login` | Router `beforeEach` | Feature 3 |
@@ -76,19 +76,19 @@ They do **not** authorize new scope — implement only from `features/feature-*.
 | Rule | Enforcement | Introduced |
 |------|-------------|------------|
 | Vehicles are one shared catalog and have no `userId` | `vehicles` table and create/update ignore `userId` | Feature 2 |
-| `admin` can list, fetch, create, update, and delete vehicles | Vehicle routes | Feature 2 |
-| `maintenance` can list, fetch, and append logs, and cannot create, update, or delete a vehicle | `requireFleetAccess` and `requireAdmin` | Feature 2 |
+| A system admin or an `area_admin` can list, fetch, create, update, and delete every vehicle. The list is not filtered by the area admin's area | `requireAnyAdmin` and `requireFleetAccess` | Feature 2 |
+| `maintenance` can list, fetch, and append logs, and cannot create, update, or delete a vehicle | `requireFleetAccess` and `requireAnyAdmin` | Feature 2 |
 | A `requestor` receives `403` `{ "message": "Admin role required." }` on every vehicle route | `requireFleetAccess` | Feature 2 |
-| Catalog writes by `maintenance` return `403` `{ "message": "Admin role required." }` | `requireAdmin` | Feature 2 |
+| Catalog writes by `maintenance` return `403` `{ "message": "Admin role required." }` | `requireAnyAdmin` | Feature 2 |
 | The vehicle list is ordered by make, then model, then id | `GET /api/vehicle/vehicles` | Feature 2 |
 | Mileage and service logs are appended and ordered by date, then id. A service date and service performed are not edited later. Comments on a service can be set at creation and updated later | Log routes and `GET` one vehicle | Feature 2 |
 | A new mileage reading must be greater than the highest mileage already logged for that vehicle | Mileage log route and the mileage form | Feature 2 |
 | Service performed is any non-blank text up to 80 characters. The form lists common repairs and also accepts a typed custom service. **Log service** asks for an optional comment before the service is saved. Comments are text up to 500 characters and can also be changed from an outlined button on the service row | Service log route, comment update route, and the service form | Feature 2 |
 | Deleting a vehicle deletes its mileage logs and service logs | Delete handler and `onDelete: CASCADE` | Feature 2 |
 | `make` and `model` may be values outside the standard suggestion list | API stores any non-blank make and model | Feature 2 |
-| The vehicle screen shows **Add Vehicle**, **Edit vehicle**, and **Delete vehicle** for `admin` only | `Vehicles.vue` | Feature 2 |
+| The vehicle screen shows **Add Vehicle**, **Edit vehicle**, and **Delete vehicle** for `isAnyAdmin` (a system admin, a legacy `admin`, or an area admin) | `Vehicles.vue` | Feature 2 |
 | The vehicle screen shows a searchable list and a detail panel for the selected vehicle (first vehicle auto-selected). Mileage and service are logged inline in the panel. | `Vehicles.vue` | Feature 2 |
-| **Log mileage** and **Log service** are available to `admin` and `maintenance` | `Vehicles.vue` | Feature 2 |
+| **Log mileage** and **Log service** are available to a system admin, an area admin, and `maintenance` | `Vehicles.vue` | Feature 2 |
 | A blank required field shows **Required field** and does not call the API | Vehicle dialogs and inline log forms | Feature 2 |
 | Choosing **Golf Cart** hides **VIN**, **License Plate Number**, and **License Plate Expiration Month**. The API stores those fields as `null` | `Vehicles.vue` and vehicle create/update | Feature 2 |
 | Leaving a field shows that field's validation message under the field. A year outside 1950 through 2027 shows **Year must be from 1950 through 2027.** The same field messages apply to make, model, VIN, date, color, passengers, license plate, expiration month, area, mileage, and service | Vehicle dialogs and inline log forms | Feature 2 |

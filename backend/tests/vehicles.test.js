@@ -5,7 +5,7 @@
 import request from "supertest";
 import app from "../server.js";
 import db from "../app/models/index.js";
-import { createSession, createUser, syncTestDatabase } from "./helpers.js";
+import { createArea, createSession, createUser, syncTestDatabase } from "./helpers.js";
 
 function vehicleBody(overrides = {}) {
   return {
@@ -25,11 +25,18 @@ function vehicleBody(overrides = {}) {
 }
 
 async function signIn(role) {
-  const user = await createUser({
+  const overrides = {
     role,
     email: `${role}@eagles.oc.edu`,
     googleSub: `google-sub-${role}`,
-  });
+  };
+
+  if (role === "area_admin") {
+    const area = await createArea("Athletics");
+    overrides.areaId = area.id;
+  }
+
+  const user = await createUser(overrides);
   const session = await createSession(user);
   return session.token;
 }
@@ -71,7 +78,7 @@ describe("Feature 2 — Vehicle Management", () => {
   });
 
   describe("US-2.2 — Create Vehicle", () => {
-    it("Signed-in admin creates a new vehicle", async () => {
+    it("Signed-in system admin creates a new vehicle", async () => {
       const token = await signIn("admin");
 
       const response = await authed(token).post("/api/vehicle/vehicles").send(vehicleBody());
@@ -244,7 +251,7 @@ describe("Feature 2 — Vehicle Management", () => {
   });
 
   describe("US-2.3 — Read Vehicle Catalog", () => {
-    it("Signed-in admin views the vehicle catalog", async () => {
+    it("Signed-in system admin views the vehicle catalog", async () => {
       const token = await signIn("admin");
       await db.vehicle.create(
         vehicleBody({
@@ -286,6 +293,26 @@ describe("Feature 2 — Vehicle Management", () => {
       ]);
     });
 
+    it("Area admin sees every vehicle", async () => {
+      const token = await signIn("area_admin");
+      await db.vehicle.create(vehicleBody({ areaAssigned: "Athletics" }));
+      await db.vehicle.create(
+        vehicleBody({
+          areaAssigned: "Support Central",
+          vin: "1FTFW1E50NFA00011",
+          licensePlateNumber: "OC5011",
+        })
+      );
+
+      const response = await authed(token).get("/api/vehicle/vehicles");
+
+      expect(response.status).toBe(200);
+      expect(response.body.map((vehicle) => vehicle.areaAssigned).sort()).toEqual([
+        "Athletics",
+        "Support Central",
+      ]);
+    });
+
     it("Maintenance views logs for a vehicle", async () => {
       const token = await signIn("maintenance");
       await seedVehicleFour();
@@ -321,7 +348,7 @@ describe("Feature 2 — Vehicle Management", () => {
   });
 
   describe("US-2.5 — Edit Vehicle", () => {
-    it("Signed-in admin updates vehicle details", async () => {
+    it("Signed-in system admin updates vehicle details", async () => {
       const token = await signIn("admin");
       const vehicle = await db.vehicle.create(vehicleBody({ color: "White" }));
 
@@ -346,7 +373,7 @@ describe("Feature 2 — Vehicle Management", () => {
   });
 
   describe("US-2.6 — Delete Vehicle", () => {
-    it("Signed-in admin deletes a vehicle with confirmation", async () => {
+    it("Signed-in system admin deletes a vehicle with confirmation", async () => {
       const token = await signIn("admin");
       const vehicle = await db.vehicle.create(vehicleBody());
       await db.mileageLog.create({
@@ -403,6 +430,55 @@ describe("Feature 2 — Vehicle Management", () => {
       expect(await db.mileageLog.count()).toBe(0);
       expect(await db.serviceLog.count()).toBe(0);
       expect(await db.vehicle.count()).toBe(1);
+    });
+
+    it("Area admin can change a vehicle outside their area", async () => {
+      const token = await signIn("area_admin");
+      const support = await db.vehicle.create(
+        vehicleBody({
+          areaAssigned: "Support Central",
+          vin: "1FTFW1E50NFA00012",
+          licensePlateNumber: "OC5012",
+        })
+      );
+
+      const list = await authed(token).get("/api/vehicle/vehicles");
+      expect(list.status).toBe(200);
+      expect(list.body.map((vehicle) => vehicle.areaAssigned)).toContain("Support Central");
+
+      const created = await authed(token)
+        .post("/api/vehicle/vehicles")
+        .send(
+          vehicleBody({
+            areaAssigned: "Maintenance",
+            vin: "1FTFW1E50NFA00013",
+            licensePlateNumber: "OC5013",
+          })
+        );
+      expect(created.status).toBe(201);
+      expect(created.body.areaAssigned).toBe("Maintenance");
+
+      const updated = await authed(token)
+        .put(`/api/vehicle/vehicles/${support.id}`)
+        .send(
+          vehicleBody({
+            areaAssigned: "Support Central",
+            vin: "1FTFW1E50NFA00012",
+            licensePlateNumber: "OC5012",
+            color: "Blue",
+          })
+        );
+      expect(updated.status).toBe(200);
+      expect(updated.body).toEqual({ message: "Vehicle was updated successfully." });
+
+      const mileage = await authed(token)
+        .post(`/api/vehicle/vehicles/${support.id}/mileage-logs`)
+        .send({ entryDate: localToday(), currentMileage: 15000 });
+      expect(mileage.status).toBe(201);
+
+      const removed = await authed(token).delete(`/api/vehicle/vehicles/${support.id}`);
+      expect(removed.status).toBe(200);
+      expect(removed.body).toEqual({ message: "Vehicle was deleted successfully!" });
     });
 
     it("Maintenance cannot create, update, or delete a vehicle", async () => {
