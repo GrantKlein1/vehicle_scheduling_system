@@ -4,15 +4,17 @@
 **Branch pattern:** `feature/2-vehicle-management`
 **Status:** Ready
 **Created:** 2026-10-03
-**Input:** An admin keeps a shared vehicle catalog on one screen. A maintenance user can view that catalog and record mileage and services. A vehicle is not owned by a user.
-**Depends on:** Feature 1 — User Authentication
+**Input:** A system admin or an area admin keeps a shared vehicle catalog on one screen. A maintenance user can view that catalog and record mileage and services. A vehicle is not owned by a user.
+**Depends on:** [Feature 1 — User Authentication](feature-1-user-auth.md)
+
+A system admin is `system_admin`. A legacy `admin` session is a system admin (`isSystemAdmin`). An area admin is `area_admin`, assigned to one area, and can list, create, update, and delete every vehicle, and can append mileage and service logs. That catalog is not limited to the area admin's area. See [ADR-0001](../docs/adr/0001-system-and-area-admins.md).
 
 ---
 
 ## User Stories
 
 ### US-2.1: View Vehicle List Page
-**As a** signed-in admin or maintenance user
+**As a** signed-in system admin, area admin, or maintenance user
 **I want to** select **Vehicle** from the navigation menu
 **So that** I can open the vehicle screen
 
@@ -21,7 +23,7 @@
 **Acceptance scenarios:** see ### US-2.1 under Acceptance Criteria
 
 ### US-2.2: Create Vehicle
-**As a** signed-in admin
+**As a** signed-in system admin or area admin
 **I want to** create a vehicle in a dialog
 **So that** it is added to the shared catalog
 
@@ -30,7 +32,7 @@
 **Acceptance scenarios:** see ### US-2.2 under Acceptance Criteria
 
 ### US-2.3: Read Vehicle Catalog
-**As a** signed-in admin or maintenance user
+**As a** signed-in system admin, area admin, or maintenance user
 **I want to** see every vehicle in the catalog
 **So that** I can review the fleet
 
@@ -39,16 +41,16 @@
 **Acceptance scenarios:** see ### US-2.3 under Acceptance Criteria
 
 ### US-2.4: Row Action Icons
-**As a** signed-in admin
+**As a** signed-in system admin or area admin
 **I want to** see Edit and Delete on the selected vehicle
 **So that** I can change or remove that vehicle
 
 **Priority:** P1
-**Independent test:** Confirm the selected vehicle's detail panel shows Edit and Delete for an admin, and does not for maintenance
+**Independent test:** Confirm the selected vehicle's detail panel shows Edit and Delete for a system admin and for an area admin, and does not for maintenance
 **Acceptance scenarios:** see ### US-2.4 under Acceptance Criteria
 
 ### US-2.5: Edit Vehicle
-**As a** signed-in admin
+**As a** signed-in system admin or area admin
 **I want to** update a vehicle's details
 **So that** the catalog stays accurate
 
@@ -57,7 +59,7 @@
 **Acceptance scenarios:** see ### US-2.5 under Acceptance Criteria
 
 ### US-2.6: Delete Vehicle
-**As a** signed-in admin
+**As a** signed-in system admin or area admin
 **I want to** delete a vehicle after I confirm
 **So that** a vehicle that is no longer in the fleet is removed
 
@@ -67,7 +69,7 @@
 
 ### US-2.7: Role-Based Access Control
 **As the** application
-**I want to** keep catalog create, update, and delete limited to admins, and keep the vehicle screen limited to admins and maintenance users
+**I want to** keep catalog create, update, and delete limited to a system admin or an area admin, and keep the vehicle screen limited to those roles and maintenance users
 **So that** a requestor cannot see or change the fleet, and a maintenance user cannot add, edit, or remove a vehicle
 
 **Priority:** P1
@@ -90,13 +92,13 @@
 ### Functional Requirements
 
 - **FR-001:** Every vehicle endpoint MUST require authentication (`authenticate` middleware).
-- **FR-002:** An authenticated `admin` MUST be able to list vehicles, fetch one vehicle, create a vehicle, update a vehicle, and delete a vehicle.
-- **FR-003:** `POST`, `PUT`, and `DELETE` on a vehicle MUST succeed only when `req.user.role === "admin"`. A `maintenance` user who calls those endpoints MUST receive HTTP `403` with `{ "message": "Admin role required." }`.
-- **FR-004:** An authenticated `admin` or `maintenance` user MUST be able to list vehicles, fetch one vehicle, append a mileage log, and append a service log.
+- **FR-002:** An authenticated system admin or `area_admin` MUST be able to list vehicles, fetch one vehicle, create a vehicle, update a vehicle, and delete a vehicle. `system_admin` and a legacy `admin` are system admins (`isSystemAdmin`). An `area_admin` passes `isAnyAdmin`. The list is every vehicle, not only vehicles whose `areaAssigned` matches the area admin's area.
+- **FR-003:** `POST`, `PUT`, and `DELETE` on a vehicle MUST succeed only for `isAnyAdmin` (`requireAnyAdmin`). A `maintenance` user who calls those endpoints MUST receive HTTP `403` with `{ "message": "Admin role required." }`.
+- **FR-004:** An authenticated system admin, `area_admin`, or `maintenance` user MUST be able to list vehicles, fetch one vehicle, append a mileage log, and append a service log. An area admin's list and logs are the whole fleet.
 - **FR-005:** A `requestor` who calls any vehicle endpoint MUST receive HTTP `403` with `{ "message": "Admin role required." }`.
 - **FR-006:** A vehicle MUST NOT have a `userId`. A `userId` in the request body MUST be ignored and MUST NOT be stored.
 - **FR-007:** Every input string MUST be trimmed. A required string that is missing, empty, or whitespace-only MUST be rejected with HTTP `400`.
-- **FR-008:** A request with no token MUST return HTTP `401` with `{ "message": "Unauthorized! No token provided." }`. A request with an invalid or expired token MUST return HTTP `401` with `{ "message": "Unauthorized! Invalid or expired token." }`. A visitor with no session who opens `/vehicle` MUST be redirected to `/login`. A signed-in `requestor` who opens `/vehicle` MUST be redirected to home.
+- **FR-008:** A request with no token MUST return HTTP `401` with `{ "message": "Unauthorized! No token provided." }`. A request with an invalid or expired token MUST return HTTP `401` with `{ "message": "Unauthorized! Invalid or expired token." }`. A visitor with no session who opens `/vehicle` MUST be redirected to `/login`. A signed-in `requestor` who opens `/vehicle` MUST be redirected to home. A signed-in `area_admin` who opens `/vehicle` MUST stay on the vehicle list. The `vehicles` check in `frontend/src/router.js` `beforeEach` MUST allow `isAnyAdmin` or `maintenance`. It MUST NOT send an `area_admin` to `home`.
 - **FR-009:** `GET /api/vehicle/vehicles` MUST return vehicles ordered by `make` ascending, then `model` ascending, then `id` ascending.
 - **FR-010:** For `Truck`, `Car`, and `Van`, `licensePlateNumber` MUST be required, unique, and match **FR-018**, and `licensePlateExpirationMonth` MUST be an integer from 1 through 12. A duplicate plate, a plate that does not match **FR-018**, or a missing plate or month MUST return HTTP `400`. A `Golf Cart` MUST store both fields as `null`.
 - **FR-011:** For `Truck`, `Car`, and `Van`, `vin` MUST be required, unique, and match **FR-017**. A duplicate or a VIN that does not match **FR-017** MUST return HTTP `400`. A `Golf Cart` MUST store `vin` as `null`. Values sent for `vin`, `licensePlateNumber`, or `licensePlateExpirationMonth` on a golf cart MUST be discarded. The golf-cart path does not apply **FR-017** or **FR-018**.
@@ -104,20 +106,23 @@
 - **FR-013:** `areaAssigned` MUST be exactly one of `Athletics`, `Support Central`, or `Maintenance`.
 - **FR-014:** `servicePerformed` MUST be exactly one of `Repair`, `Oil change`, or `Tire replacement`. Mileage and service rows are append-only in this feature. A service `entryDate` MUST be the current day or a past date. A future service date MUST return HTTP `400`.
 - **FR-015:** Deleting a vehicle MUST delete that vehicle's mileage logs and service logs.
-- **FR-016:** This feature MUST add **Vehicle** to the existing `MenuBar` for `admin` and `maintenance` only. It MUST NOT create a second `MenuBar`.
+- **FR-016:** This feature MUST add **Vehicle** to the existing `navItems` in `frontend/src/components/MenuBar.vue`: `{ title: "Vehicle", to: { name: "vehicles" }, roles: ["admin", "system_admin", "area_admin", "maintenance"] }`. Visibility uses `roleMatchesNav`. A list of only `admin` or `system_admin` hides the item from an area admin, so `area_admin` MUST be in `roles`. It MUST NOT create a second `MenuBar`. **Vehicle** MUST be hidden when there is no session and hidden for `requestor`.
 - **FR-017:** For `Truck`, `Car`, and `Van`, `vin` MUST match `^[A-HJ-NPR-Z0-9]{17}$`. A value that does not match MUST return HTTP `400`.
 - **FR-018:** For `Truck`, `Car`, and `Van`, `licensePlateNumber` MUST match `^[A-Z0-9]{2,8}$`. A value that does not match MUST return HTTP `400`.
 - **FR-019:** A mileage `entryDate` MUST be the current day or a past date. A future mileage date MUST return HTTP `400`.
 
 ## Assumptions
 
-- Feature 1 sessions, roles (`requestor`, `admin`, `maintenance`), and `MenuBar` are already in place.
-- Vehicles are one shared catalog. They are not private to the user who created them.
+- Feature 1 user authentication is merged and active. Roles are `requestor`, `system_admin`, `area_admin`, and `maintenance`. A legacy `admin` is a system admin (`isSystemAdmin`). An `area_admin` is assigned to one area and can list, create, update, delete, and log mileage and service on every vehicle.
+- The `MenuBar` component exists. **Vehicle** uses `to: { name: "vehicles" }` and roles `admin`, `system_admin`, `area_admin`, and `maintenance`. `roleMatchesNav` shows it to a system admin, a legacy `admin`, an area admin, and a maintenance user. A requestor does not see that item.
+- An `area_admin` user row must have an `areaId` for an existing area. `db.user.create({ role: "area_admin" })` throws. Backend tests use `createArea`, then `createUser({ role: "area_admin", areaId })` from `backend/tests/helpers.js`.
+- `db.user.create({ role: "admin" })` rewrites the role to `system_admin` in the user model's `beforeValidate` hook. A test of the stored legacy role uses `insertLegacyAdmin` from that same helpers file.
+- Vehicles are one shared catalog. They are not private to the user who created them, and they are not limited to the area admin's area.
 - Catalog create, edit, and delete happen in dialogs on a single view (`/vehicle`).
 - Each vehicle has one category. Feature 3 uses that category when it records which vehicle types a driver is approved to drive. This feature does not create drivers.
 - Feature 5 will own area name, logo, and notification email. This feature stores only the area name on the vehicle.
 - Feature 6 will store `vehicleId` on a reservation when a vehicle is assigned. This feature does not create reservations.
-- A maintenance user can read the whole fleet. The list is not filtered by `areaAssigned`.
+- A system admin, an area admin, and a maintenance user can read the whole fleet. The list is not filtered by `areaAssigned`.
 - Trip problem notices (Low Gas, Dirty, Maintenance needed) are not a vehicle-catalog record. They belong to later reservation and admin-queue work.
 
 ---
@@ -138,30 +143,32 @@
 - A `requestor` call to any vehicle endpoint: HTTP `403` with `"Admin role required."`.
 - No session on `/vehicle`: redirect to `/login`. A vehicle API call with no token: HTTP `401`.
 - A signed-in `requestor` opening `/vehicle`: redirect to home. **Vehicle** is not in that user's `MenuBar`.
+- A signed-in `area_admin` opening `/vehicle`: stay on the vehicle list. **Vehicle** is in that user's `MenuBar`. **Add Vehicle**, **Edit vehicle**, and **Delete vehicle** are shown.
+- An `area_admin` list is every vehicle, including a vehicle whose `areaAssigned` is not that admin's area. A system admin list is the same full list. Create, update, delete, and mileage and service logs succeed for a vehicle in any area.
 - A `userId` sent with a create or update is dropped. The stored row has no `userId`.
 
 ## Success Criteria
 
 - **SC-001:** Every Gherkin scenario is covered by an automated test in the Test Coverage Map.
-- **SC-002:** An admin can create, view, update, and delete a vehicle on one screen, using dialogs.
+- **SC-002:** A system admin or an area admin can create, view, update, and delete a vehicle on one screen, using dialogs. The area admin can do that for a vehicle outside their assigned area.
 - **SC-003:** A requestor cannot call vehicle endpoints. A maintenance user cannot create, update, or delete a vehicle.
-- **SC-004:** An admin or a maintenance user can list vehicles and append a mileage log and a service log.
+- **SC-004:** A system admin, an area admin, or a maintenance user can list vehicles and append a mileage log and a service log.
 - **SC-005:** `npm test` passes.
 
 ## Data Ownership & Isolation
 
-Vehicles belong to one shared catalog. There is no `userId` on a vehicle. Admins change catalog rows. Admins and maintenance users read the catalog and append logs.
+Vehicles belong to one shared catalog. There is no `userId` on a vehicle. A system admin or an area admin changes every catalog row. Those roles and a maintenance user read the catalog and append logs. Rows are not filtered by the caller's area.
 
 | Rule | Requirement |
 |------|-------------|
-| **Read scope** | `GET /api/vehicle/vehicles` and `GET /api/vehicle/vehicles/:vehicleId` return the shared catalog to an authenticated `admin` or `maintenance` user. |
-| **Write scope** | `PUT` and `DELETE` `/api/vehicle/vehicles/:vehicleId` succeed only when `req.user.role === "admin"`. |
-| **Create scope** | `POST /api/vehicle/vehicles` succeeds only when `req.user.role === "admin"`. The row is saved with no `userId`. |
-| **Log scope** | `POST` mileage and service logs succeed for `admin` and `maintenance`. They append a row for that `vehicleId`. |
+| **Read scope** | `GET /api/vehicle/vehicles` and `GET /api/vehicle/vehicles/:vehicleId` return the shared catalog to an authenticated system admin, `area_admin`, or `maintenance` user. The rows are not filtered by the caller's area. |
+| **Write scope** | `PUT` and `DELETE` `/api/vehicle/vehicles/:vehicleId` succeed for a system admin or an `area_admin` (`requireAnyAdmin`). |
+| **Create scope** | `POST /api/vehicle/vehicles` succeeds for a system admin or an `area_admin`. The row is saved with no `userId`. `areaAssigned` may be any of the three area names, including a name that is not the area admin's area. |
+| **Log scope** | `POST` mileage and service logs succeed for a system admin, an `area_admin`, and `maintenance`. They append a row for that `vehicleId`. |
 | **Requestor access** | Any vehicle endpoint returns `403` with `{ "message": "Admin role required." }`. |
 | **Maintenance catalog changes** | `POST`, `PUT`, and `DELETE` on a vehicle return `403` with `{ "message": "Admin role required." }`. |
-| **UI scope** | `Vehicles.vue` and the **Vehicle** `MenuBar` item render for `admin` and `maintenance` only. Add, Edit, and Delete render for `admin` only. |
-| **Implementation** | `authenticate` runs first. Role checks use `req.user.role`. |
+| **UI scope** | `Vehicles.vue` and the **Vehicle** `MenuBar` item render for a system admin, an `area_admin`, or a `maintenance` user. **Add Vehicle**, **Edit vehicle**, and **Delete vehicle** render when `isAnyAdmin`. |
+| **Implementation** | `authenticate` runs first. Catalog mutations use `requireAnyAdmin`. List, fetch, and log routes allow `isAnyAdmin` or `maintenance`. |
 
 ---
 
@@ -170,7 +177,7 @@ Vehicles belong to one shared catalog. There is no `userId` on a vehicle. Admins
 - **Vehicle**: one shared catalog row (no `userId`). Fields: category, make, model, year, VIN, purchased date, color, passenger capacity, license plate number, license plate expiration month, area assigned. Category is exactly one of Golf Cart, Truck, Car, or Van. On a Truck, Car, or Van, the VIN is a 17-character VIN and the license plate is 2 to 8 letters or digits. A Golf Cart has neither.
 - **Mileage log**: a date and a current mileage for one vehicle. The date is the current day or a past date.
 - **Service log**: a date and a service performed for one vehicle. The service is Repair, Oil change, or Tire replacement. The date is the current day or a past date.
-- **User / Session**: required for navigation and API calls. Roles are `admin`, `maintenance`, and `requestor` (Feature 1).
+- **User / Session**: required for navigation and API calls. Roles are `requestor`, `system_admin`, `area_admin`, and `maintenance` (Feature 1). A legacy `admin` is a system admin. A system admin or an area admin creates, updates, and deletes every vehicle, and can append logs. A maintenance user reads the fleet and appends logs, and cannot change catalog rows. A requestor cannot open the vehicle screen or call vehicle endpoints.
 
 ---
 
@@ -182,13 +189,13 @@ The error tables in this section are normative for HTTP `400` responses. Gherkin
 
 | Method | Endpoint | Auth | Purpose |
 |--------|----------|------|---------|
-| `POST` | `/api/vehicle/vehicles` | `admin` | Create a vehicle |
-| `GET` | `/api/vehicle/vehicles` | `admin`, `maintenance` | List all vehicles |
-| `GET` | `/api/vehicle/vehicles/:vehicleId` | `admin`, `maintenance` | Fetch one vehicle, including logs |
-| `PUT` | `/api/vehicle/vehicles/:vehicleId` | `admin` | Update a vehicle |
-| `DELETE` | `/api/vehicle/vehicles/:vehicleId` | `admin` | Delete a vehicle and its logs |
-| `POST` | `/api/vehicle/vehicles/:vehicleId/mileage-logs` | `admin`, `maintenance` | Append a mileage log |
-| `POST` | `/api/vehicle/vehicles/:vehicleId/service-logs` | `admin`, `maintenance` | Append a service log |
+| `POST` | `/api/vehicle/vehicles` | system admin, `area_admin` | Create a vehicle |
+| `GET` | `/api/vehicle/vehicles` | system admin, `area_admin`, `maintenance` | List all vehicles. The list is not filtered by the caller's area |
+| `GET` | `/api/vehicle/vehicles/:vehicleId` | system admin, `area_admin`, `maintenance` | Fetch one vehicle, including logs |
+| `PUT` | `/api/vehicle/vehicles/:vehicleId` | system admin, `area_admin` | Update a vehicle |
+| `DELETE` | `/api/vehicle/vehicles/:vehicleId` | system admin, `area_admin` | Delete a vehicle and its logs |
+| `POST` | `/api/vehicle/vehicles/:vehicleId/mileage-logs` | system admin, `area_admin`, `maintenance` | Append a mileage log |
+| `POST` | `/api/vehicle/vehicles/:vehicleId/service-logs` | system admin, `area_admin`, `maintenance` | Append a service log |
 
 ### Create – `POST /api/vehicle/vehicles`
 
@@ -241,7 +248,7 @@ A `userId` property in the body is ignored.
 
 `purchasedDate` MUST be a real calendar date in `YYYY-MM-DD` form. For `Truck`, `Car`, and `Van`, `vin` MUST match `^[A-HJ-NPR-Z0-9]{17}$` and `licensePlateNumber` MUST match `^[A-Z0-9]{2,8}$`. The API does not change case to make a value match. Uniqueness of `vin` and `licensePlateNumber` is exact after trim, and it is case-sensitive. A `Golf Cart` stores `vin`, `licensePlateNumber`, and `licensePlateExpirationMonth` as `null`. Those nulls are not unique values, so more than one golf cart can omit them. Any values sent for those three fields on a golf cart are discarded, including values that would fail **FR-017** or **FR-018**.
 
-**Forbidden:** `403` `{ "message": "Admin role required." }` when the caller is `maintenance` or `requestor`.
+**Forbidden:** `403` `{ "message": "Admin role required." }` when the caller is `maintenance` or `requestor`. A system admin, a legacy `admin`, and an `area_admin` are allowed. The same `403` applies to update and delete for `maintenance` and `requestor`. List, fetch, and log routes return that `403` for a `requestor` only.
 
 **Unauthorized:** `401` when the Bearer token is missing, invalid, or expired, using the Feature 1 messages in **FR-008**.
 
@@ -378,7 +385,7 @@ Route name `vehicles`, path `/vehicle`. One view, `Vehicles.vue`. Create, edit, 
 **Shell**
 
 - Heading: **Vehicles**
-- Admin primary action: **Add Vehicle** (`v-if` the signed-in role is `admin`)
+- System admin or area admin primary action: **Add Vehicle** (`v-if` `isAnyAdmin` from `frontend/src/config/roles.js`). A legacy `admin` passes `isSystemAdmin`, so that session sees the button. Do not keep the `Vehicles.vue` check that allows only `admin` and `system_admin`.
 - Maintenance users do not see **Add Vehicle**
 - Load failure: `<v-alert type="error">` with the API `message`
 - Action success and action failure: a snackbar. Failure snackbars show the API `message`
@@ -397,7 +404,7 @@ Route name `vehicles`, path `/vehicle`. One view, `Vehicles.vue`. Create, edit, 
 
 - One outlined card for the selected vehicle. If nothing is selected: **Select a vehicle to see its details, mileage, and service.**
 - Header: category icon, title `{year} {make} {model}`, chips for the category and the area assigned.
-- Admin header actions: pencil icon (`mdi-pencil`) opens **Edit Vehicle** (`aria-label`: **Edit vehicle**) and trash icon (`mdi-delete`) opens the delete confirmation (`aria-label`: **Delete vehicle**). Maintenance users do not see these.
+- System admin or area admin header actions: pencil icon (`mdi-pencil`) opens **Edit Vehicle** (`aria-label`: **Edit vehicle**) and trash icon (`mdi-delete`) opens the delete confirmation (`aria-label`: **Delete vehicle**). Show them when `isAnyAdmin`. Maintenance users do not see these.
 - Summary tiles:
   - **Current mileage**: the latest mileage reading as `{formatted mileage} mi`, with caption `as of {formatted date}`. No readings: **No readings yet**.
   - **Last service**: the latest service, with caption `on {formatted date}`. No services: **No services yet**.
@@ -407,7 +414,7 @@ Route name `vehicles`, path `/vehicle`. One view, `Vehicles.vue`. Create, edit, 
 
 **Inline log forms**
 
-Both forms sit in the detail panel, above their history tables. Admin and maintenance both see them.
+Both forms sit in the detail panel, above their history tables. A system admin, an area admin, and a maintenance user see them.
 
 - Mileage fields: **Mileage date** (date, defaults to today), **Current mileage**. Action: **Log mileage** (`aria-label`: **Log mileage**).
 - Service fields: **Service date** (date, defaults to today), **Service performed** (select: Repair, Oil change, Tire replacement). Action: **Log service** (`aria-label`: **Log service**).
@@ -423,7 +430,7 @@ Both forms sit in the detail panel, above their history tables. Admin and mainte
 - Fields stay the same and are grouped. **Vehicle**: **Category** and **Year**, **Make** and **Model**, **Color** and **Number of passengers**. **Registration**: **VIN** (full width), **License Plate Number** and **License Plate Expiration Month**. **Assignment**: **Area Assigned** and **Purchased Date**.
 - When **Category** is **Golf Cart**, the **Registration** group is replaced by the note **Golf carts don't need a VIN or license plate.** Those three fields are hidden and are not required. Choosing **Golf Cart** clears any values already entered in those fields. The saved golf cart sends those three fields as `null`.
 - **Category**, **License Plate Expiration Month**, and **Area Assigned** are selects. Month options are 1 through 12. Area options are Athletics, Support Central, and Maintenance. **License Plate Expiration Month** is shown only when the category is not **Golf Cart**.
-- **Make** and **Model** are combo boxes. **Make** suggests the standard makes for the selected category. **Model** suggests the standard models for the selected category and the current make when that make is on the standard list. A typed make or model that is not on the list is accepted. If the typed make is not on the list, **Model** has no suggestions and the admin types the model.
+- **Make** and **Model** are combo boxes. **Make** suggests the standard makes for the selected category. **Model** suggests the standard models for the selected category and the current make when that make is on the standard list. A typed make or model that is not on the list is accepted. If the typed make is not on the list, **Model** has no suggestions and the system admin or area admin types the model.
 - The other fields are inputs. **Purchased Date** is a date.
 - A blank required field shows **Required field** and does not call the API.
 - A **VIN** that does not match `^[A-HJ-NPR-Z0-9]{17}$` shows **VIN must be a valid 17-character VIN.** and does not call the API.
@@ -451,11 +458,12 @@ Both forms sit in the detail panel, above their history tables. Admin and mainte
 
 ### App chrome
 
-- Add **Vehicle** to the Feature 1 `MenuBar`. Allowed roles: `admin` and `maintenance`. Path: `/vehicle`.
+- Add **Vehicle** to the Feature 1 `MenuBar`. The `navItems` entry is `{ title: "Vehicle", to: { name: "vehicles" }, roles: ["admin", "system_admin", "area_admin", "maintenance"] }`. Path: `/vehicle`.
 - Do not add a second `MenuBar`.
+- `roleMatchesNav` shows **Vehicle** to a system admin, a legacy `admin`, an area admin, and a maintenance user. Omitting `area_admin` hides the item from an area admin.
 - A signed-out `MenuBar` still does not show **Vehicle**.
 - A `requestor` `MenuBar` does not show **Vehicle**.
-- Feature 1 tests that expect **Vehicle** to be hidden for `admin` and for `maintenance` are updated here so those roles see **Vehicle**. Tests that expect **Vehicle** to be hidden with no session, and hidden for `requestor`, stay as written.
+- Feature 1 tests that expect **Vehicle** to be hidden for a system admin, a legacy `admin`, an area admin, and a maintenance user are updated here so those roles see **Vehicle**. Tests that expect **Vehicle** to be hidden with no session, and hidden for `requestor`, stay as written.
 
 ---
 
@@ -463,7 +471,7 @@ Both forms sit in the detail panel, above their history tables. Admin and mainte
 
 ### Standard make and model list
 
-This list fills the **Make** and **Model** combo boxes. It is not the only data that can be stored. An admin can type any other make and any other model, and the API stores that text.
+This list fills the **Make** and **Model** combo boxes. It is not the only data that can be stored. A system admin or an area admin can type any other make and any other model, and the API stores that text.
 
 When the chosen make is on this list, **Model** suggests the models in that row. The same make may appear under more than one category. Ford under Truck suggests F-150 and Ranger. Ford under Car suggests Fusion. Ford under Van suggests Transit and E-Series. Those suggestions do not block a different model.
 
@@ -537,8 +545,8 @@ There is no `userId` column.
 
 ### US-2.1 — View Vehicle List Page
 
-#### Scenario: Signed-in admin navigates to the vehicle page
-- **Given** I am signed in as an admin
+#### Scenario: Signed-in system admin navigates to the vehicle page
+- **Given** I am signed in as a system admin
 - **When** I select **Vehicle** from the navigation menu
 - **Then** I am on `/vehicle`
 - **And** the heading **Vehicles** is displayed
@@ -551,6 +559,18 @@ There is no `userId` column.
 - **And** the heading **Vehicles** is displayed
 - **And** **Add Vehicle** is not displayed
 
+#### Scenario: Signed-in area admin navigates to the vehicle page
+- **Given** I am signed in as an area admin
+- **When** I select **Vehicle** from the navigation menu
+- **Then** I am on `/vehicle`
+- **And** the heading **Vehicles** is displayed
+- **And** **Add Vehicle** is displayed
+
+#### Scenario: Area admin sees Vehicle in the menu
+- **Given** I am signed in as an area admin
+- **When** I view the navigation menu
+- **Then** **Vehicle** is shown
+
 #### Scenario: Requestor does not see Vehicle in the menu
 - **Given** I am signed in as a requestor
 - **When** I view the navigation menu
@@ -560,8 +580,8 @@ There is no `userId` column.
 
 ### US-2.2 — Create Vehicle
 
-#### Scenario: Signed-in admin creates a new vehicle
-- **Given** I am signed in as an admin on the vehicle page
+#### Scenario: Signed-in system admin creates a new vehicle
+- **Given** I am signed in as a system admin on the vehicle page
 - **When** I click **Add Vehicle**
 - **Then** the **Add Vehicle** dialog opens
 - **When** I choose category `Truck`, make `Ford`, model `F-150`, year `2022`, VIN `1FTFW1E50NFA00001`, purchased date `2022-06-01`, color `White`, passengers `5`, license plate `OC1001`, expiration month `6`, and area `Athletics`
@@ -573,7 +593,7 @@ There is no `userId` column.
 - **And** I see a snackbar **`Ford F-150 added successfully!`**
 
 #### Scenario: Golf cart is stored without VIN or license plate
-- **Given** I am signed in as an admin
+- **Given** I am signed in as a system admin
 - **When** I send `POST /api/vehicle/vehicles` for a `Golf Cart`, including a `vin` and a license plate
 - **Then** the API returns `201`
 - **And** the saved vehicle has `vin`, `licensePlateNumber`, and `licensePlateExpirationMonth` set to `null`
@@ -583,30 +603,30 @@ There is no `userId` column.
 - **And** I can add the golf cart without those fields
 
 #### Scenario: Create without VIN is rejected
-- **Given** I am signed in as an admin
+- **Given** I am signed in as a system admin
 - **When** I send `POST /api/vehicle/vehicles` with a valid vehicle body whose `vin` is missing
 - **Then** the API returns `400` with `{ "message": "VIN cannot be empty." }`
 
 #### Scenario: Create with a duplicate VIN is rejected
-- **Given** I am signed in as an admin
+- **Given** I am signed in as a system admin
 - **And** a vehicle already exists with VIN `1FTFW1E50NFA00001`
 - **When** I send `POST /api/vehicle/vehicles` with the same `vin` and a different `licensePlateNumber`
 - **Then** the API returns `400` with `{ "message": "VIN already exists." }`
 
 #### Scenario: Create with a duplicate license plate is rejected
-- **Given** I am signed in as an admin
+- **Given** I am signed in as a system admin
 - **And** a vehicle already exists with license plate `OC1001`
 - **When** I send `POST /api/vehicle/vehicles` with the same `licensePlateNumber` and a different `vin`
 - **Then** the API returns `400` with `{ "message": "License Plate Number already exists." }`
 
 #### Scenario: Create with an invalid VIN is rejected
-- **Given** I am signed in as an admin
+- **Given** I am signed in as a system admin
 - **When** I send `POST /api/vehicle/vehicles` with a valid vehicle body whose `vin` is `1FTFW1E50NFA0000I`
 - **Then** the API returns `400` with `{ "message": "VIN must be a valid 17-character VIN." }`
 - **And** no vehicle is stored
 
 #### Scenario: Invalid VIN shows the format message
-- **Given** I am signed in as an admin
+- **Given** I am signed in as a system admin
 - **And** the **Add Vehicle** dialog is open with category `Truck`
 - **When** I enter VIN `1FTFW1E50NFA0000I`
 - **And** I click **Add Vehicle**
@@ -614,13 +634,13 @@ There is no `userId` column.
 - **And** `POST /api/vehicle/vehicles` is not called
 
 #### Scenario: Create with an invalid license plate is rejected
-- **Given** I am signed in as an admin
+- **Given** I am signed in as a system admin
 - **When** I send `POST /api/vehicle/vehicles` with a valid vehicle body whose `licensePlateNumber` is `OC-1001`
 - **Then** the API returns `400` with `{ "message": "License Plate Number must be 2 to 8 letters or digits." }`
 - **And** no vehicle is stored
 
 #### Scenario: Invalid license plate shows the format message
-- **Given** I am signed in as an admin
+- **Given** I am signed in as a system admin
 - **And** the **Add Vehicle** dialog is open with category `Truck`
 - **When** I enter license plate `OC-1001`
 - **And** I click **Add Vehicle**
@@ -628,20 +648,20 @@ There is no `userId` column.
 - **And** `POST /api/vehicle/vehicles` is not called
 
 #### Scenario: Create with a make and model that are not on the standard list
-- **Given** I am signed in as an admin
+- **Given** I am signed in as a system admin
 - **When** I send `POST /api/vehicle/vehicles` with a valid vehicle body whose `category` is `Car`, `make` is `Tesla`, and `model` is `Model 3`
 - **Then** the API returns `201`
 - **And** the saved vehicle has `make` `Tesla` and `model` `Model 3`
 
 #### Scenario: Supplied userId is ignored
-- **Given** I am signed in as an admin
+- **Given** I am signed in as a system admin
 - **When** I send `POST /api/vehicle/vehicles` with a valid vehicle body and `"userId": 99`
 - **Then** the API returns `201`
 - **And** the response has no `userId`
 - **And** the stored vehicle row has no `userId`
 
 #### Scenario: Empty required field shows Required field
-- **Given** I am signed in as an admin
+- **Given** I am signed in as a system admin
 - **And** the **Add Vehicle** dialog is open
 - **When** I leave **VIN** blank
 - **And** I click **Add Vehicle**
@@ -652,19 +672,27 @@ There is no `userId` column.
 
 ### US-2.3 — Read Vehicle Catalog
 
-#### Scenario: Signed-in admin views the vehicle catalog
-- **Given** I am signed in as an admin
+#### Scenario: Signed-in system admin views the vehicle catalog
+- **Given** I am signed in as a system admin
 - **And** a Chevrolet Malibu and a Ford F-150 exist
 - **When** I open the vehicle page
 - **Then** `GET /api/vehicle/vehicles` is called
 - **And** both vehicles are listed in the vehicle list
 
 #### Scenario: Vehicle list is sorted by make
-- **Given** I am signed in as an admin
+- **Given** I am signed in as a system admin
 - **And** a Ford F-150 and a Chevrolet Malibu exist
 - **When** I send `GET /api/vehicle/vehicles`
 - **Then** the API returns `200`
 - **And** the Chevrolet Malibu comes before the Ford F-150
+
+#### Scenario: Area admin sees every vehicle
+- **Given** I am signed in as an area admin assigned to `Athletics`
+- **And** a vehicle assigned to `Athletics` exists
+- **And** a vehicle assigned to `Support Central` exists
+- **When** I send `GET /api/vehicle/vehicles`
+- **Then** the API returns `200`
+- **And** both vehicles are returned
 
 #### Scenario: Maintenance views logs for a vehicle
 - **Given** I am signed in as a maintenance user
@@ -679,8 +707,15 @@ There is no `userId` column.
 
 ### US-2.4 — Row Action Icons
 
-#### Scenario: Row action buttons visible for admin
-- **Given** I am signed in as an admin on the vehicle page
+#### Scenario: Row action buttons visible for a system admin
+- **Given** I am signed in as a system admin on the vehicle page
+- **And** at least one vehicle is listed
+- **When** I view the selected vehicle's detail panel
+- **Then** I see **Edit vehicle** and **Delete vehicle**
+- **And** I see **Log mileage** and **Log service**
+
+#### Scenario: Area admin row shows edit and delete
+- **Given** I am signed in as an area admin on the vehicle page
 - **And** at least one vehicle is listed
 - **When** I view the selected vehicle's detail panel
 - **Then** I see **Edit vehicle** and **Delete vehicle**
@@ -697,8 +732,8 @@ There is no `userId` column.
 
 ### US-2.5 — Edit Vehicle
 
-#### Scenario: Signed-in admin updates vehicle details
-- **Given** I am signed in as an admin on the vehicle page
+#### Scenario: Signed-in system admin updates vehicle details
+- **Given** I am signed in as a system admin on the vehicle page
 - **And** a Ford F-150 exists with color `White`
 - **When** I click **Edit vehicle** in that vehicle's detail panel
 - **Then** the **Edit Vehicle** dialog opens
@@ -709,7 +744,7 @@ There is no `userId` column.
 - **And** I see a snackbar **`Ford F-150 updated successfully!`**
 
 #### Scenario: Update of an unknown vehicle is rejected
-- **Given** I am signed in as an admin
+- **Given** I am signed in as a system admin
 - **When** I send `PUT /api/vehicle/vehicles/9999` with a valid vehicle body
 - **Then** the API returns `404` with `{ "message": "Vehicle with id=9999 not found." }`
 
@@ -717,8 +752,8 @@ There is no `userId` column.
 
 ### US-2.6 — Delete Vehicle
 
-#### Scenario: Signed-in admin deletes a vehicle with confirmation
-- **Given** I am signed in as an admin on the vehicle page
+#### Scenario: Signed-in system admin deletes a vehicle with confirmation
+- **Given** I am signed in as a system admin on the vehicle page
 - **And** a Ford F-150 exists and has a mileage log and a service log
 - **When** I click **Delete vehicle** in that vehicle's detail panel
 - **Then** a dialog titled **Delete this vehicle?** is displayed
@@ -729,7 +764,7 @@ There is no `userId` column.
 - **And** I see a snackbar **`Vehicle deleted successfully!`**
 
 #### Scenario: Cancelled delete leaves the vehicle
-- **Given** I am signed in as an admin on the vehicle page
+- **Given** I am signed in as a system admin on the vehicle page
 - **And** a Ford F-150 exists
 - **When** I click **Delete vehicle** in that vehicle's detail panel
 - **And** I click **Cancel**
@@ -749,6 +784,23 @@ There is no `userId` column.
 - **When** I send `GET /api/vehicle/vehicles`, `POST /api/vehicle/vehicles`, `PUT /api/vehicle/vehicles/1`, `DELETE /api/vehicle/vehicles/1`, `POST /api/vehicle/vehicles/1/mileage-logs`, or `POST /api/vehicle/vehicles/1/service-logs`
 - **Then** each response is `403` with `{ "message": "Admin role required." }`
 - **And** the catalog is unchanged
+
+#### Scenario: Area admin can change a vehicle outside their area
+- **Given** I am signed in as an area admin assigned to `Athletics`
+- **And** a vehicle assigned to `Support Central` exists
+- **When** I navigate directly to `/vehicle`
+- **Then** I stay on `/vehicle`
+- **When** I send `GET /api/vehicle/vehicles`
+- **Then** the API returns `200`
+- **And** that Support Central vehicle is in the list
+- **When** I send `POST /api/vehicle/vehicles` with a valid vehicle body whose `areaAssigned` is `Maintenance`
+- **Then** the API returns `201`
+- **When** I send `PUT /api/vehicle/vehicles/:vehicleId` for the Support Central vehicle with a valid vehicle body
+- **Then** the API returns `200` with `{ "message": "Vehicle was updated successfully." }`
+- **When** I send `POST /api/vehicle/vehicles/:vehicleId/mileage-logs` for that Support Central vehicle with `entryDate` set to the current calendar date and `currentMileage` `15000`
+- **Then** the API returns `201`
+- **When** I send `DELETE /api/vehicle/vehicles/:vehicleId` for that Support Central vehicle
+- **Then** the API returns `200` with `{ "message": "Vehicle was deleted successfully!" }`
 
 #### Scenario: Maintenance cannot create, update, or delete a vehicle
 - **Given** I am signed in as a maintenance user
@@ -859,14 +911,16 @@ There is no `userId` column.
 
 ## Test Coverage Map
 
-Each Gherkin scenario above maps to at least one automated test. An admin creates, updates, and deletes vehicles. An admin or a maintenance user can read the catalog and append logs. A requestor receives `403` on every vehicle endpoint. A maintenance user receives `403` on vehicle create, update, and delete.
+Each Gherkin scenario above maps to at least one automated test. A system admin or an area admin creates, updates, and deletes vehicles. Those roles and a maintenance user can read the whole catalog and append logs. A requestor receives `403` on every vehicle endpoint. A maintenance user receives `403` on vehicle create, update, and delete. The list is not filtered by the area admin's area.
 
 | Story | Scenario | Test file | Test name |
 | ----- | -------- | --------- | --------- |
-| US-2.1 | Signed-in admin navigates to the vehicle page | `frontend/tests/VehicleList.test.js` | `Signed-in admin navigates to the vehicle page` |
+| US-2.1 | Signed-in system admin navigates to the vehicle page | `frontend/tests/VehicleList.test.js` | `Signed-in system admin navigates to the vehicle page` |
 | US-2.1 | Signed-in maintenance user navigates to the vehicle page | `frontend/tests/VehicleList.test.js` | `Signed-in maintenance user navigates to the vehicle page` |
+| US-2.1 | Signed-in area admin navigates to the vehicle page | `frontend/tests/VehicleList.test.js` | `Signed-in area admin navigates to the vehicle page` |
+| US-2.1 | Area admin sees Vehicle in the menu | `frontend/tests/MenuBar.test.js` | `Area admin sees Vehicle in the menu` |
 | US-2.1 | Requestor does not see Vehicle in the menu | `frontend/tests/MenuBar.test.js` | `Requestor does not see Vehicle in the menu` |
-| US-2.2 | Signed-in admin creates a new vehicle | `backend/tests/vehicles.test.js`, `frontend/tests/VehicleList.test.js` | `Signed-in admin creates a new vehicle` |
+| US-2.2 | Signed-in system admin creates a new vehicle | `backend/tests/vehicles.test.js`, `frontend/tests/VehicleList.test.js` | `Signed-in system admin creates a new vehicle` |
 | US-2.2 | Golf cart is stored without VIN or license plate | `backend/tests/vehicles.test.js`, `frontend/tests/VehicleList.test.js` | `Golf cart is stored without VIN or license plate`, `Golf cart form omits VIN and license plate` |
 | US-2.2 | Create without VIN is rejected | `backend/tests/vehicles.test.js` | `Create without VIN is rejected` |
 | US-2.2 | Create with a duplicate VIN is rejected | `backend/tests/vehicles.test.js` | `Create with a duplicate VIN is rejected` |
@@ -878,16 +932,19 @@ Each Gherkin scenario above maps to at least one automated test. An admin create
 | US-2.2 | Create with a make and model that are not on the standard list | `backend/tests/vehicles.test.js` | `Create with a make and model that are not on the standard list` |
 | US-2.2 | Supplied userId is ignored | `backend/tests/vehicles.test.js` | `Supplied userId is ignored` |
 | US-2.2 | Empty required field shows Required field | `frontend/tests/VehicleList.test.js` | `Empty required field shows Required field` |
-| US-2.3 | Signed-in admin views the vehicle catalog | `backend/tests/vehicles.test.js`, `frontend/tests/VehicleList.test.js` | `Signed-in admin views the vehicle catalog` |
+| US-2.3 | Signed-in system admin views the vehicle catalog | `backend/tests/vehicles.test.js`, `frontend/tests/VehicleList.test.js` | `Signed-in system admin views the vehicle catalog` |
 | US-2.3 | Vehicle list is sorted by make | `backend/tests/vehicles.test.js` | `Vehicle list is sorted by make` |
+| US-2.3 | Area admin sees every vehicle | `backend/tests/vehicles.test.js` | `Area admin sees every vehicle` |
 | US-2.3 | Maintenance views logs for a vehicle | `backend/tests/vehicles.test.js`, `frontend/tests/VehicleList.test.js` | `Maintenance views logs for a vehicle` |
-| US-2.4 | Row action buttons visible for admin | `frontend/tests/VehicleList.test.js` | `Row action buttons visible for admin` |
+| US-2.4 | Row action buttons visible for a system admin | `frontend/tests/VehicleList.test.js` | `Row action buttons visible for a system admin` |
+| US-2.4 | Area admin row shows edit and delete | `frontend/tests/VehicleList.test.js` | `Area admin row shows edit and delete` |
 | US-2.4 | Maintenance row shows log actions only | `frontend/tests/VehicleList.test.js` | `Maintenance row shows log actions only` |
-| US-2.5 | Signed-in admin updates vehicle details | `backend/tests/vehicles.test.js`, `frontend/tests/VehicleList.test.js` | `Signed-in admin updates vehicle details` |
+| US-2.5 | Signed-in system admin updates vehicle details | `backend/tests/vehicles.test.js`, `frontend/tests/VehicleList.test.js` | `Signed-in system admin updates vehicle details` |
 | US-2.5 | Update of an unknown vehicle is rejected | `backend/tests/vehicles.test.js` | `Update of an unknown vehicle is rejected` |
-| US-2.6 | Signed-in admin deletes a vehicle with confirmation | `backend/tests/vehicles.test.js`, `frontend/tests/VehicleList.test.js` | `Signed-in admin deletes a vehicle with confirmation` |
+| US-2.6 | Signed-in system admin deletes a vehicle with confirmation | `backend/tests/vehicles.test.js`, `frontend/tests/VehicleList.test.js` | `Signed-in system admin deletes a vehicle with confirmation` |
 | US-2.6 | Cancelled delete leaves the vehicle | `frontend/tests/VehicleList.test.js` | `Cancelled delete leaves the vehicle` |
 | US-2.7 | Requestor vehicle access is restricted | `backend/tests/vehicles.test.js`, `frontend/tests/VehicleList.test.js`, `frontend/tests/MenuBar.test.js` | `Requestor vehicle access is restricted` |
+| US-2.7 | Area admin can change a vehicle outside their area | `backend/tests/vehicles.test.js`, `frontend/tests/router.test.js` | `Area admin can change a vehicle outside their area` |
 | US-2.7 | Maintenance cannot create, update, or delete a vehicle | `backend/tests/vehicles.test.js` | `Maintenance cannot create, update, or delete a vehicle` |
 | US-2.7 | Unauthenticated visit to the vehicle page redirects to login | `backend/tests/vehicles.test.js`, `frontend/tests/router.test.js` | `Unauthenticated visit to the vehicle page redirects to login` |
 | US-2.8 | Maintenance logs mileage on a vehicle | `backend/tests/vehicles.test.js`, `frontend/tests/VehicleList.test.js` | `Maintenance logs mileage on a vehicle` |
@@ -955,4 +1012,4 @@ Do not implement behavior not in this spec.
 - `category` is exactly one of `Golf Cart`, `Truck`, `Car`, or `Van`. Feature 3 uses those four values for what a driver is approved to drive.
 - `areaAssigned` is `Athletics`, `Support Central`, or `Maintenance`. Feature 5 may replace that string with an area id. Until then, the vehicle stores the name.
 - Mileage logs and service logs belong to a vehicle and are removed when the vehicle is deleted. Feature 6 can reference `vehicleId` when a reservation is assigned a vehicle.
-- **Vehicle** in the existing `MenuBar` routes `admin` and `maintenance` users to `/vehicle`. This feature does not add a second `MenuBar`.
+- **Vehicle** in the existing `MenuBar` routes a system admin, a legacy `admin`, an area admin, and a maintenance user to `/vehicle`. The `navItems` entry uses roles `admin`, `system_admin`, `area_admin`, and `maintenance`. This feature does not add a second `MenuBar`.
