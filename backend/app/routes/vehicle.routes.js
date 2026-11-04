@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { authenticate, requireAdmin, requireFleetAccess } from "../authorization/authorization.js";
+import { authenticate, requireAnyAdmin, requireFleetAccess } from "../authorization/authorization.js";
 import {
   createMileageLog,
   createServiceLog,
@@ -19,11 +19,11 @@ import {
 
 const router = Router();
 
-router.post("/vehicles", authenticate, requireAdmin, createVehicle);
+router.post("/vehicles", authenticate, requireAnyAdmin, createVehicle);
 router.get("/vehicles", authenticate, requireFleetAccess, listVehicles);
 router.get("/vehicles/:vehicleId", authenticate, requireFleetAccess, getVehicle);
-router.put("/vehicles/:vehicleId", authenticate, requireAdmin, updateVehicle);
-router.delete("/vehicles/:vehicleId", authenticate, requireAdmin, deleteVehicle);
+router.put("/vehicles/:vehicleId", authenticate, requireAnyAdmin, updateVehicle);
+router.delete("/vehicles/:vehicleId", authenticate, requireAnyAdmin, deleteVehicle);
 router.post("/destinations", authenticate, createDestination);
 router.get("/destinations", authenticate, listDestinations);
 router.put("/destinations/:destinationId", authenticate, updateDestination);

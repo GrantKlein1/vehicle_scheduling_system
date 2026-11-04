@@ -179,7 +179,7 @@ Feature 1 establishes identity. Later features decide which data a signed-in use
 - `MenuBar` is visible on `login` and `home`.
 - No session: `MenuBar` shows with no catalog items and no **Sign out**.
 - Session exists on `home`: `MenuBar` shows the signed-in user's name, a role label (**System Admin**, **Area Admin · {area}**, **Maintenance**, or **Requestor**), **Sign out**, and only nav items allowed for that role. A nav item that lists `admin` or `system_admin` is shown to system admins, including a legacy `admin` session. An `area_admin` does not see those items.
-- Feature 1 catalog items: none. Later features add one item each: **Vehicle** (Feature 2, `system_admin` and `maintenance`), **Driver** (Feature 3, `system_admin`), **Destination** (Feature 4, `system_admin`), **Area** (Feature 5, `system_admin`), **Reservation** (Feature 6, `requestor` and `system_admin`). Feature 8 adds the admin schedule for `system_admin`. Feature 7 sends email and adds no nav item. Those full-access items are not shown to `area_admin`.
+- Feature 1 catalog items: none. Later features add one item each: **Vehicle** (Feature 2, `system_admin`, `area_admin`, and `maintenance`), **Driver** (Feature 3, `system_admin`), **Destination** (Feature 4, `system_admin`), **Area** (Feature 5, `system_admin`), **Reservation** (Feature 6, `requestor` and `system_admin`). Feature 8 adds the admin schedule for `system_admin`. Feature 7 sends email and adds no nav item. **Vehicle** is shown to an `area_admin` because its allowed roles include `area_admin`. A nav item whose allowed roles are only `admin` or `system_admin` stays hidden from an `area_admin`.
 
 ---
 
@@ -500,7 +500,7 @@ Do not implement behavior not in this spec.
 ## Delivered to Feature 2
 
 - `MenuBar` exists in `App.vue`, visible on `login` and `home`, with **Sign out** when a session exists and items filtered by `user.role`.
-- Feature 2 adds **Vehicle** (allowed roles `system_admin` and `maintenance`) to this `MenuBar`; it MUST NOT create a second `MenuBar`. A legacy allowed-role value `admin` matches `system_admin` only.
+- Feature 2 adds **Vehicle** (allowed roles `admin`, `system_admin`, `area_admin`, and `maintenance`) to this `MenuBar`; it MUST NOT create a second `MenuBar`. A legacy allowed-role value `admin` matches `system_admin` only. `area_admin` is listed so an area admin sees **Vehicle**.
 - Feature 3 adds **Driver** (allowed role `system_admin`) to this `MenuBar`.
 - Feature 4 adds **Destination** (allowed role `system_admin`) to this `MenuBar`.
 - Feature 5 adds **Area** (allowed role `system_admin`) to this `MenuBar`. `area_admin` is not a full-catalog administrator.

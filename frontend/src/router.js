@@ -50,7 +50,7 @@ router.beforeEach((to) => {
     if (!signedIn) {
       return { name: "login" };
     }
-    if (user.role !== "admin" && user.role !== "system_admin" && user.role !== "maintenance") {
+    if (!isAnyAdmin(user) && user.role !== ROLES.MAINTENANCE) {
       return { name: "home" };
     }
   }

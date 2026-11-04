@@ -2,6 +2,7 @@
 import { computed, nextTick, onMounted, ref, watch } from "vue";
 import { useDisplay } from "vuetify";
 import VehicleListPanel from "../components/vehicles/VehicleListPanel.vue";
+import { isAnyAdmin } from "../config/roles.js";
 import { currentUser } from "../config/session.js";
 import {
   AREA_OPTIONS,
@@ -33,9 +34,7 @@ import {
 } from "../services/vehicleServices.js";
 
 const display = useDisplay();
-const isAdmin = computed(
-  () => currentUser.value?.role === "admin" || currentUser.value?.role === "system_admin"
-);
+const isAdmin = computed(() => isAnyAdmin(currentUser.value));
 
 const vehicles = ref([]);
 const loadError = ref("");

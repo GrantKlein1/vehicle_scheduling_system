@@ -62,6 +62,21 @@ describe("Feature 2 — Vehicle Management", () => {
 
       expect(router.currentRoute.value.name).toBe("login");
     });
+
+    it("Area admin can change a vehicle outside their area", async () => {
+      setCurrentUser({
+        ...signedInUser,
+        role: "area_admin",
+        areaId: 5,
+        areaName: "Athletics",
+      });
+
+      await router.push("/vehicle");
+      await router.isReady();
+
+      expect(router.currentRoute.value.name).toBe("vehicles");
+      expect(router.currentRoute.value.path).toBe("/vehicle");
+    });
   });
 });
 
