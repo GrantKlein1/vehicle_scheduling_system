@@ -4,28 +4,28 @@
 **Branch pattern:** `feature/6-reservation-management`
 **Status:** Ready
 **Created:** 2026-10-29
-**Input:** Requestors submit vehicle reservations that verify vehicle availability and driver category approval. Administrators approve or deny pending requests, and requestors or administrators can cancel active reservations.
+**Input:** Requestors submit vehicle reservations that verify vehicle availability and driver category approval. System administrators or area administrators approve or deny pending requests, and requestors or administrators can cancel active reservations.
 **Depends on:** [Feature 1 — User Authentication & Session Management](feature-1-user-auth.md), [Feature 2 — Vehicle Management](feature-2-vehicle-management.md)
-**Related:** [features/feature-7-email-management.md](feature-7-email-management.md), [features/feature-8-admin-page.md](feature-8-admin-page.md), [features/reference/behavior.md](reference/behavior.md)
+**Related:** [docs/adr/0001-system-and-area-admins.md](../docs/adr/0001-system-and-area-admins.md), [features/feature-5-area-management.md](feature-5-area-management.md), [features/feature-7-email-management.md](feature-7-email-management.md), [features/feature-8-admin-page.md](feature-8-admin-page.md), [features/reference/behavior.md](reference/behavior.md)
 
-This feature implements vehicle reservation booking, conflict checking, driver qualification validation, administrative approval/denial workflows, cancellation handling, and reservation text summary generation. It adds the **Reservation** item to `MenuBar` for requestors and administrators.
+This feature implements vehicle reservation booking, conflict checking, driver qualification validation, administrative approval/denial workflows, cancellation handling, and reservation text summary generation. It recognizes both `system_admin` (global fleet oversight) and `area_admin` (department-level oversight for assigned area vehicles/reservations). It adds the **Reservation** item to `MenuBar` for requestors, area administrators, and system administrators.
 
 ---
 
 ## User Stories
 
 ### US-6.1: View Reservations List
-**As a** signed-in requestor or administrator  
+**As a** signed-in requestor, area admin, or system admin  
 **I want to** select **Reservation** from the navigation menu  
 **So that** I can open the reservations screen and view requests and their current statuses  
 
 **Priority:** P1  
-**Independent test:** Click **Reservation** in `MenuBar` as a requestor to see personal reservations, or as an admin to see all reservations across the campus fleet  
+**Independent test:** Click **Reservation** in `MenuBar` as a requestor to see personal reservations, as an area admin to see reservations for their assigned area, or as a system admin to see all reservations across the campus fleet  
 **Acceptance scenarios:** see ### US-6.1 under Acceptance Criteria  
 
 ### US-6.2: Submit Reservation Request
 **As a** signed-in requestor  
-**I want to** submit a request for a vehicle reservation specifying destination, start and end dates/times, and driver  
+**I want to** submit a request for a vehicle reservation specifying destination, start and end dates/times, vehicle, and driver  
 **So that** the system checks vehicle availability and driver approval, then creates a pending reservation  
 
 **Priority:** P1  
@@ -33,25 +33,25 @@ This feature implements vehicle reservation booking, conflict checking, driver q
 **Acceptance scenarios:** see ### US-6.2 under Acceptance Criteria  
 
 ### US-6.3: View Reservation Details
-**As a** signed-in requestor or administrator  
+**As a** signed-in requestor, area admin, or system admin  
 **I want to** view full details of a reservation  
 **So that** I can review vehicle assignment, schedule, driver details, destination, and status history  
 
 **Priority:** P1  
-**Independent test:** Open a reservation record to inspect its vehicle, times, driver, purpose, passengers, and current status; verify non-owners cannot view it  
+**Independent test:** Open a reservation record to inspect its vehicle, times, driver, purpose, passengers, and current status; verify non-owners and unauthorized area admins cannot view it  
 **Acceptance scenarios:** see ### US-6.3 under Acceptance Criteria  
 
 ### US-6.4: Approve Reservation
-**As a** signed-in administrator  
-**I want to** approve a pending reservation  
+**As a** signed-in system admin or area admin  
+**I want to** approve a pending reservation for my scope  
 **So that** the vehicle request is confirmed for the trip  
 
 **Priority:** P1  
-**Independent test:** Approve a `pending` reservation as an admin; verify status transitions to `approved` with HTTP `200`  
+**Independent test:** Approve a `pending` reservation as a system admin or authorized area admin; verify status transitions to `approved` with HTTP `200`  
 **Acceptance scenarios:** see ### US-6.4 under Acceptance Criteria  
 
 ### US-6.5: Deny Reservation
-**As a** signed-in administrator  
+**As a** signed-in system admin or area admin  
 **I want to** deny a pending reservation and provide a reason  
 **So that** the requestor knows the vehicle request was rejected and why  
 
@@ -60,7 +60,7 @@ This feature implements vehicle reservation booking, conflict checking, driver q
 **Acceptance scenarios:** see ### US-6.5 under Acceptance Criteria  
 
 ### US-6.6: Cancel Reservation
-**As a** signed-in requestor or administrator  
+**As a** signed-in requestor, area admin, or system admin  
 **I want to** cancel an existing reservation that has not already been denied or cancelled  
 **So that** the reserved vehicle is released for other users  
 
@@ -79,8 +79,8 @@ This feature implements vehicle reservation booking, conflict checking, driver q
 
 ### US-6.8: Role-Based Access Control & Ownership Isolation
 **As the** application  
-**I want to** restrict reservation approvals and denials to administrators, and prevent cross-requestor data leaks  
-**So that** requestors can only view and cancel their own requests, and maintenance staff cannot access reservation management  
+**I want to** restrict approvals and denials to system administrators and authorized area administrators, and prevent cross-requestor data leaks  
+**So that** requestors can only view and cancel their own requests, area admins cannot manage other areas' reservations, and maintenance staff cannot access reservation management  
 
 **Priority:** P1  
 **Independent test:** Attempt to approve/deny as a requestor (returns HTTP `403`); attempt to fetch another user's reservation as a requestor or maintenance user (returns HTTP `404`)  
@@ -93,31 +93,43 @@ This feature implements vehicle reservation booking, conflict checking, driver q
 ### Functional Requirements
 
 - **FR-001:** Every reservation endpoint MUST require authentication (`authenticate` middleware).
-- **FR-002:** An authenticated `requestor` or `admin` MUST be able to list reservations at `GET /vehicleScheduling/reservations`. A `requestor` MUST receive only their own reservations (`requestorId === req.user.id`). An `admin` MUST receive all reservations. A `maintenance` user MUST receive HTTP `403` with `{ "message": "Admin role required." }` or `404` when fetching individual records.
-- **FR-003:** `POST /vehicleScheduling/reservations` MUST allow an authenticated `requestor` or `admin` to create a reservation. The created reservation status MUST be `pending`. `requestorId` MUST be set from `req.user.id`. The endpoint MUST return HTTP `201`.
+- **FR-002:** Scoped list access:
+  - An authenticated `requestor` listing reservations at `GET /vehicleScheduling/reservations` MUST receive only their own reservations (`requestorId === req.user.id`).
+  - An authenticated `system_admin` MUST receive all reservations across the entire fleet.
+  - An authenticated `area_admin` MUST receive reservations belonging to their assigned area (`areaId` or `areaName`).
+  - A `maintenance` user MUST receive HTTP `403` with `{ "message": "Admin role required." }` or `404` when fetching individual records.
+- **FR-003:** `POST /vehicleScheduling/reservations` MUST allow an authenticated `requestor`, `area_admin`, or `system_admin` to create a reservation. The created reservation status MUST be `pending`. `requestorId` MUST be set from `req.user.id`. The endpoint MUST return HTTP `201`.
 - **FR-004:** Required fields for creating a reservation are `vehicleId`, `destinationName`, `start`, and `end`. `start` and `end` MUST be valid wall-clock datetimes formatted as `YYYY-MM-DD HH:mm` (or ISO 8601 strings). `end` MUST be chronologically after `start`. If `end <= start`, the API MUST return HTTP `400` with `{ "message": "End time must be after start time." }`. A `start` time prior to the current wall-clock datetime MUST return HTTP `400` with `{ "message": "Reservation start time cannot be in the past." }`.
 - **FR-005:** **Vehicle availability conflict check:** Before creating a reservation, the system MUST verify that the requested vehicle (`vehicleId`) is not already reserved during the requested time window (`start` to `end`) on any reservation with status `pending` or `approved`. If an overlapping active reservation exists for that vehicle, the API MUST reject the request with HTTP `400` and `{ "message": "The requested vehicle is not available for the selected dates." }`.
 - **FR-006:** **Driver authorization check:** When a driver is specified on a reservation, the driver MUST be approved to drive the category of the requested vehicle (`vehicles.category`: `Golf Cart`, `Truck`, `Car`, or `Van`). If the selected driver is not approved for that vehicle type, the API MUST reject the request with HTTP `400` and `{ "message": "Driver is not approved to drive this vehicle type." }`.
 - **FR-007:** Reservation creation MUST snapshot `vehicleName` (e.g. `{year} {make} {model}`) from the referenced vehicle onto the reservation row. Optional fields supported on create: `areaName`, `purpose`, `driverName`, `driverEmail`, `passengers`, and requestor `notes`.
-- **FR-008:** `POST /vehicleScheduling/reservations/:id/approve` MUST be restricted to `admin` (`req.user.role === "admin"`). It MUST succeed only when the reservation status is currently `pending`, setting status to `approved` and returning HTTP `200`. Calling approve on a reservation whose status is not `pending` MUST return HTTP `400` with `{ "message": "This reservation cannot be approved." }`.
-- **FR-009:** `POST /vehicleScheduling/reservations/:id/deny` MUST be restricted to `admin` (`req.user.role === "admin"`). The request body MUST include a non-blank `reason` string (`{ "reason": "..." }`). A missing or whitespace-only reason MUST return HTTP `400` with `{ "message": "A denial reason is required." }`. It MUST succeed only when status is currently `pending`, setting status to `denied`, recording `denialReason`, and returning HTTP `200`. Calling deny on a reservation whose status is not `pending` MUST return HTTP `400` with `{ "message": "This reservation cannot be denied." }`.
-- **FR-010:** `POST /vehicleScheduling/reservations/:id/cancel` MUST be callable by the owning requestor (`reservation.requestorId === req.user.id`) or any `admin`. It MUST succeed only when the reservation status is `pending` or `approved`, setting status to `cancelled` and returning HTTP `200`. Calling cancel on a reservation whose status is `denied` or `cancelled` MUST return HTTP `400` with `{ "message": "This reservation cannot be cancelled." }`.
+- **FR-008:** `POST /vehicleScheduling/reservations/:id/approve`:
+  - Allowed for `system_admin` (all reservations) and `area_admin` (reservations matching their assigned area).
+  - Calling approve as a `requestor` or `maintenance` user MUST return HTTP `403` with `{ "message": "Admin role required." }`.
+  - Calling approve as an `area_admin` for a reservation in a different area MUST return HTTP `403` with `{ "message": "Area admin access restricted." }` (or `404`).
+  - It MUST succeed only when the reservation status is currently `pending`, setting status to `approved` and returning HTTP `200`. Calling approve on a reservation whose status is not `pending` MUST return HTTP `400` with `{ "message": "This reservation cannot be approved." }`.
+- **FR-009:** `POST /vehicleScheduling/reservations/:id/deny`:
+  - Allowed for `system_admin` and authorized `area_admin`.
+  - The request body MUST include a non-blank `reason` string (`{ "reason": "..." }`). A missing or whitespace-only reason MUST return HTTP `400` with `{ "message": "A denial reason is required." }`.
+  - Calling deny on a reservation whose status is not `pending` MUST return HTTP `400` with `{ "message": "This reservation cannot be denied." }`.
+- **FR-010:** `POST /vehicleScheduling/reservations/:id/cancel`:
+  - Callable by the owning requestor (`reservation.requestorId === req.user.id`), any `system_admin`, or an `area_admin` assigned to the reservation's area.
+  - It MUST succeed only when the reservation status is `pending` or `approved`, setting status to `cancelled` and returning HTTP `200`. Calling cancel on a reservation whose status is `denied` or `cancelled` MUST return HTTP `400` with `{ "message": "This reservation cannot be cancelled." }`.
 - **FR-011:** **Reservation summary file generation:** Upon successful creation of a reservation (`201`), the system MUST write a text file containing the formatted reservation details to server storage (e.g. `storage/reservations/reservation-<id>.txt`), recording requestor name, destination, vehicle name, start, end, driver, and area.
-- **FR-012:** `GET /vehicleScheduling/reservations/:id` MUST return the reservation object with HTTP `200` if the caller is an `admin` or the owning `requestor`. Any other authenticated caller, or an unknown reservation id, MUST return HTTP `404` with `{ "message": "Reservation not found." }`.
+- **FR-012:** `GET /vehicleScheduling/reservations/:id` MUST return the reservation object with HTTP `200` if the caller is a `system_admin`, an authorized `area_admin`, or the owning `requestor`. Any other authenticated caller, or an unknown reservation id, MUST return HTTP `404` with `{ "message": "Reservation not found." }`.
 - **FR-013:** Unauthenticated requests to any reservation endpoint MUST return HTTP `401` using standard Feature 1 messages (`"Unauthorized! No token provided."` or `"Unauthorized! Invalid or expired token."`).
-- **FR-014:** Navigation: This feature MUST add **Reservation** to `MenuBar` for `requestor` and `admin` roles only. **Reservation** MUST NOT be visible to `maintenance` or unauthenticated visitors.
+- **FR-014:** Navigation: This feature MUST add **Reservation** to `MenuBar` for `requestor`, `area_admin`, and `system_admin` roles only. **Reservation** MUST NOT be visible to `maintenance` or unauthenticated visitors.
 
 ---
 
 ## Assumptions
 
-- Feature 1 authentication, session tokens, and roles (`requestor`, `admin`, `maintenance`) are in place.
-- Feature 2 vehicles exist and provide `id`, `category`, `make`, `model`, `year`, and `areaAssigned`.
-- Feature 3 driver approval lists record approved vehicle categories for drivers (or driver approval records).
+- Feature 1 authentication, session tokens, and roles (`requestor`, `system_admin`, `area_admin`, `maintenance`) are in place per ADR-0001.
+- Feature 2 vehicles provide `id`, `category`, `make`, `model`, `year`, and `areaAssigned`.
+- Feature 3 driver approvals record approved vehicle categories for drivers.
 - Feature 4 destinations provide destination names.
-- Feature 5 areas provide area names.
+- Feature 5 areas provide area names and area admin assignments (`users.areaId`).
 - Feature 7 hooks into submit (`201`), approve (`200`), deny (`200`), and cancel (`200`) to dispatch email notices without changing Feature 6's primary response contracts.
-- There is no direct edit route for an already submitted reservation; changes are handled by cancelling and re-submitting.
 
 ---
 
@@ -129,6 +141,7 @@ This feature implements vehicle reservation booking, conflict checking, driver q
 - Driver not authorized for vehicle category: HTTP `400` `{ "message": "Driver is not approved to drive this vehicle type." }`.
 - Blank or missing destination: HTTP `400` `{ "message": "Destination cannot be empty." }`.
 - Non-admin calling approve or deny: HTTP `403` `{ "message": "Admin role required." }`.
+- Area admin attempting to approve/deny a reservation for a different area: HTTP `403` or `404`.
 - Approving a reservation that is already approved, denied, or cancelled: HTTP `400` `{ "message": "This reservation cannot be approved." }`.
 - Denying a reservation that is already approved, denied, or cancelled: HTTP `400` `{ "message": "This reservation cannot be denied." }`.
 - Denying without a reason: HTTP `400` `{ "message": "A denial reason is required." }`.
@@ -142,7 +155,7 @@ This feature implements vehicle reservation booking, conflict checking, driver q
 
 - **SC-001:** Every Gherkin scenario in this feature maps to at least one automated test in the Test Coverage Map.
 - **SC-002:** Requestors can create pending reservations, view their own reservations, and cancel their pending or approved reservations.
-- **SC-003:** Admins can view all reservations, approve pending reservations, deny pending reservations with a reason, and cancel any active reservation.
+- **SC-003:** System admins and authorized area admins can view scoped reservations, approve pending reservations, deny pending reservations with a reason, and cancel active reservations.
 - **SC-004:** Conflicting vehicle bookings and unapproved driver assignments are prevented with HTTP `400`.
 - **SC-005:** A text summary file is generated upon reservation creation.
 - **SC-006:** `npm test` passes.
@@ -151,16 +164,16 @@ This feature implements vehicle reservation booking, conflict checking, driver q
 
 ## Data Ownership & Isolation
 
-Reservations belong to the requestor who created them (`requestorId`).
+Reservations belong to the requestor who created them (`requestorId`) and to the department/area assigned (`areaName`).
 
 | Rule | Requirement |
 |------|-------------|
-| **Read scope** | `requestor` sees only reservations where `requestorId === req.user.id`. `admin` sees all reservations |
-| **Create scope** | Authenticated `requestor` or `admin`. `requestorId` is always set to `req.user.id` |
-| **Update scope** | Status transitions only: `approve` and `deny` are admin-only; `cancel` is owning requestor or admin |
-| **Cross-user access** | Accessing another requestor's reservation returns `404` `{ "message": "Reservation not found." }` (never `403`) |
+| **Read scope** | `requestor` sees only reservations where `requestorId === req.user.id`. `area_admin` sees reservations matching their assigned area. `system_admin` sees all reservations |
+| **Create scope** | Authenticated `requestor`, `area_admin`, or `system_admin`. `requestorId` is always set to `req.user.id` |
+| **Update scope** | Status transitions only: `approve` and `deny` are `system_admin` or authorized `area_admin`; `cancel` is owning requestor, `system_admin`, or authorized `area_admin` |
+| **Cross-user access** | Accessing another requestor's reservation (or an area outside an area admin's assignment) returns `404` `{ "message": "Reservation not found." }` |
 | **Maintenance access** | Maintenance users have no access to reservations (`404` on detail, `403` on list/actions) |
-| **UI scope** | The `/reservations` view displays personal reservations for requestors and all fleet reservations for admins |
+| **UI scope** | The `/reservations` view displays personal reservations for requestors, area reservations for area admins, and all fleet reservations for system admins |
 
 ---
 
@@ -170,12 +183,12 @@ All endpoints are mounted at `/vehicleScheduling/reservations`.
 
 | Method | Endpoint | Auth | Purpose |
 |--------|----------|------|---------|
-| `POST` | `/vehicleScheduling/reservations` | `requestor`, `admin` | Create a `pending` reservation |
-| `GET` | `/vehicleScheduling/reservations` | `requestor`, `admin` | List reservations (scoped by role) |
-| `GET` | `/vehicleScheduling/reservations/:id` | `requestor` (owner), `admin` | Get full details of a reservation |
-| `POST` | `/vehicleScheduling/reservations/:id/approve` | `admin` | Approve a pending reservation |
-| `POST` | `/vehicleScheduling/reservations/:id/deny` | `admin` | Deny a pending reservation with reason |
-| `POST` | `/vehicleScheduling/reservations/:id/cancel` | `requestor` (owner), `admin` | Cancel a pending or approved reservation |
+| `POST` | `/vehicleScheduling/reservations` | `requestor`, `area_admin`, `system_admin` | Create a `pending` reservation |
+| `GET` | `/vehicleScheduling/reservations` | `requestor`, `area_admin`, `system_admin` | List reservations (scoped by role/area) |
+| `GET` | `/vehicleScheduling/reservations/:id` | Owning `requestor`, authorized `area_admin`, `system_admin` | Get full details of a reservation |
+| `POST` | `/vehicleScheduling/reservations/:id/approve` | `system_admin`, authorized `area_admin` | Approve a pending reservation |
+| `POST` | `/vehicleScheduling/reservations/:id/deny` | `system_admin`, authorized `area_admin` | Deny a pending reservation with reason |
+| `POST` | `/vehicleScheduling/reservations/:id/cancel` | Owning `requestor`, authorized `area_admin`, `system_admin` | Cancel a pending or approved reservation |
 
 ### Create — `POST /vehicleScheduling/reservations`
 
@@ -236,7 +249,7 @@ All endpoints are mounted at `/vehicleScheduling/reservations`.
 
 ### List all — `GET /vehicleScheduling/reservations`
 
-**Success (`200`):** A JSON array of reservations ordered by `start` descending, then `id` descending.
+**Success (`200`):** A JSON array of reservations ordered by `start` descending, then `id` descending. Scoped automatically by caller role (requestor = own only, area admin = assigned area only, system admin = all).
 
 ---
 
@@ -244,7 +257,7 @@ All endpoints are mounted at `/vehicleScheduling/reservations`.
 
 **Success (`200`):** A single reservation object.
 
-**Not found (`404`):** `{ "message": "Reservation not found." }` (returned for missing IDs, other requestors' IDs, or maintenance callers).
+**Not found (`404`):** `{ "message": "Reservation not found." }` (returned for missing IDs, other requestors' IDs, unauthorized area admins, or maintenance callers).
 
 ---
 
@@ -285,7 +298,7 @@ All endpoints are mounted at `/vehicleScheduling/reservations`.
 
 **Errors:**
 - Status is already `denied` or `cancelled`: `400` `{ "message": "This reservation cannot be cancelled." }`
-- Caller is another requestor or unknown reservation: `404` `{ "message": "Reservation not found." }`
+- Caller is unauthorized or unknown reservation: `404` `{ "message": "Reservation not found." }`
 
 ---
 
@@ -293,8 +306,8 @@ All endpoints are mounted at `/vehicleScheduling/reservations`.
 
 ### [View: Reservations] — route `/reservations`, route name `reservations`
 
-- **Page Title:** **Vehicle Reservations** (for admin) / **My Reservations** (for requestor)
-- **Access:** `requestor` and `admin` only. Unauthenticated redirects to `/login`. `maintenance` redirects to `/`.
+- **Page Title:** **Vehicle Reservations** (for system admin and area admin) / **My Reservations** (for requestor)
+- **Access:** `requestor`, `area_admin`, and `system_admin`. Unauthenticated redirects to `/login`. `maintenance` redirects to `/`.
 - **Primary CTA:** **+ Request Vehicle** (`oc-cta`) button opening the reservation creation dialog.
 - **Search & Filters:**
   - Status filter chips: **All**, **Pending**, **Approved**, **Denied**, **Cancelled**.
@@ -303,7 +316,7 @@ All endpoints are mounted at `/vehicleScheduling/reservations`.
   - **Left column (Reservation list):**
     - List of reservations ordered by date.
     - Each item displays: vehicle name, destination, date range (`YYYY-MM-DD HH:mm`), and status chip (`v-chip` color-coded: `pending` orange, `approved` green, `denied` red, `cancelled` grey).
-    - Requestor name is displayed when signed in as admin.
+    - Requestor name is displayed when signed in as an admin or area admin.
     - Clicking an item selects it in the right-hand detail view.
   - **Right column (Detail panel):**
     - Status badge and reservation ID.
@@ -318,8 +331,8 @@ All endpoints are mounted at `/vehicleScheduling/reservations`.
       - **Notes:** `{notes}`
       - If `status === "denied"`: alert box displaying **Denial Reason:** `{denialReason}`.
     - Action controls:
-      - When `status === "pending"` and caller is `admin`: **Approve** button (success color) and **Deny** button (error color).
-      - When `status === "pending"` or `status === "approved"`, and caller is admin or owning requestor: **Cancel Reservation** button (outlined).
+      - When `status === "pending"` and caller is `system_admin` or authorized `area_admin`: **Approve** button (success color) and **Deny** button (error color).
+      - When `status === "pending"` or `status === "approved"`, and caller is system admin, authorized area admin, or owning requestor: **Cancel Reservation** button (outlined).
 - **Empty state:** **No reservations yet.** / **No reservations match your filter.**
 - **Dialogs:**
   1. **New Reservation Dialog:**
@@ -337,7 +350,7 @@ All endpoints are mounted at `/vehicleScheduling/reservations`.
 ## Key Entities
 
 - **Reservation**: A vehicle booking request submitted by a user for a specific vehicle and time window.
-- **User**: The account submitting the request (`requestorId`).
+- **User**: The account submitting the request (`requestorId`), or the reviewing `system_admin` or `area_admin`.
 - **Vehicle**: The physical vehicle requested (`vehicleId`), categorized as Golf Cart, Truck, Car, or Van.
 - **Driver**: The individual assigned to drive, whose approved vehicle types must include the vehicle's category.
 
@@ -379,7 +392,7 @@ All endpoints are mounted at `/vehicleScheduling/reservations`.
 
 ## Acceptance Criteria (Gherkin)
 
-Shared facts: Jane Doe (`jdoe@eagles.oc.edu`, role `requestor`); Admin User (`admin@eagles.oc.edu`, role `admin`); Maintenance User (`maint@eagles.oc.edu`, role `maintenance`); Vehicle `Campus Van` (id `1`, category `Van`); Destination `Edmond High School`; Driver Sam Driver (`sdriver@eagles.oc.edu`, approved for `Van`).
+Shared facts: Jane Doe (`jdoe@eagles.oc.edu`, role `requestor`); System Admin User (`admin@eagles.oc.edu`, role `system_admin`); Area Admin User (`coach@eagles.oc.edu`, role `area_admin` for `Athletics`); Maintenance User (`maint@eagles.oc.edu`, role `maintenance`); Vehicle `Campus Van` (id `1`, category `Van`, area `Athletics`); Destination `Edmond High School`; Driver Sam Driver (`sdriver@eagles.oc.edu`, approved for `Van`).
 
 ### US-6.1 — View Reservations List
 
@@ -390,11 +403,18 @@ Shared facts: Jane Doe (`jdoe@eagles.oc.edu`, role `requestor`); Admin User (`ad
 * **Then** Jane's reservations are visible in the list
 * **And** Bob's reservations are not visible
 
-#### Scenario: Administrator sees all reservations
-* **Given** I am signed in as an administrator
-* **And** reservations exist for Jane Doe and Bob
+#### Scenario: Area admin sees reservations for assigned area
+* **Given** I am signed in as an area admin for `Athletics`
+* **And** reservations exist for area `Athletics` and area `Support Central`
 * **When** I view the `/reservations` page
-* **Then** reservations for both Jane Doe and Bob are visible in the list
+* **Then** reservations for `Athletics` are visible
+* **And** reservations for `Support Central` are not visible
+
+#### Scenario: System administrator sees all reservations
+* **Given** I am signed in as a system administrator
+* **And** reservations exist for Jane Doe, Bob, Athletics, and Support Central
+* **When** I view the `/reservations` page
+* **Then** all reservations across the fleet are visible in the list
 
 #### Scenario: Maintenance user cannot access reservations
 * **Given** I am signed in as a maintenance user
@@ -445,24 +465,37 @@ Shared facts: Jane Doe (`jdoe@eagles.oc.edu`, role `requestor`); Admin User (`ad
 * **When** Jane Doe requests `GET /vehicleScheduling/reservations/10`
 * **Then** the API returns `200` with the reservation details
 
-#### Scenario: Other requestor receives 404 for reservation
-* **Given** Jane Doe owns reservation `10`
-* **When** another requestor requests `GET /vehicleScheduling/reservations/10`
+#### Scenario: Area admin reads reservation for their area
+* **Given** reservation `10` is for area `Athletics`
+* **And** I am signed in as an area admin for `Athletics`
+* **When** I request `GET /vehicleScheduling/reservations/10`
+* **Then** the API returns `200` with the reservation details
+
+#### Scenario: Unauthorized caller receives 404 for reservation
+* **Given** Jane Doe owns reservation `10` for area `Support Central`
+* **When** another requestor or an area admin for `Athletics` requests `GET /vehicleScheduling/reservations/10`
 * **Then** the API returns `404` with `{ "message": "Reservation not found." }`
 
 ---
 
 ### US-6.4 — Approve Reservation
 
-#### Scenario: Administrator approves pending reservation
-* **Given** I am signed in as an administrator
+#### Scenario: System admin approves pending reservation
+* **Given** I am signed in as a system admin
 * **And** reservation `10` has status `pending`
 * **When** I send `POST /vehicleScheduling/reservations/10/approve`
 * **Then** the API returns `200`
 * **And** reservation `10` has status `approved`
 
+#### Scenario: Area admin approves pending reservation in their area
+* **Given** I am signed in as an area admin for `Athletics`
+* **And** reservation `10` for area `Athletics` has status `pending`
+* **When** I send `POST /vehicleScheduling/reservations/10/approve`
+* **Then** the API returns `200`
+* **And** reservation `10` has status `approved`
+
 #### Scenario: Approving non-pending reservation is rejected
-* **Given** I am signed in as an administrator
+* **Given** I am signed in as a system admin
 * **And** reservation `10` has status `approved`
 * **When** I send `POST /vehicleScheduling/reservations/10/approve`
 * **Then** the API returns `400` with `{ "message": "This reservation cannot be approved." }`
@@ -477,7 +510,7 @@ Shared facts: Jane Doe (`jdoe@eagles.oc.edu`, role `requestor`); Admin User (`ad
 ### US-6.5 — Deny Reservation
 
 #### Scenario: Administrator denies pending reservation with reason
-* **Given** I am signed in as an administrator
+* **Given** I am signed in as a system admin or authorized area admin
 * **And** reservation `10` has status `pending`
 * **When** I send `POST /vehicleScheduling/reservations/10/deny` with body `{ "reason": "The van is already booked." }`
 * **Then** the API returns `200`
@@ -485,14 +518,14 @@ Shared facts: Jane Doe (`jdoe@eagles.oc.edu`, role `requestor`); Admin User (`ad
 * **And** `denialReason` is stored as `"The van is already booked."`
 
 #### Scenario: Denying without reason is rejected
-* **Given** I am signed in as an administrator
+* **Given** I am signed in as a system admin
 * **And** reservation `10` has status `pending`
 * **When** I send `POST /vehicleScheduling/reservations/10/deny` with an empty reason
 * **Then** the API returns `400` with `{ "message": "A denial reason is required." }`
 * **And** reservation `10` remains `pending`
 
 #### Scenario: Denying non-pending reservation is rejected
-* **Given** I am signed in as an administrator
+* **Given** I am signed in as a system admin
 * **And** reservation `10` has status `cancelled`
 * **When** I send `POST /vehicleScheduling/reservations/10/deny` with reason `"Already cancelled"`
 * **Then** the API returns `400` with `{ "message": "This reservation cannot be denied." }`
@@ -508,8 +541,8 @@ Shared facts: Jane Doe (`jdoe@eagles.oc.edu`, role `requestor`); Admin User (`ad
 * **Then** the API returns `200`
 * **And** reservation `10` has status `cancelled`
 
-#### Scenario: Administrator cancels approved reservation
-* **Given** I am signed in as an administrator
+#### Scenario: System admin cancels approved reservation
+* **Given** I am signed in as a system admin
 * **And** reservation `10` has status `approved`
 * **When** I send `POST /vehicleScheduling/reservations/10/cancel`
 * **Then** the API returns `200`
@@ -553,7 +586,8 @@ Each scenario above maps to at least one automated test.
 | Story | Scenario | Test file | Test name |
 |-------|----------|-----------|-----------|
 | US-6.1 | Requestor sees only own reservations | `backend/tests/reservations.test.js` | `Requestor sees only own reservations` |
-| US-6.1 | Administrator sees all reservations | `backend/tests/reservations.test.js` | `Administrator sees all reservations` |
+| US-6.1 | Area admin sees reservations for assigned area | `backend/tests/reservations.test.js` | `Area admin sees reservations for assigned area` |
+| US-6.1 | System administrator sees all reservations | `backend/tests/reservations.test.js` | `System administrator sees all reservations` |
 | US-6.1 | Maintenance user cannot access reservations | `frontend/tests/MenuBar.test.js` | `Maintenance user cannot access reservations` |
 | US-6.2 | Successful reservation submission | `backend/tests/reservations.test.js` | `Successful reservation submission` |
 | US-6.2 | End time before start time is rejected | `backend/tests/reservations.test.js` | `End time before start time is rejected` |
@@ -561,15 +595,17 @@ Each scenario above maps to at least one automated test.
 | US-6.2 | Conflicting vehicle reservation is rejected | `backend/tests/reservations.test.js` | `Conflicting vehicle reservation is rejected` |
 | US-6.2 | Unapproved driver category is rejected | `backend/tests/reservations.test.js` | `Unapproved driver category is rejected` |
 | US-6.3 | Owner reads own reservation details | `backend/tests/reservations.test.js` | `Owner reads own reservation details` |
-| US-6.3 | Other requestor receives 404 for reservation | `backend/tests/reservations.test.js` | `Other requestor receives 404 for reservation` |
-| US-6.4 | Administrator approves pending reservation | `backend/tests/reservations.test.js` | `Administrator approves pending reservation` |
+| US-6.3 | Area admin reads reservation for their area | `backend/tests/reservations.test.js` | `Area admin reads reservation for their area` |
+| US-6.3 | Unauthorized caller receives 404 for reservation | `backend/tests/reservations.test.js` | `Unauthorized caller receives 404 for reservation` |
+| US-6.4 | System admin approves pending reservation | `backend/tests/reservations.test.js` | `System admin approves pending reservation` |
+| US-6.4 | Area admin approves pending reservation in their area | `backend/tests/reservations.test.js` | `Area admin approves pending reservation in their area` |
 | US-6.4 | Approving non-pending reservation is rejected | `backend/tests/reservations.test.js` | `Approving non-pending reservation is rejected` |
 | US-6.4 | Requestor cannot approve reservation | `backend/tests/reservations.test.js` | `Requestor cannot approve reservation` |
 | US-6.5 | Administrator denies pending reservation with reason | `backend/tests/reservations.test.js` | `Administrator denies pending reservation with reason` |
 | US-6.5 | Denying without reason is rejected | `backend/tests/reservations.test.js` | `Denying without reason is rejected` |
 | US-6.5 | Denying non-pending reservation is rejected | `backend/tests/reservations.test.js` | `Denying non-pending reservation is rejected` |
 | US-6.6 | Requestor cancels own pending reservation | `backend/tests/reservations.test.js` | `Requestor cancels own pending reservation` |
-| US-6.6 | Administrator cancels approved reservation | `backend/tests/reservations.test.js` | `Administrator cancels approved reservation` |
+| US-6.6 | System admin cancels approved reservation | `backend/tests/reservations.test.js` | `System admin cancels approved reservation` |
 | US-6.6 | Cancelling already cancelled or denied reservation is rejected | `backend/tests/reservations.test.js` | `Cancelling already cancelled or denied reservation is rejected` |
 | US-6.7 | Text summary file created upon reservation creation | `backend/tests/reservations.test.js` | `Text summary file created upon reservation creation` |
 | US-6.8 | Unauthenticated caller receives 401 | `backend/tests/reservations.test.js` | `Unauthenticated caller receives 401` |
@@ -623,4 +659,3 @@ Do not implement behavior not in this spec.
 - Feature 6 creates and manages the `reservations` table and executes the state transitions (`pending`, `approved`, `denied`, `cancelled`).
 - Feature 7 listens/hooks into these transitions to send recorded emails without changing the reservation response payload shapes.
 - Feature 8 displays approved and pending reservations on the weekly administrator schedule calendar.
-
