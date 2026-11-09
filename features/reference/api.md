@@ -1,6 +1,6 @@
 # API Reference
 
-**Status:** Feature 1 authentication, Feature 2 vehicle catalog, Feature 3 driver catalog, and Feature 4 destination catalog are implemented.
+**Status:** Feature 1 authentication, Feature 2 vehicle catalog, Feature 3 driver catalog, Feature 4 destination catalog, and Feature 5 area management are implemented.
 
 API health stays on `/api/health`. Authentication routes are mounted at `/vehicle-t4`.
 
@@ -27,6 +27,14 @@ API health stays on `/api/health`. Authentication routes are mounted at `/vehicl
 | `GET` | `/api/vehicle/destinations` | any authenticated role | List destinations by name, city, then id | Feature 4 |
 | `PUT` | `/api/vehicle/destinations/:destinationId` | system admin, `area_admin`, `maintenance`, legacy `admin` | Update a destination | Feature 4 |
 | `DELETE` | `/api/vehicle/destinations/:destinationId` | system admin, `area_admin`, legacy `admin` | Delete a destination | Feature 4 |
+| `POST` | `/api/area/areas` | system admin | Create an area | Feature 5 |
+| `GET` | `/api/area/areas` | system admin | List areas by name ascending, then id ascending | Feature 5 |
+| `GET` | `/api/area/areas/:areaId` | system admin | Fetch a single area by id | Feature 5 |
+| `PUT` | `/api/area/areas/:areaId` | system admin | Update an area | Feature 5 |
+| `DELETE` | `/api/area/areas/:areaId` | system admin | Delete an unreferenced area | Feature 5 |
+| `GET` | `/api/area/areas/:areaId/admins` | system admin | List users assigned as area admins for an area | Feature 5 |
+| `POST` | `/api/area/areas/:areaId/admins` | system admin | Assign an existing user as an area admin for an area | Feature 5 |
+| `DELETE` | `/api/area/areas/:areaId/admins/:userId` | system admin | Remove an area admin from an area (resets role to requestor) | Feature 5 |
 
 ## Conventions
 
@@ -302,3 +310,76 @@ The body uses the same fields and validation as create. A `userId` in the body i
 **404** `{ "message": "Destination with id=<destinationId> not found." }` A non-integer `:destinationId` uses this same `404`. The message keeps the raw path param. A `requestor` or `maintenance` user receives `403` before that lookup.
 
 Missing bearer token is `401` `{ "message": "Unauthorized! No token provided." }`. An invalid or expired token is `401` `{ "message": "Unauthorized! Invalid or expired token." }`.
+
+## Areas
+
+All area management endpoints require a system admin (`system_admin` or legacy `admin`). Other roles (`area_admin`, `maintenance`, `requestor`) receive `403` `{ "message": "Access denied. System Administrator role required." }`.
+
+### Create Area – `POST /api/area/areas`
+
+```json
+{
+  "name": "Athletics",
+  "notificationEmail": "athletics@eagles.oc.edu",
+  "logo": "https://example.com/logo.png"
+}
+```
+
+Validation rules:
+- `name`: Required, 1 to 50 characters, trimmed. Must be unique (case-insensitive); duplicate name returns `400` `{ "message": "An area with this name already exists." }`.
+- `notificationEmail`: Required, valid email format, at most 255 characters, trimmed. Invalid email returns `400` `{ "message": "Notification email must be a valid email address." }`.
+- `logo`: Optional string, at most 255 characters, trimmed. Null/empty stored as `null`.
+
+**201** returns the created area JSON object.
+
+### List Areas – `GET /api/area/areas`
+
+**200** returns an array of areas ordered by `name` ascending, then `id` ascending.
+
+### Get Area – `GET /api/area/areas/:areaId`
+
+**200** returns the area JSON object.
+**404** `{ "message": "Area not found." }` if not found.
+
+### Update Area – `PUT /api/area/areas/:areaId`
+
+The body uses the same fields and validation rules as create.
+
+**200** `{ "message": "Area was updated successfully." }`
+**404** `{ "message": "Area not found." }` if not found.
+**400** duplicate name check against other areas.
+
+### Delete Area – `DELETE /api/area/areas/:areaId`
+
+Deletes the area if not referenced by any vehicles or area administrators.
+
+**200** `{ "message": "Area was deleted successfully!" }`
+**400** `{ "message": "Cannot delete area because it is currently assigned to vehicles or administrators." }`
+**404** `{ "message": "Area not found." }`
+
+### List Area Administrators – `GET /api/area/areas/:areaId/admins`
+
+**200** returns an array of users who are assigned as `area_admin` for this area (`userId`, `fName`, `lName`, `email`, `role`, `areaId`).
+**404** `{ "message": "Area not found." }`
+
+### Assign Area Administrator – `POST /api/area/areas/:areaId/admins`
+
+```json
+{
+  "email": "coach@eagles.oc.edu"
+}
+```
+
+Finds the user by email, sets their role to `area_admin` and `areaId` to `:areaId`.
+
+**200** `{ "message": "User assigned as area admin successfully." }`
+**400** if user is already an admin of an area.
+**404** `{ "message": "User not found." }` or `{ "message": "Area not found." }`
+
+### Remove Area Administrator – `DELETE /api/area/areas/:areaId/admins/:userId`
+
+Resets the user's `areaId` to `null` and demotes their role back to `requestor`.
+
+**200** `{ "message": "Area admin removed successfully." }`
+**404** `{ "message": "Area admin not found for this area." }`
+

@@ -19,6 +19,11 @@ const navItems = [
     to: { name: "drivers" },
     roles: ["admin", "system_admin", "area_admin", "maintenance"],
   },
+  {
+    title: "Area",
+    to: { name: "areas" },
+    roles: ["admin", "system_admin"],
+  },
 ];
 
 const visibleNavItems = computed(() =>

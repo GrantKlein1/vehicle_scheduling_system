@@ -70,6 +70,8 @@ They do **not** authorize new scope — implement only from `features/feature-*.
 | **Destination** is in `MenuBar` for `admin`, `system_admin`, `area_admin`, and `maintenance`, and opens `/destination`. It is the `navItems` entry after **Vehicle** | `MenuBar` | Feature 4 |
 | A signed-out menu and a `requestor` menu do not show **Destination**. Hiding the item does not block a requestor from `/destination` | `MenuBar` and router | Feature 4 |
 | `/destination` without a session redirects to `login`. A signed-in user, including a `requestor` and an `area_admin`, stays on the destination list | Router `beforeEach` | Feature 4 |
+| **Area** is in `MenuBar` for `admin` and `system_admin`, and opens `/area`. Non-system-admin users do not see this menu item | `MenuBar` | Feature 5 |
+| `/area` without a session redirects to `login`. A signed-in user who is not a system admin (`area_admin`, `maintenance`, `requestor`) is redirected to `home` | Router `beforeEach` | Feature 5 |
 
 ## Vehicles
 
@@ -131,3 +133,18 @@ They do **not** authorize new scope — implement only from `features/feature-*.
 | The destination screen shows **Add Destination** for every signed-in role. A pencil (**Edit**, `mdi-pencil`) is shown for a system admin, an `area_admin`, and a `maintenance` user. A trash can (**Delete**, `mdi-delete`) is shown for `isAnyAdmin` only. A requestor sees neither row action | `Destinations.vue` | Feature 4 |
 | Create, edit, and delete happen in dialogs on `/destination`. A blank required field shows **Required field** and does not call the API. **Close** does not call the API. **Cancel** on delete leaves the destination in the list | `Destinations.vue` | Feature 4 |
 | A successful create shows the snackbar **Destination added successfully!** and the new row. A successful update or delete refreshes the table. An API error shows the response `message` and leaves the row unchanged. HTTP `403` does not sign the user out | `Destinations.vue` and `apiClient` | Feature 4 |
+
+## Areas
+
+| Rule | Enforcement | Introduced |
+|------|-------------|------------|
+| Only system admins (`system_admin` or legacy `admin`) can view, create, edit, or delete areas, or assign/remove area administrators. `area_admin`, `maintenance`, and `requestor` receive `403` | `requireSystemAdmin` on `/api/area` and router guard on `/area` | Feature 5 |
+| Area admins belong to an area and cannot manage areas | Role boundaries and `requireSystemAdmin` | Feature 5 |
+| Area name is required, unique (case-insensitive), trimmed, and at most 50 characters | Area controller and form validation | Feature 5 |
+| Notification email is required, trimmed, at most 255 characters, and must be a valid email format | Area controller and form validation | Feature 5 |
+| Logo is an optional URL/path, trimmed, and at most 255 characters | Area controller and form validation | Feature 5 |
+| Areas cannot be deleted if any vehicle or area administrator references that area. The system admin must reassign or remove all references first | Area delete controller | Feature 5 |
+| Deleting an unreferenced area removes the area row with confirmation | Area delete controller and dialog | Feature 5 |
+| System admin can assign an existing user by email as an `area_admin` for that area. The user's role is set to `area_admin` and `areaId` is updated | Area controller and `Areas.vue` | Feature 5 |
+| System admin can remove an area admin from an area. The user's `areaId` is set to null and their role is reset to `requestor` | Area controller and `Areas.vue` | Feature 5 |
+

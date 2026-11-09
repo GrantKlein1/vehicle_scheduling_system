@@ -150,3 +150,73 @@ describe("Feature 4 — Destination Management", () => {
     });
   });
 });
+
+describe("Feature 5 — Area Management", () => {
+  beforeEach(async () => {
+    clearCurrentUser();
+    await router.push({ name: "login" });
+    await router.isReady();
+  });
+
+  describe("US-5.7 — Role-Based Access Control", () => {
+    it("Unauthenticated visit to the area page redirects to login", async () => {
+      clearCurrentUser();
+
+      await router.push("/area");
+      await router.isReady();
+
+      expect(router.currentRoute.value.name).toBe("login");
+    });
+
+    it("Requestor visiting the area page redirects to home", async () => {
+      setCurrentUser({
+        ...signedInUser,
+        role: "requestor",
+      });
+
+      await router.push("/area");
+      await router.isReady();
+
+      expect(router.currentRoute.value.name).toBe("home");
+    });
+
+    it("Area admin visiting the area page redirects to home", async () => {
+      setCurrentUser({
+        ...signedInUser,
+        role: "area_admin",
+        areaId: 1,
+      });
+
+      await router.push("/area");
+      await router.isReady();
+
+      expect(router.currentRoute.value.name).toBe("home");
+    });
+
+    it("Maintenance visiting the area page redirects to home", async () => {
+      setCurrentUser({
+        ...signedInUser,
+        role: "maintenance",
+      });
+
+      await router.push("/area");
+      await router.isReady();
+
+      expect(router.currentRoute.value.name).toBe("home");
+    });
+
+    it("System admin can navigate to the area page", async () => {
+      setCurrentUser({
+        ...signedInUser,
+        role: "system_admin",
+      });
+
+      await router.push("/area");
+      await router.isReady();
+
+      expect(router.currentRoute.value.name).toBe("areas");
+      expect(router.currentRoute.value.path).toBe("/area");
+    });
+  });
+});
+
