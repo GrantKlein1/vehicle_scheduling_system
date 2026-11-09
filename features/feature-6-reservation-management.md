@@ -5,7 +5,7 @@
 **Status:** Ready
 **Created:** 2026-10-29
 **Input:** Requestors submit vehicle reservations that verify vehicle availability and driver category approval. System administrators or area administrators approve or deny pending requests, and requestors or administrators can cancel active reservations.
-**Depends on:** [Feature 1 — User Authentication & Session Management](feature-1-user-auth.md), [Feature 2 — Vehicle Management](feature-2-vehicle-management.md)
+**Depends on:** [Feature 1 — User Authentication & Session Management](feature-1-user-auth.md), [Feature 2 — Vehicle Management](feature-2-vehicle-management.md), [Feature 3 — Driver Management](feature-3-driver-management.md), [Feature 4 — Destination Management](feature-4-destination-management.md), [Feature 5 — Area Management](feature-5-area-management.md)
 **Related:** [docs/adr/0001-system-and-area-admins.md](../docs/adr/0001-system-and-area-admins.md), [features/feature-5-area-management.md](feature-5-area-management.md), [features/feature-7-email-management.md](feature-7-email-management.md), [features/feature-8-admin-page.md](feature-8-admin-page.md), [features/reference/behavior.md](reference/behavior.md)
 
 This feature implements vehicle reservation booking, conflict checking, driver qualification validation, administrative approval/denial workflows, cancellation handling, and reservation text summary generation. It recognizes both `system_admin` (global fleet oversight) and `area_admin` (department-level oversight for assigned area vehicles/reservations). It adds the **Reservation** item to `MenuBar` for requestors, area administrators, and system administrators.
@@ -25,11 +25,11 @@ This feature implements vehicle reservation booking, conflict checking, driver q
 
 ### US-6.2: Submit Reservation Request
 **As a** signed-in requestor  
-**I want to** submit a request for a vehicle reservation specifying destination, start and end dates/times, vehicle, and driver  
+**I want to** submit a request for a vehicle reservation specifying destination (selected from a dropdown of known destinations or created as a new destination), start and end dates/times, vehicle, and driver  
 **So that** the system checks vehicle availability and driver approval, then creates a pending reservation  
 
 **Priority:** P1  
-**Independent test:** Submit a valid reservation request for an available vehicle and approved driver; verify a `pending` reservation is created with HTTP `201`  
+**Independent test:** Submit a valid reservation request for an available vehicle and approved driver using either an existing destination or entering a new destination; verify a `pending` reservation is created with HTTP `201`  
 **Acceptance scenarios:** see ### US-6.2 under Acceptance Criteria  
 
 ### US-6.3: View Reservation Details
@@ -99,7 +99,9 @@ This feature implements vehicle reservation booking, conflict checking, driver q
   - An authenticated `area_admin` MUST receive reservations belonging to their assigned area (`areaId` or `areaName`).
   - A `maintenance` user MUST receive HTTP `403` with `{ "message": "Admin role required." }` or `404` when fetching individual records.
 - **FR-003:** `POST /vehicleScheduling/reservations` MUST allow an authenticated `requestor`, `area_admin`, or `system_admin` to create a reservation. The created reservation status MUST be `pending`. `requestorId` MUST be set from `req.user.id`. The endpoint MUST return HTTP `201`.
-- **FR-004:** Required fields for creating a reservation are `vehicleId`, `destinationName`, `start`, and `end`. `start` and `end` MUST be valid wall-clock datetimes formatted as `YYYY-MM-DD HH:mm` (or ISO 8601 strings). `end` MUST be chronologically after `start`. If `end <= start`, the API MUST return HTTP `400` with `{ "message": "End time must be after start time." }`. A `start` time prior to the current wall-clock datetime MUST return HTTP `400` with `{ "message": "Reservation start time cannot be in the past." }`.
+- **FR-004:** Required fields for creating a reservation are `vehicleId`, `destinationName`, `start`, and `end`.
+  - `destinationName` MUST be selected from the existing destinations catalog or supplied as a new destination name (which is trimmed and validated; at most 255 characters).
+  - `start` and `end` MUST be valid wall-clock datetimes formatted as `YYYY-MM-DD HH:mm` (or ISO 8601 strings). `end` MUST be chronologically after `start`. If `end <= start`, the API MUST return HTTP `400` with `{ "message": "End time must be after start time." }`. A `start` time prior to the current wall-clock datetime MUST return HTTP `400` with `{ "message": "Reservation start time cannot be in the past." }`.
 - **FR-005:** **Vehicle availability conflict check:** Before creating a reservation, the system MUST verify that the requested vehicle (`vehicleId`) is not already reserved during the requested time window (`start` to `end`) on any reservation with status `pending` or `approved`. If an overlapping active reservation exists for that vehicle, the API MUST reject the request with HTTP `400` and `{ "message": "The requested vehicle is not available for the selected dates." }`.
 - **FR-006:** **Driver authorization check:** When a driver is specified on a reservation, the driver MUST be approved to drive the category of the requested vehicle (`vehicles.category`: `Golf Cart`, `Truck`, `Car`, or `Van`). If the selected driver is not approved for that vehicle type, the API MUST reject the request with HTTP `400` and `{ "message": "Driver is not approved to drive this vehicle type." }`.
 - **FR-007:** Reservation creation MUST snapshot `vehicleName` (e.g. `{year} {make} {model}`) from the referenced vehicle onto the reservation row. Optional fields supported on create: `areaName`, `purpose`, `driverName`, `driverEmail`, `passengers`, and requestor `notes`.
@@ -336,7 +338,7 @@ All endpoints are mounted at `/vehicleScheduling/reservations`.
 - **Empty state:** **No reservations yet.** / **No reservations match your filter.**
 - **Dialogs:**
   1. **New Reservation Dialog:**
-     - Inputs: Vehicle (select), Destination (text), Start Date & Time (datetime-picker), End Date & Time (datetime-picker), Area (select), Driver (select), Passengers (number), Purpose (text), Notes (textarea).
+     - Inputs: Vehicle (select), Destination (combobox / dropdown of existing destinations with option to enter a new destination name), Start Date & Time (datetime-picker), End Date & Time (datetime-picker), Area (select), Driver (select), Passengers (number), Purpose (text), Notes (textarea).
      - Submit button: **Submit Request** (`oc-cta`).
   2. **Deny Reservation Dialog:**
      - Text area: **Reason for denial** (required).
@@ -431,10 +433,18 @@ Shared facts: Jane Doe (`jdoe@eagles.oc.edu`, role `requestor`); System Admin Us
 * **Given** I am signed in as Jane Doe
 * **And** `Campus Van` has no conflicting reservations between `2026-11-02 08:00` and `2026-11-02 12:00`
 * **And** driver Sam Driver is approved to drive `Van`
-* **When** I submit a reservation for `Campus Van` to `Edmond High School` from `2026-11-02 08:00` to `2026-11-02 12:00` with driver Sam Driver
+* **When** I submit a reservation for `Campus Van` selecting known destination `Edmond High School` from `2026-11-02 08:00` to `2026-11-02 12:00` with driver Sam Driver
 * **Then** the API returns `201`
 * **And** the reservation is stored with status `pending`
 * **And** `requestorId` matches Jane Doe's user ID
+
+#### Scenario: Successful reservation submission with newly entered destination
+* **Given** I am signed in as Jane Doe
+* **And** `Campus Van` has no conflicting reservations between `2026-11-02 08:00` and `2026-11-02 12:00`
+* **And** driver Sam Driver is approved to drive `Van`
+* **When** I submit a reservation for `Campus Van` typing new destination `Guthrie High School` from `2026-11-02 08:00` to `2026-11-02 12:00` with driver Sam Driver
+* **Then** the API returns `201`
+* **And** the reservation is stored with status `pending` and `destinationName` `Guthrie High School`
 
 #### Scenario: End time before start time is rejected
 * **Given** I am signed in as Jane Doe
@@ -590,6 +600,7 @@ Each scenario above maps to at least one automated test.
 | US-6.1 | System administrator sees all reservations | `backend/tests/reservations.test.js` | `System administrator sees all reservations` |
 | US-6.1 | Maintenance user cannot access reservations | `frontend/tests/MenuBar.test.js` | `Maintenance user cannot access reservations` |
 | US-6.2 | Successful reservation submission | `backend/tests/reservations.test.js` | `Successful reservation submission` |
+| US-6.2 | Successful reservation submission with newly entered destination | `backend/tests/reservations.test.js` | `Successful reservation submission with newly entered destination` |
 | US-6.2 | End time before start time is rejected | `backend/tests/reservations.test.js` | `End time before start time is rejected` |
 | US-6.2 | Start time in the past is rejected | `backend/tests/reservations.test.js` | `Start time in the past is rejected` |
 | US-6.2 | Conflicting vehicle reservation is rejected | `backend/tests/reservations.test.js` | `Conflicting vehicle reservation is rejected` |
