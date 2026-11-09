@@ -32,6 +32,10 @@ export default (sequelize, Sequelize) => {
         type: Sequelize.DATEONLY,
         allowNull: false,
       },
+      approvedCategories: {
+        type: Sequelize.STRING,
+        allowNull: true,
+      },
       status: {
         type: Sequelize.STRING,
         allowNull: false,

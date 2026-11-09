@@ -1,8 +1,8 @@
 # Data Model Reference
 
-**Status:** Feature 1 users and sessions, plus system admin / area admin, Feature 2 vehicles, mileage logs, and service logs, Feature 3 drivers, Feature 4 destinations, and Feature 5 areas.
+**Status:** Feature 1 users and sessions, plus system admin / area admin, Feature 2 vehicles, mileage logs, and service logs, Feature 3 drivers, Feature 4 destinations, Feature 5 areas, and Feature 6 reservations.
 
-Sequelize model names: `user` → table `users`, `session` → table `sessions`, `area` → table `areas`.
+Sequelize model names: `user` → table `users`, `session` → table `sessions`, `area` → table `areas`, `reservation` → table `reservations`.
 
 ## Tables
 
@@ -161,3 +161,31 @@ Feature 6 adds `Reservation` belongsTo `Destination`. This feature does not crea
 An area admin must reference an existing area. That rule is enforced in a `users` `beforeValidate` hook. Deleting an area that still has users is restricted by the foreign key.
 | `vehicles` | `mileage_logs` | one-to-many (`mileage_logs.vehicleId`) | CASCADE |
 | `vehicles` | `service_logs` | one-to-many (`service_logs.vehicleId`) | CASCADE |
+| `users` | `reservations` | one-to-many (`reservations.requestorId`) | CASCADE |
+| `vehicles` | `reservations` | one-to-many (`reservations.vehicleId`) | RESTRICT |
+
+### `reservations`
+
+| Field | Type | Rules |
+|-------|------|-------|
+| `id` | INTEGER PK | Auto-increment |
+| `requestorId` | INTEGER FK | Required, references `users.id` |
+| `status` | STRING(20) | Required. `pending`, `approved`, `denied`, or `cancelled`. Default `pending` |
+| `vehicleId` | INTEGER FK | Required, references `vehicles.id` |
+| `vehicleName` | STRING(100) | Required. Snapshot of vehicle year/make/model |
+| `destinationName` | STRING(255) | Required. Destination name from catalog or free-form |
+| `start` | DATE | Required datetime |
+| `end` | DATE | Required datetime. Must be after `start` |
+| `areaName` | STRING(50) | Optional nullable string |
+| `purpose` | STRING(255) | Optional nullable string |
+| `driverName` | STRING(100) | Optional nullable string |
+| `driverEmail` | STRING(255) | Optional nullable string |
+| `passengers` | INTEGER | Optional integer, default 1 |
+| `denialReason` | TEXT | Nullable. Populated when denied |
+| `notes` | TEXT | Optional nullable string |
+| `summaryFilePath` | STRING(255) | Nullable. Server path to generated text summary file |
+| `createdAt` | DATE | Managed by Sequelize |
+| `updatedAt` | DATE | Managed by Sequelize |
+
+Introduced in Feature 6.
+

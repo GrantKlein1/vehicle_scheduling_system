@@ -70,6 +70,17 @@ export async function ensureAdminTypeSchema(sequelize) {
       allowNull: true,
     });
   }
+
+  if (tables.includes("drivers")) {
+    const driverColumns = await queryInterface.describeTable("drivers");
+    const driverColumnNames = Object.keys(driverColumns).map((name) => name.toLowerCase());
+    if (!driverColumnNames.includes("approvedcategories")) {
+      await queryInterface.addColumn("drivers", "approvedCategories", {
+        type: Sequelize.STRING,
+        allowNull: true,
+      });
+    }
+  }
 }
 
 /** Rewrite stored `admin` rows to system admins with no area assignment. */

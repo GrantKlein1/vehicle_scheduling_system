@@ -72,6 +72,8 @@ They do **not** authorize new scope — implement only from `features/feature-*.
 | `/destination` without a session redirects to `login`. A signed-in user, including a `requestor` and an `area_admin`, stays on the destination list | Router `beforeEach` | Feature 4 |
 | **Area** is in `MenuBar` for `admin` and `system_admin`, and opens `/area`. Non-system-admin users do not see this menu item | `MenuBar` | Feature 5 |
 | `/area` without a session redirects to `login`. A signed-in user who is not a system admin (`area_admin`, `maintenance`, `requestor`) is redirected to `home` | Router `beforeEach` | Feature 5 |
+| **Reservation** is in `MenuBar` for `requestor`, `area_admin`, `admin`, and `system_admin`, and opens `/reservations`. `maintenance` and signed-out users do not see this item | `MenuBar` | Feature 6 |
+| `/reservations` without a session redirects to `login`. A signed-in `maintenance` user is redirected to `home` | Router `beforeEach` | Feature 6 |
 
 ## Vehicles
 
@@ -147,4 +149,21 @@ They do **not** authorize new scope — implement only from `features/feature-*.
 | Deleting an unreferenced area removes the area row with confirmation | Area delete controller and dialog | Feature 5 |
 | System admin can assign an existing user by email as an `area_admin` for that area. The user's role is set to `area_admin` and `areaId` is updated | Area controller and `Areas.vue` | Feature 5 |
 | System admin can remove an area admin from an area. The user's `areaId` is set to null and their role is reset to `requestor` | Area controller and `Areas.vue` | Feature 5 |
+
+## Reservations
+
+| Rule | Enforcement | Introduced |
+|------|-------------|------------|
+| Requestor can create a reservation in status `pending` (`POST /vehicleScheduling/reservations`) and cancel active reservations | Reservation controller | Feature 6 |
+| Required fields on submit: `vehicleId`, `destinationName`, `start`, and `end` | Form validation and controller | Feature 6 |
+| `start` time cannot be in the past (`400`). `end` time must be after `start` time (`400`) | Reservation controller | Feature 6 |
+| Requested vehicle must not conflict with an overlapping `pending` or `approved` reservation | Reservation controller conflict check | Feature 6 |
+| Selected driver must be approved for the category of the requested vehicle | Driver check in controller | Feature 6 |
+| Successful reservation creation creates a formatted text summary file on the server (`storage/reservations/reservation-<id>.txt`) | Reservation controller | Feature 6 |
+| Listing reservations is scoped: `requestor` sees only own reservations; `area_admin` sees reservations for their area; `system_admin` sees all reservations; `maintenance` receives `403` | `GET /vehicleScheduling/reservations` | Feature 6 |
+| System admins and authorized area admins can approve pending reservations | `POST /vehicleScheduling/reservations/:id/approve` | Feature 6 |
+| System admins and authorized area admins can deny pending reservations with a required reason | `POST /vehicleScheduling/reservations/:id/deny` | Feature 6 |
+| Owning requestor, authorized area admin, or system admin can cancel a pending or approved reservation | `POST /vehicleScheduling/reservations/:id/cancel` | Feature 6 |
+| Non-owning requestor or area admin outside their area receives `404` for details or actions | Reservation controller | Feature 6 |
+
 

@@ -1,6 +1,6 @@
 # API Reference
 
-**Status:** Feature 1 authentication, Feature 2 vehicle catalog, Feature 3 driver catalog, Feature 4 destination catalog, and Feature 5 area management are implemented.
+**Status:** Feature 1 authentication, Feature 2 vehicle catalog, Feature 3 driver catalog, Feature 4 destination catalog, Feature 5 area management, and Feature 6 reservation management are implemented.
 
 API health stays on `/api/health`. Authentication routes are mounted at `/vehicle-t4`.
 
@@ -35,6 +35,12 @@ API health stays on `/api/health`. Authentication routes are mounted at `/vehicl
 | `GET` | `/api/area/areas/:areaId/admins` | system admin | List users assigned as area admins for an area | Feature 5 |
 | `POST` | `/api/area/areas/:areaId/admins` | system admin | Assign an existing user as an area admin for an area | Feature 5 |
 | `DELETE` | `/api/area/areas/:areaId/admins/:userId` | system admin | Remove an area admin from an area (resets role to requestor) | Feature 5 |
+| `POST` | `/vehicleScheduling/reservations` | `requestor`, `area_admin`, `system_admin` | Submit a vehicle reservation request (status `pending`) | Feature 6 |
+| `GET` | `/vehicleScheduling/reservations` | `requestor`, `area_admin`, `system_admin` | List scoped reservations (requestor=own, area_admin=area, system_admin=all) | Feature 6 |
+| `GET` | `/vehicleScheduling/reservations/:id` | Owning `requestor`, authorized `area_admin`, `system_admin` | Fetch single reservation details | Feature 6 |
+| `POST` | `/vehicleScheduling/reservations/:id/approve` | `system_admin`, authorized `area_admin` | Approve a pending reservation | Feature 6 |
+| `POST` | `/vehicleScheduling/reservations/:id/deny` | `system_admin`, authorized `area_admin` | Deny a pending reservation with reason | Feature 6 |
+| `POST` | `/vehicleScheduling/reservations/:id/cancel` | Owning `requestor`, authorized `area_admin`, `system_admin` | Cancel a pending or approved reservation | Feature 6 |
 
 ## Conventions
 
@@ -382,4 +388,82 @@ Resets the user's `areaId` to `null` and demotes their role back to `requestor`.
 
 **200** `{ "message": "Area admin removed successfully." }`
 **404** `{ "message": "Area admin not found for this area." }`
+
+## Reservations
+
+Mounted at `/vehicleScheduling/reservations` (and available under `/api/reservations` and `/vehicle-t4/reservations`). All routes require `authenticate`.
+
+### Submit Reservation Request – `POST /vehicleScheduling/reservations`
+
+Request body:
+```json
+{
+  "vehicleId": 1,
+  "destinationName": "Edmond High School",
+  "start": "2026-11-02 08:00",
+  "end": "2026-11-02 12:00",
+  "areaName": "Athletics",
+  "purpose": "Campus visit",
+  "driverName": "Sam Driver",
+  "driverEmail": "sdriver@eagles.oc.edu",
+  "passengers": 4,
+  "notes": "Need key pickup at 07:45"
+}
+```
+
+Validation & Conflict rules:
+- `vehicleId`: Required. `400` `{ "message": "Vehicle is required." }`.
+- `destinationName`: Required, non-empty. `400` `{ "message": "Destination cannot be empty." }`.
+- `start`, `end`: Required. `400` `{ "message": "Start and end times are required." }`.
+- `end <= start`: `400` `{ "message": "End time must be after start time." }`.
+- `start` in past: `400` `{ "message": "Reservation start time cannot be in the past." }`.
+- Vehicle availability: Rejects with `400` `{ "message": "The requested vehicle is not available for the selected dates." }` if an overlapping `pending` or `approved` reservation exists for that vehicle.
+- Driver qualification: Rejects with `400` `{ "message": "Driver is not approved to drive this vehicle type." }` if driver is not approved for vehicle category.
+
+**201** returns the created reservation record with status `pending`. Also writes text summary file to `storage/reservations/reservation-<id>.txt`.
+
+### List Reservations – `GET /vehicleScheduling/reservations`
+
+- `requestor`: Receives only own reservations (`requestorId === req.user.id`).
+- `area_admin`: Receives reservations for their assigned area (`areaName === req.user.areaName`).
+- `system_admin`: Receives all reservations across the campus fleet.
+- `maintenance`: `403` `{ "message": "Admin role required." }`.
+
+**200** returns array of reservations ordered by `start DESC`, `id DESC`.
+
+### Fetch Reservation – `GET /vehicleScheduling/reservations/:id`
+
+- Returns reservation details for owning `requestor`, authorized `area_admin`, or `system_admin`.
+- Returns `404` `{ "message": "Reservation not found." }` for unknown IDs, unauthorized requestors/area admins, and maintenance callers.
+
+### Approve Reservation – `POST /vehicleScheduling/reservations/:id/approve`
+
+- Allowed for `system_admin` or authorized `area_admin` for their area.
+- Non-admin receives `403` `{ "message": "Admin role required." }`.
+- Must currently be `pending`; non-pending returns `400` `{ "message": "This reservation cannot be approved." }`.
+
+**200** returns updated reservation with `status: "approved"`.
+
+### Deny Reservation – `POST /vehicleScheduling/reservations/:id/deny`
+
+```json
+{
+  "reason": "The van is already booked."
+}
+```
+
+- Allowed for `system_admin` or authorized `area_admin`.
+- Missing or empty `reason` returns `400` `{ "message": "A denial reason is required." }`.
+- Must currently be `pending`; non-pending returns `400` `{ "message": "This reservation cannot be denied." }`.
+
+**200** returns updated reservation with `status: "denied"` and `denialReason`.
+
+### Cancel Reservation – `POST /vehicleScheduling/reservations/:id/cancel`
+
+- Allowed for owning `requestor`, authorized `area_admin`, or `system_admin`.
+- Unauthorized caller receives `404` `{ "message": "Reservation not found." }`.
+- Must currently be `pending` or `approved`; `denied` or `cancelled` returns `400` `{ "message": "This reservation cannot be cancelled." }`.
+
+**200** returns updated reservation with `status: "cancelled"`.
+
 

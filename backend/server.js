@@ -45,6 +45,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.use("/api", apiRouter);
+app.use("/vehicleScheduling", vehicleSchedulingRouter);
 // Team 4 Apache rule keeps the prefix:
 // ProxyPass /vehicle-t4 http://localhost:3024/vehicle-t4
 app.use("/vehicle-t4", vehicleSchedulingRouter);

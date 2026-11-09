@@ -24,6 +24,11 @@ const navItems = [
     to: { name: "areas" },
     roles: ["admin", "system_admin"],
   },
+  {
+    title: "Reservation",
+    to: { name: "reservations" },
+    roles: ["requestor", "area_admin", "admin", "system_admin"],
+  },
 ];
 
 const visibleNavItems = computed(() =>

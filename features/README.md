@@ -21,6 +21,7 @@ No application code may be written unless it maps to a requirement in one of the
 | 3 | [feature-3-driver-management.md](./feature-3-driver-management.md) | `feature/3-driver-management` | Feature 1 |
 | 4 | [feature-4-destination-management.md](./feature-4-destination-management.md) | `feature/4-destination-management` | Feature 1 |
 | 5 | [feature-5-area-management.md](./feature-5-area-management.md) | `feature/5-area-management` | Feature 1 |
+| 6 | [feature-6-reservation-management.md](./feature-6-reservation-management.md) | `feature/6-reservation-management` | Features 1, 2, 3, 4, 5 |
 
 New features: follow [framework.md](./framework.md#feature-spec-template) — **Status**, **Input**, **FR-00N**, **SC-00N**, **Key Entities**, Gherkin, **Agent implementation request**, **Definition of Done**.
 
