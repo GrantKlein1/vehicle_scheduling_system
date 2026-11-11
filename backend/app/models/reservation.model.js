@@ -91,3 +91,4 @@ export default (sequelize, Sequelize) => {
 
   return Reservation;
 };
+

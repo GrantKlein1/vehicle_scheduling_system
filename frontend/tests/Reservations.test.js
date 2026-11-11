@@ -242,3 +242,4 @@ describe("Feature 6 — Reservation Management Frontend", () => {
     expect(wrapper.vm.isCreateDialogOpen).toBe(false);
   });
 });
+

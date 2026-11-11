@@ -20,7 +20,6 @@ function buildStoryCreatePayload(scopeRef, epicOid, story) {
 
 function buildTestCreatePayload(scopeRef, storyOid, test) {
   return {
-    Scope: scopeRef,
     AssetType: "Test",
     Name: test.name,
     Description: test.description,

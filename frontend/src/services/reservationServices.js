@@ -23,3 +23,4 @@ export function denyReservation(id, payload) {
 export function cancelReservation(id) {
   return apiClient.post(`reservations/${id}/cancel`);
 }
+
