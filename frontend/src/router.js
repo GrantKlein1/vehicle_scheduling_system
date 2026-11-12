@@ -4,8 +4,9 @@ import Login from "./views/Login.vue";
 import Vehicles from "./views/Vehicles.vue";
 import Drivers from "./views/Drivers.vue";
 import Destinations from "./views/Destinations.vue";
+import Areas from "./views/Areas.vue";
 import Utils from "./config/utils.js";
-import { isAnyAdmin, ROLES } from "./config/roles.js";
+import { isAnyAdmin, isSystemAdmin, ROLES } from "./config/roles.js";
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -34,6 +35,11 @@ const router = createRouter({
       path: "/destination",
       name: "destinations",
       component: Destinations,
+    },
+    {
+      path: "/area",
+      name: "areas",
+      component: Areas,
     },
     {
       path: "/:pathMatch(.*)*",
@@ -67,6 +73,15 @@ router.beforeEach((to) => {
   if (to.name === "destinations") {
     if (!signedIn) {
       return { name: "login" };
+    }
+  }
+
+  if (to.name === "areas") {
+    if (!signedIn) {
+      return { name: "login" };
+    }
+    if (!isSystemAdmin(user)) {
+      return { name: "home" };
     }
   }
 

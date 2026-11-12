@@ -2,6 +2,7 @@ import { Router } from "express";
 import authRoutes from "./auth.routes.js";
 import vehicleRoutes from "./vehicle.routes.js";
 import driverRoutes from "./driver.routes.js";
+import areaRoutes from "./area.routes.js";
 
 const apiRouter = Router();
 
@@ -12,6 +13,7 @@ apiRouter.get("/health", (_req, res) => {
 apiRouter.use(authRoutes);
 apiRouter.use("/vehicle", vehicleRoutes);
 apiRouter.use("/driver", driverRoutes);
+apiRouter.use("/area", areaRoutes);
 
 const vehicleSchedulingRouter = Router();
 vehicleSchedulingRouter.use(authRoutes);
