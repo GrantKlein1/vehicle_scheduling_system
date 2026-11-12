@@ -1,6 +1,6 @@
 # Data Model Reference
 
-**Status:** Feature 1 users and sessions, plus system admin / area admin, Feature 2 vehicles, mileage logs, and service logs, Feature 3 drivers, Feature 4 destinations, Feature 5 areas, and Feature 6 reservations.
+**Status:** Feature 1 users and sessions, plus system admin / area admin, Feature 2 vehicles, mileage logs, and service logs, Feature 3 drivers, Feature 4 destinations, Feature 5 areas, Feature 6 reservations, and Feature 7 emails.
 
 Sequelize model names: `user` → table `users`, `session` → table `sessions`, `area` → table `areas`, `reservation` → table `reservations`.
 
@@ -163,6 +163,7 @@ An area admin must reference an existing area. That rule is enforced in a `users
 | `vehicles` | `service_logs` | one-to-many (`service_logs.vehicleId`) | CASCADE |
 | `users` | `reservations` | one-to-many (`reservations.requestorId`) | CASCADE |
 | `vehicles` | `reservations` | one-to-many (`reservations.vehicleId`) | RESTRICT |
+| `reservations` | `emails` | one-to-many (`emails.reservationId`) | CASCADE |
 
 ### `reservations`
 
@@ -188,4 +189,22 @@ An area admin must reference an existing area. That rule is enforced in a `users
 | `updatedAt` | DATE | Managed by Sequelize |
 
 Introduced in Feature 6.
+
+### `emails`
+
+| Field | Type | Rules |
+|-------|------|-------|
+| `id` | INTEGER PK | Auto-increment |
+| `reservationId` | INTEGER FK | Required, references `reservations.id` |
+| `event` | STRING(20) | `submitted`, `approved`, `denied`, or `cancelled` |
+| `recipientEmail` | STRING(255) | Required |
+| `recipientRole` | STRING(20) | `requestor`, `system_admin`, `area`, or `driver` |
+| `fromEmail` | STRING(255) | `vehicle-scheduling@eagles.oc.edu` |
+| `subject` | STRING(255) | Required |
+| `body` | TEXT | Required |
+| `status` | STRING(20) | `sent` or `failed` |
+| `errorMessage` | STRING(255) | Null when `sent`. `Mail could not be sent.` when `failed` |
+| `sentAt` | DATE | Required |
+
+Introduced in Feature 7. No `createdAt` or `updatedAt`. Recipient identity is the stored address and role, not a user foreign key.
 

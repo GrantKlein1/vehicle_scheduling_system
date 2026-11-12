@@ -1,6 +1,6 @@
 # API Reference
 
-**Status:** Feature 1 authentication, Feature 2 vehicle catalog, Feature 3 driver catalog, Feature 4 destination catalog, Feature 5 area management, and Feature 6 reservation management are implemented.
+**Status:** Feature 1 authentication, Feature 2 vehicle catalog, Feature 3 driver catalog, Feature 4 destination catalog, Feature 5 area management, Feature 6 reservation management, and Feature 7 reservation email are implemented.
 
 API health stays on `/api/health`. Authentication routes are mounted at `/vehicle-t4`.
 
@@ -41,6 +41,7 @@ API health stays on `/api/health`. Authentication routes are mounted at `/vehicl
 | `POST` | `/vehicleScheduling/reservations/:id/approve` | `system_admin`, authorized `area_admin` | Approve a pending reservation | Feature 6 |
 | `POST` | `/vehicleScheduling/reservations/:id/deny` | `system_admin`, authorized `area_admin` | Deny a pending reservation with reason | Feature 6 |
 | `POST` | `/vehicleScheduling/reservations/:id/cancel` | Owning `requestor`, authorized `area_admin`, `system_admin` | Cancel a pending or approved reservation | Feature 6 |
+| `GET` | `/vehicleScheduling/reservations/:id/emails` | Owning `requestor`, authorized `area_admin`, `system_admin` | List recorded emails for one reservation | Feature 7 |
 
 ## Conventions
 
@@ -465,5 +466,15 @@ Validation & Conflict rules:
 - Must currently be `pending` or `approved`; `denied` or `cancelled` returns `400` `{ "message": "This reservation cannot be cancelled." }`.
 
 **200** returns updated reservation with `status: "cancelled"`.
+
+Submit, approve, deny, and cancel responses stay the reservation object. Feature 7 does not add an `emails` field. After a successful transition it records one `emails` row per recipient.
+
+### List reservation emails – `GET /vehicleScheduling/reservations/:id/emails`
+
+Same reader rules as fetching the reservation. `maintenance`, another requestor, and an unknown id return `404` `{ "message": "Reservation not found." }`.
+
+**200** returns an array ordered by `sentAt` ascending, then `id` ascending. Each item has `id`, `reservationId`, `event` (`submitted`, `approved`, `denied`, `cancelled`), `recipientEmail`, `recipientRole` (`requestor`, `system_admin`, `area`, `driver`), `fromEmail` (`vehicle-scheduling@eagles.oc.edu`), `subject`, `body`, `status` (`sent` or `failed`), `errorMessage`, and `sentAt`.
+
+`PUT` and `DELETE` of an email row return `404` `{ "message": "Not found." }`. The row is not changed.
 
 

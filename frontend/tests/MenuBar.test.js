@@ -160,6 +160,24 @@ describe("Feature 1 — User Authentication & Session Management", () => {
       }
     });
 
+    it("Requestor MenuBar has no Email item", async () => {
+      const { wrapper } = await mountApp("/", userWithRole("requestor"));
+      const labels = wrapper.findAll("button, a").map((node) => node.text().trim());
+      expect(labels).not.toContain("Email");
+    });
+
+    it("System admin MenuBar has no Email item", async () => {
+      const { wrapper } = await mountApp("/", userWithRole("system_admin"));
+      const labels = wrapper.findAll("button, a").map((node) => node.text().trim());
+      expect(labels).not.toContain("Email");
+    });
+
+    it("Maintenance MenuBar has no Email item", async () => {
+      const { wrapper } = await mountApp("/", userWithRole("maintenance"));
+      const labels = wrapper.findAll("button, a").map((node) => node.text().trim());
+      expect(labels).not.toContain("Email");
+    });
+
     it("Maintenance MenuBar shows Sign out and Vehicle", async () => {
       const { wrapper } = await mountApp("/", userWithRole("maintenance"));
 

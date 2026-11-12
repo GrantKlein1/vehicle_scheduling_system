@@ -12,6 +12,7 @@ import destinationModel from "./destination.model.js";
 import mileageLogModel from "./mileageLog.model.js";
 import serviceLogModel from "./serviceLog.model.js";
 import reservationModel from "./reservation.model.js";
+import emailModel from "./email.model.js";
 
 const db = {};
 db.Sequelize = Sequelize;
@@ -25,6 +26,7 @@ db.destination = destinationModel(sequelize, Sequelize);
 db.mileageLog = mileageLogModel(sequelize, Sequelize);
 db.serviceLog = serviceLogModel(sequelize, Sequelize);
 db.reservation = reservationModel(sequelize, Sequelize);
+db.email = emailModel(sequelize, Sequelize);
 
 db.user.hasMany(db.session, { foreignKey: "userId", onDelete: "CASCADE" });
 db.session.belongsTo(db.user, { foreignKey: "userId" });
@@ -34,6 +36,9 @@ db.reservation.belongsTo(db.user, { foreignKey: "requestorId", as: "requestor" }
 
 db.vehicle.hasMany(db.reservation, { foreignKey: "vehicleId", onDelete: "RESTRICT" });
 db.reservation.belongsTo(db.vehicle, { foreignKey: "vehicleId", as: "vehicle" });
+
+db.reservation.hasMany(db.email, { foreignKey: "reservationId", onDelete: "CASCADE" });
+db.email.belongsTo(db.reservation, { foreignKey: "reservationId" });
 
 db.area.hasMany(db.user, { foreignKey: "areaId", onDelete: "RESTRICT" });
 db.user.belongsTo(db.area, { foreignKey: "areaId" });

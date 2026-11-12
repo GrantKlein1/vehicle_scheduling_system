@@ -4,6 +4,7 @@ import { Op } from "sequelize";
 import db from "../models/index.js";
 import logger from "../config/logger.js";
 import { isSystemAdmin } from "../authorization/roles.js";
+import { dispatchReservationEmail } from "../services/reservationEmail.js";
 
 export async function createReservation(req, res) {
   try {
@@ -164,6 +165,8 @@ export async function createReservation(req, res) {
       logger.warn(`Failed to generate summary file: ${fsErr.message}`);
     }
 
+    await dispatchReservationEmail({ reservation, event: "submitted", actor: req.user });
+
     return res.status(201).json(reservation);
   } catch (err) {
     logger.error(`Error creating reservation: ${err.message}`);
@@ -262,6 +265,7 @@ export async function approveReservation(req, res) {
 
     reservation.status = "approved";
     await reservation.save();
+    await dispatchReservationEmail({ reservation, event: "approved", actor: req.user });
 
     return res.json(reservation);
   } catch (err) {
@@ -301,6 +305,7 @@ export async function denyReservation(req, res) {
     reservation.status = "denied";
     reservation.denialReason = reason;
     await reservation.save();
+    await dispatchReservationEmail({ reservation, event: "denied", actor: req.user });
 
     return res.json(reservation);
   } catch (err) {
@@ -335,6 +340,7 @@ export async function cancelReservation(req, res) {
 
     reservation.status = "cancelled";
     await reservation.save();
+    await dispatchReservationEmail({ reservation, event: "cancelled", actor: req.user });
 
     return res.json(reservation);
   } catch (err) {

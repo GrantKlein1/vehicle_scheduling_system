@@ -166,4 +166,16 @@ They do **not** authorize new scope — implement only from `features/feature-*.
 | Owning requestor, authorized area admin, or system admin can cancel a pending or approved reservation | `POST /vehicleScheduling/reservations/:id/cancel` | Feature 6 |
 | Non-owning requestor or area admin outside their area receives `404` for details or actions | Reservation controller | Feature 6 |
 
+## Reservation email
+
+| Rule | Enforcement | Introduced |
+|------|-------------|------------|
+| Submit emails the requestor, every system administrator, and the matching area `notificationEmail`. The driver is not emailed | `dispatchReservationEmail` after a `201` | Feature 7 |
+| Approve emails the requestor, the driver when `driverEmail` is set, and the area mailbox. The requestor and driver bodies include `Pickup instructions: contact {notificationEmail}.` when that address exists | `dispatchReservationEmail` after approve | Feature 7 |
+| Deny emails the requestor only and includes the denial reason | `dispatchReservationEmail` after deny | Feature 7 |
+| A requestor cancellation emails system administrators, the area mailbox, and the driver. An administrator cancellation emails the other parties and does not email the actor | `dispatchReservationEmail` after cancel | Feature 7 |
+| A mail failure stores `failed` with `Mail could not be sent.` and does not change the reservation success status or JSON | Mail transport and `emails` rows | Feature 7 |
+| Email rows are readable by the same people who can read the reservation. `maintenance` and another requestor receive `404` | `GET /vehicleScheduling/reservations/:id/emails` | Feature 7 |
+| There is no **Email** menu item | `MenuBar` | Feature 7 |
+
 
