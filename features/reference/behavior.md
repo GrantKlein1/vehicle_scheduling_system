@@ -59,33 +59,36 @@ They do **not** authorize new scope — implement only from `features/feature-*.
 | Home shows `Welcome, {first name}.` | `Home.vue` | Feature 1 |
 | Failed Google sign-in stays on the login page and shows `<v-alert type="error">` | `GoogleSignIn.vue` | Feature 1 |
 | Login shows Google's **Sign in with Google** button. A progress indicator is shown while the login request is in flight | `GoogleSignIn.vue` | Feature 1 |
-| **Vehicle** is in `MenuBar` for `admin`, `system_admin`, and `maintenance`, and opens `/vehicle`. An area admin does not see it | `MenuBar` | Feature 2, admin types |
+| **Vehicle** is in `MenuBar` for `admin`, `system_admin`, `area_admin`, and `maintenance`, and opens `/vehicle` | `MenuBar` | Feature 2, admin types |
 | A signed-out menu and a `requestor` menu do not show **Vehicle** | `MenuBar` | Feature 2 |
 | `/vehicle` without a session redirects to `login` | Router `beforeEach` | Feature 2 |
-| A signed-in `requestor` who opens `/vehicle` is redirected to `home` | Router `beforeEach` | Feature 2 |
+| A signed-in `requestor` who opens `/vehicle` is redirected to `home`. A system admin, area admin, or maintenance user stays on the vehicle list | Router `beforeEach` | Feature 2 |
 | **Driver** is in `MenuBar` for `admin`, `system_admin`, `area_admin`, and `maintenance`, and opens `/driver` | `MenuBar` | Feature 3 |
 | A signed-out menu and a `requestor` menu do not show **Driver** | `MenuBar` | Feature 3 |
 | `/driver` without a session redirects to `login` | Router `beforeEach` | Feature 3 |
 | A signed-in `requestor` who opens `/driver` is redirected to `home`. A system admin, area admin, or maintenance user stays on the driver list | Router `beforeEach` | Feature 3 |
+| **Destination** is in `MenuBar` for `admin`, `system_admin`, `area_admin`, and `maintenance`, and opens `/destination`. It is the `navItems` entry after **Vehicle** | `MenuBar` | Feature 4 |
+| A signed-out menu and a `requestor` menu do not show **Destination**. Hiding the item does not block a requestor from `/destination` | `MenuBar` and router | Feature 4 |
+| `/destination` without a session redirects to `login`. A signed-in user, including a `requestor` and an `area_admin`, stays on the destination list | Router `beforeEach` | Feature 4 |
 
 ## Vehicles
 
 | Rule | Enforcement | Introduced |
 |------|-------------|------------|
 | Vehicles are one shared catalog and have no `userId` | `vehicles` table and create/update ignore `userId` | Feature 2 |
-| `admin` can list, fetch, create, update, and delete vehicles | Vehicle routes | Feature 2 |
-| `maintenance` can list, fetch, and append logs, and cannot create, update, or delete a vehicle | `requireFleetAccess` and `requireAdmin` | Feature 2 |
+| A system admin or an `area_admin` can list, fetch, create, update, and delete every vehicle. The list is not filtered by the area admin's area | `requireAnyAdmin` and `requireFleetAccess` | Feature 2 |
+| `maintenance` can list, fetch, and append logs, and cannot create, update, or delete a vehicle | `requireFleetAccess` and `requireAnyAdmin` | Feature 2 |
 | A `requestor` receives `403` `{ "message": "Admin role required." }` on every vehicle route | `requireFleetAccess` | Feature 2 |
-| Catalog writes by `maintenance` return `403` `{ "message": "Admin role required." }` | `requireAdmin` | Feature 2 |
+| Catalog writes by `maintenance` return `403` `{ "message": "Admin role required." }` | `requireAnyAdmin` | Feature 2 |
 | The vehicle list is ordered by make, then model, then id | `GET /api/vehicle/vehicles` | Feature 2 |
 | Mileage and service logs are appended and ordered by date, then id. A service date and service performed are not edited later. Comments on a service can be set at creation and updated later | Log routes and `GET` one vehicle | Feature 2 |
 | A new mileage reading must be greater than the highest mileage already logged for that vehicle | Mileage log route and the mileage form | Feature 2 |
 | Service performed is any non-blank text up to 80 characters. The form lists common repairs and also accepts a typed custom service. **Log service** asks for an optional comment before the service is saved. Comments are text up to 500 characters and can also be changed from an outlined button on the service row | Service log route, comment update route, and the service form | Feature 2 |
 | Deleting a vehicle deletes its mileage logs and service logs | Delete handler and `onDelete: CASCADE` | Feature 2 |
 | `make` and `model` may be values outside the standard suggestion list | API stores any non-blank make and model | Feature 2 |
-| The vehicle screen shows **Add Vehicle**, **Edit vehicle**, and **Delete vehicle** for `admin` only | `Vehicles.vue` | Feature 2 |
+| The vehicle screen shows **Add Vehicle**, **Edit vehicle**, and **Delete vehicle** for `isAnyAdmin` (a system admin, a legacy `admin`, or an area admin) | `Vehicles.vue` | Feature 2 |
 | The vehicle screen shows a searchable list and a detail panel for the selected vehicle (first vehicle auto-selected). Mileage and service are logged inline in the panel. | `Vehicles.vue` | Feature 2 |
-| **Log mileage** and **Log service** are available to `admin` and `maintenance` | `Vehicles.vue` | Feature 2 |
+| **Log mileage** and **Log service** are available to a system admin, an area admin, and `maintenance` | `Vehicles.vue` | Feature 2 |
 | A blank required field shows **Required field** and does not call the API | Vehicle dialogs and inline log forms | Feature 2 |
 | Choosing **Golf Cart** hides **VIN**, **License Plate Number**, and **License Plate Expiration Month**. The API stores those fields as `null` | `Vehicles.vue` and vehicle create/update | Feature 2 |
 | Leaving a field shows that field's validation message under the field. A year outside 1950 through 2027 shows **Year must be from 1950 through 2027.** The same field messages apply to make, model, VIN, date, color, passengers, license plate, expiration month, area, mileage, and service | Vehicle dialogs and inline log forms | Feature 2 |
@@ -108,6 +111,23 @@ They do **not** authorize new scope — implement only from `features/feature-*.
 | Required strings are trimmed. A missing, empty, or whitespace-only required string is rejected. A `lastName` longer than 50 characters returns `Last Name cannot exceed 50 characters.` | Driver create/update | Feature 3 |
 | `driverLicenseExpDate` and `approvedDate` must be real `YYYY-MM-DD` dates | Driver create/update | Feature 3 |
 | A driver status is `valid` or `expired`, set from `approvedDate`. It stays `valid` until the calendar date one year later, and becomes `expired` on that anniversary. A status sent with create or update is ignored. The add and edit dialogs do not ask for a status | Driver create/update, list refresh, and `Drivers.vue` | Feature 3 |
-| The driver screen shows **Add Driver**, **Edit**, and **Delete** for a system admin or an `area_admin`. A maintenance user sees `valid` drivers and does not see those actions | `Drivers.vue` | Feature 3 |
+| The driver screen shows **Add Driver** for a system admin or an `area_admin`. Those roles also see a pencil (**Edit**, `mdi-pencil`) and a trash can (**Delete**, `mdi-delete`) on each row. A maintenance user sees `valid` drivers and does not see those actions | `Drivers.vue` | Feature 3 |
 | Create, edit, and delete happen in dialogs on `/driver`. A blank required field shows **Required field** and does not call the API. **Cancel** on delete leaves the driver in the list | `Drivers.vue` | Feature 3 |
 | A successful create shows the snackbar **Driver added successfully!** and the new row. A successful update or delete refreshes the table | `Drivers.vue` | Feature 3 |
+
+## Destinations
+
+| Rule | Enforcement | Introduced |
+|------|-------------|------------|
+| Destinations are one shared catalog and have no `userId`. A `userId` sent on create or update is ignored | `destinations` table and destination create/update | Feature 4 |
+| Any signed-in role can list and create destinations. The list is not filtered by role or area | `GET` and `POST /api/vehicle/destinations` | Feature 4 |
+| A system admin, an `area_admin`, a legacy `admin`, or a `maintenance` user can update a destination. A `requestor` receives `403` `{ "message": "Requestors cannot update or delete destinations." }` before the id lookup, and the row is unchanged | Destination update | Feature 4 |
+| A system admin, an `area_admin`, or a legacy `admin` can delete a destination. A `requestor` receives `403` `{ "message": "Requestors cannot update or delete destinations." }`. A `maintenance` user receives `403` `{ "message": "Maintenance cannot delete destinations." }`. Role is checked before the id lookup, and the row is unchanged | Destination delete | Feature 4 |
+| The destination list is ordered by name, then city, then id. `name` is not unique | `GET /api/vehicle/destinations` | Feature 4 |
+| Required strings are trimmed. A missing, non-string, empty, or whitespace-only required value is rejected. The first failing field is reported, in order: `name`, `addressLine1`, `addressLine2`, `city`, `state`, `zip` | Destination create/update | Feature 4 |
+| `name` and `addressLine1` are at most 100 characters. `addressLine2` is optional, at most 100 characters, and blank is stored as `null`. `city` is at most 50 characters | Destination create/update | Feature 4 |
+| `state` is exactly two letters and is stored uppercase. `zip` matches `^\d{5}(-\d{4})?$` | Destination create/update | Feature 4 |
+| Update or delete of a missing or non-integer id returns `404` `{ "message": "Destination with id=<destinationId> not found." }` using the raw path param, after the role checks above | Destination update/delete | Feature 4 |
+| The destination screen shows **Add Destination** for every signed-in role. A pencil (**Edit**, `mdi-pencil`) is shown for a system admin, an `area_admin`, and a `maintenance` user. A trash can (**Delete**, `mdi-delete`) is shown for `isAnyAdmin` only. A requestor sees neither row action | `Destinations.vue` | Feature 4 |
+| Create, edit, and delete happen in dialogs on `/destination`. A blank required field shows **Required field** and does not call the API. **Close** does not call the API. **Cancel** on delete leaves the destination in the list | `Destinations.vue` | Feature 4 |
+| A successful create shows the snackbar **Destination added successfully!** and the new row. A successful update or delete refreshes the table. An API error shows the response `message` and leaves the row unchanged. HTTP `403` does not sign the user out | `Destinations.vue` and `apiClient` | Feature 4 |

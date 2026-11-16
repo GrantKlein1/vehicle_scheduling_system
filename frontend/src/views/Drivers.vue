@@ -239,8 +239,12 @@ onMounted(loadDrivers);
           <td>{{ dateOnly(driver.driverLicenseExpDate) }}</td>
           <td>{{ driver.status }}</td>
           <td v-if="canChangeDrivers">
-            <v-btn variant="text" type="button" @click="openEdit(driver)">Edit</v-btn>
-            <v-btn variant="text" type="button" @click="openDelete(driver)">Delete</v-btn>
+            <v-btn icon variant="text" type="button" aria-label="Edit" @click="openEdit(driver)">
+              <v-icon icon="mdi-pencil" />
+            </v-btn>
+            <v-btn icon variant="text" type="button" aria-label="Delete" @click="openDelete(driver)">
+              <v-icon icon="mdi-delete" />
+            </v-btn>
           </td>
         </tr>
       </tbody>

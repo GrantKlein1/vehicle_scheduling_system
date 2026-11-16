@@ -62,7 +62,7 @@ const malibu = {
 let catalog = [];
 const wrappers = [];
 
-function userWithRole(role) {
+function userWithRole(role, extra = {}) {
   return {
     userId: 1,
     email: `${role}@eagles.oc.edu`,
@@ -70,6 +70,7 @@ function userWithRole(role) {
     lName: "Min",
     role,
     token: "session-token",
+    ...extra,
   };
 }
 
@@ -151,8 +152,8 @@ async function mountVehicles() {
   return mounted;
 }
 
-async function mountAppHome(role) {
-  setCurrentUser(userWithRole(role));
+async function mountAppHome(role, extra = {}) {
+  setCurrentUser(userWithRole(role, extra));
   await router.push({ name: "home" });
   await router.isReady();
   const mounted = await mountWithPlugins(App, {
@@ -197,8 +198,8 @@ describe("Feature 2 — Vehicle Management", () => {
   });
 
   describe("US-2.1 — View Vehicle List Page", () => {
-    it("Signed-in admin navigates to the vehicle page", async () => {
-      const { wrapper } = await mountAppHome("admin");
+    it("Signed-in system admin navigates to the vehicle page", async () => {
+      const { wrapper } = await mountAppHome("system_admin");
 
       await clickControl("Vehicle");
 
@@ -216,10 +217,20 @@ describe("Feature 2 — Vehicle Management", () => {
       expect(wrapper.text()).toContain("Vehicles");
       expect(pageText()).not.toContain("Add Vehicle");
     });
+
+    it("Signed-in area admin navigates to the vehicle page", async () => {
+      const { wrapper } = await mountAppHome("area_admin", { areaId: 5, areaName: "Athletics" });
+
+      await clickControl("Vehicle");
+
+      expect(router.currentRoute.value.path).toBe("/vehicle");
+      expect(wrapper.text()).toContain("Vehicles");
+      expect(pageText()).toContain("Add Vehicle");
+    });
   });
 
   describe("US-2.2 — Create Vehicle", () => {
-    it("Signed-in admin creates a new vehicle", async () => {
+    it("Signed-in system admin creates a new vehicle", async () => {
       setCurrentUser(userWithRole("admin"));
       createVehicle.mockImplementation(async (body) => {
         const saved = {
@@ -370,7 +381,7 @@ describe("Feature 2 — Vehicle Management", () => {
   });
 
   describe("US-2.3 — Read Vehicle Catalog", () => {
-    it("Signed-in admin views the vehicle catalog", async () => {
+    it("Signed-in system admin views the vehicle catalog", async () => {
       setCurrentUser(userWithRole("admin"));
       catalog = [malibu, ford];
 
@@ -447,8 +458,19 @@ describe("Feature 2 — Vehicle Management", () => {
   });
 
   describe("US-2.4 — Row Action Icons", () => {
-    it("Row action buttons visible for admin", async () => {
-      setCurrentUser(userWithRole("admin"));
+    it("Row action buttons visible for a system admin", async () => {
+      setCurrentUser(userWithRole("system_admin"));
+      catalog = [ford];
+      await mountVehicles();
+
+      expect(document.querySelectorAll('[aria-label="Edit vehicle"]')).toHaveLength(1);
+      expect(document.querySelectorAll('[aria-label="Delete vehicle"]')).toHaveLength(1);
+      expect(document.querySelectorAll('[aria-label="Log mileage"]')).toHaveLength(1);
+      expect(document.querySelectorAll('[aria-label="Log service"]')).toHaveLength(1);
+    });
+
+    it("Area admin row shows edit and delete", async () => {
+      setCurrentUser(userWithRole("area_admin", { areaId: 5, areaName: "Athletics" }));
       catalog = [ford];
       await mountVehicles();
 
@@ -471,7 +493,7 @@ describe("Feature 2 — Vehicle Management", () => {
   });
 
   describe("US-2.5 — Edit Vehicle", () => {
-    it("Signed-in admin updates vehicle details", async () => {
+    it("Signed-in system admin updates vehicle details", async () => {
       setCurrentUser(userWithRole("admin"));
       catalog = [{ ...ford, color: "White" }];
       updateVehicle.mockImplementation(async (_id, body) => {
@@ -491,7 +513,7 @@ describe("Feature 2 — Vehicle Management", () => {
   });
 
   describe("US-2.6 — Delete Vehicle", () => {
-    it("Signed-in admin deletes a vehicle with confirmation", async () => {
+    it("Signed-in system admin deletes a vehicle with confirmation", async () => {
       setCurrentUser(userWithRole("admin"));
       catalog = [ford];
       deleteVehicle.mockImplementation(async () => {

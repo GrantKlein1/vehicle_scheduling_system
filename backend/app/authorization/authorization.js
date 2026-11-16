@@ -103,8 +103,8 @@ export async function authenticate(req, res, next) {
 }
 
 export function requireFleetAccess(req, res, next) {
-  // Legacy `admin` is stored as `system_admin` on save. Both can read the fleet.
-  if (isSystemAdmin(req.user) || req.user?.role === "maintenance") {
+  // System admins, area admins, and maintenance can read the whole fleet and append logs.
+  if (isAnyAdmin(req.user) || req.user?.role === "maintenance") {
     return next();
   }
 

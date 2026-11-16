@@ -95,7 +95,7 @@ A system admin is `system_admin`. A legacy `admin` session is a system admin. An
 - **FR-010:** `driverLicenseExpDate` and `approvedDate` MUST be required real calendar dates in `YYYY-MM-DD` form. A missing or invalid date MUST return HTTP `400`.
 - **FR-011:** `POST /api/driver/drivers` MUST return HTTP `201` and the saved driver, including `id`, and MUST NOT include `userId`. `PUT /api/driver/drivers/:driverId` MUST return HTTP `200` with `{ "message": "Driver was updated successfully." }`. `DELETE /api/driver/drivers/:driverId` MUST return HTTP `200` with `{ "message": "Driver was deleted successfully." }`. Update and delete of an id that does not exist MUST return HTTP `404` with `{ "message": "Driver with id=<driverId> not found." }`.
 - **FR-012:** This feature MUST add **Driver** to the existing `MenuBar` for a system admin, an `area_admin`, and `maintenance`, with path `/driver`. Allowed roles are `admin`, `system_admin`, `area_admin`, and `maintenance`. It MUST NOT create a second `MenuBar`. **Driver** MUST be hidden when there is no session and hidden for `requestor`.
-- **FR-013:** Create, edit, and delete MUST happen in dialogs on `/driver`. **Add Driver** opens the create dialog. Each driver row MUST show **Edit** and **Delete** for a system admin or an `area_admin`, and MUST NOT show them for `maintenance`. A required field left blank MUST show **Required field** and MUST NOT call the API. Delete MUST ask for confirmation before `DELETE` is sent. Cancel MUST leave the driver in the list.
+- **FR-013:** Create, edit, and delete MUST happen in dialogs on `/driver`. **Add Driver** opens the create dialog. Each driver row MUST show a pencil icon button (`mdi-pencil`, `aria-label` **Edit**) and a trash icon button (`mdi-delete`, `aria-label` **Delete**) for a system admin or an `area_admin`, and MUST NOT show them for `maintenance`. A required field left blank MUST show **Required field** and MUST NOT call the API. Delete MUST ask for confirmation before `DELETE` is sent. Cancel MUST leave the driver in the list.
 - **FR-014:** After a successful create, the new driver MUST appear in the table and the screen MUST show the snackbar **Driver added successfully!** After a successful update or delete, the table MUST show the new data or the removal.
 
 ## Assumptions
@@ -247,7 +247,7 @@ Route name `drivers`, path `/driver`. One view, `Drivers.vue`. Create, edit, and
 - One row per driver, in API order (`lastName`, then `firstName`, then `id`).
 - Each row shows the driver name, the driver license expiration date, and the status.
 - After a successful create, the new driver appears in the table. After a successful update, the row shows the new data. After a successful delete, the row is gone.
-- System admin or area admin row actions: **Edit** and **Delete** on every driver row. A maintenance user does not see **Edit** or **Delete**.
+- System admin or area admin row actions use the same icon buttons as the vehicle screen: a pencil (`mdi-pencil`, `aria-label` **Edit**) and a trash can (`mdi-delete`, `aria-label` **Delete**) on every driver row. A maintenance user does not see **Edit** or **Delete**.
 
 **Add Driver dialog**
 

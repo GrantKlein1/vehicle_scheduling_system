@@ -8,7 +8,12 @@ import { logout } from "../services/authServices.js";
 const router = useRouter();
 
 const navItems = [
-  { title: "Vehicle", to: { name: "vehicles" }, roles: ["admin", "system_admin", "maintenance"] },
+  { title: "Vehicle", to: { name: "vehicles" }, roles: ["admin", "system_admin", "area_admin", "maintenance"] },
+  {
+    title: "Destination",
+    to: { name: "destinations" },
+    roles: ["admin", "system_admin", "area_admin", "maintenance"],
+  },
   {
     title: "Driver",
     to: { name: "drivers" },

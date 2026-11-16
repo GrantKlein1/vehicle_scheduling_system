@@ -1,6 +1,6 @@
 # API Reference
 
-**Status:** Feature 1 authentication, Feature 2 vehicle catalog, and Feature 3 driver catalog are implemented.
+**Status:** Feature 1 authentication, Feature 2 vehicle catalog, Feature 3 driver catalog, and Feature 4 destination catalog are implemented.
 
 API health stays on `/api/health`. Authentication routes are mounted at `/vehicle-t4`.
 
@@ -11,18 +11,22 @@ API health stays on `/api/health`. Authentication routes are mounted at `/vehicl
 | `GET` | `/api/health` | No | Process health check | Starter |
 | `POST` | `/vehicle-t4/login` | No | Verify a Google credential and return a session | Feature 1 |
 | `POST` | `/vehicle-t4/logout` | Yes | Invalidate the current session token | Feature 1 |
-| `POST` | `/api/vehicle/vehicles` | `admin` | Create a shared catalog vehicle | Feature 2 |
-| `GET` | `/api/vehicle/vehicles` | `admin`, `maintenance` | List vehicles by make, model, then id | Feature 2 |
-| `GET` | `/api/vehicle/vehicles/:vehicleId` | `admin`, `maintenance` | Fetch one vehicle with mileage and service logs | Feature 2 |
-| `PUT` | `/api/vehicle/vehicles/:vehicleId` | `admin` | Update a vehicle | Feature 2 |
-| `DELETE` | `/api/vehicle/vehicles/:vehicleId` | `admin` | Delete a vehicle and its logs | Feature 2 |
-| `POST` | `/api/vehicle/vehicles/:vehicleId/mileage-logs` | `admin`, `maintenance` | Append a mileage log | Feature 2 |
-| `POST` | `/api/vehicle/vehicles/:vehicleId/service-logs` | `admin`, `maintenance` | Append a service log | Feature 2 |
-| `PATCH` | `/api/vehicle/vehicles/:vehicleId/service-logs/:serviceLogId` | `admin`, `maintenance` | Update comments on a service log | Feature 2 |
+| `POST` | `/api/vehicle/vehicles` | system admin, `area_admin` | Create a shared catalog vehicle. The list is not filtered by the caller's area | Feature 2 |
+| `GET` | `/api/vehicle/vehicles` | system admin, `area_admin`, `maintenance` | List every vehicle by make, model, then id | Feature 2 |
+| `GET` | `/api/vehicle/vehicles/:vehicleId` | system admin, `area_admin`, `maintenance` | Fetch one vehicle with mileage and service logs | Feature 2 |
+| `PUT` | `/api/vehicle/vehicles/:vehicleId` | system admin, `area_admin` | Update a vehicle | Feature 2 |
+| `DELETE` | `/api/vehicle/vehicles/:vehicleId` | system admin, `area_admin` | Delete a vehicle and its logs | Feature 2 |
+| `POST` | `/api/vehicle/vehicles/:vehicleId/mileage-logs` | system admin, `area_admin`, `maintenance` | Append a mileage log | Feature 2 |
+| `POST` | `/api/vehicle/vehicles/:vehicleId/service-logs` | system admin, `area_admin`, `maintenance` | Append a service log | Feature 2 |
+| `PATCH` | `/api/vehicle/vehicles/:vehicleId/service-logs/:serviceLogId` | system admin, `area_admin`, `maintenance` | Update comments on a service log | Feature 2 |
 | `POST` | `/api/driver/drivers` | system admin, `area_admin` | Create a driver | Feature 3 |
 | `GET` | `/api/driver/drivers` | any authenticated role | List drivers by last name, first name, then id. System admin and `area_admin` receive every driver. `maintenance` and `requestor` receive `valid` drivers only | Feature 3 |
 | `PUT` | `/api/driver/drivers/:driverId` | system admin, `area_admin` | Update a driver | Feature 3 |
 | `DELETE` | `/api/driver/drivers/:driverId` | system admin, `area_admin` | Delete a driver | Feature 3 |
+| `POST` | `/api/vehicle/destinations` | any authenticated role | Create a shared catalog destination | Feature 4 |
+| `GET` | `/api/vehicle/destinations` | any authenticated role | List destinations by name, city, then id | Feature 4 |
+| `PUT` | `/api/vehicle/destinations/:destinationId` | system admin, `area_admin`, `maintenance`, legacy `admin` | Update a destination | Feature 4 |
+| `DELETE` | `/api/vehicle/destinations/:destinationId` | system admin, `area_admin`, legacy `admin` | Delete a destination | Feature 4 |
 
 ## Conventions
 
@@ -114,7 +118,7 @@ Authenticated handlers set `req.user.id` and `req.user.role` from the session's 
 
 ## Vehicles
 
-Vehicle routes are mounted at `/api/vehicle`. Every vehicle route uses `authenticate`. A `requestor` receives `403` `{ "message": "Admin role required." }` on every vehicle route. A `maintenance` user receives that same `403` on `POST`, `PUT`, and `DELETE` `/api/vehicle/vehicles`. List, fetch, mileage logs, service logs, and service comment updates are allowed for `admin` and `maintenance`.
+Vehicle routes are mounted at `/api/vehicle`. Every vehicle route uses `authenticate`. A `requestor` receives `403` `{ "message": "Admin role required." }` on every vehicle route. A `maintenance` user receives that same `403` on `POST`, `PUT`, and `DELETE` `/api/vehicle/vehicles`. Those writes use `requireAnyAdmin`, so a system admin (`system_admin` or legacy `admin`) and an `area_admin` pass. List, fetch, mileage logs, service logs, and service comment updates use `requireFleetAccess` and are allowed for a system admin, an `area_admin`, and `maintenance`. The list is the whole fleet. It is not filtered by the area admin's area. An area admin can create, update, delete, and log a vehicle whose `areaAssigned` is not their area.
 
 A `userId` in a create or update body is ignored. Responses do not include `userId`.
 
@@ -233,5 +237,68 @@ The body uses the same fields and validation as create. A `userId` or `status` i
 **200** `{ "message": "Driver was deleted successfully." }`
 
 **404** `{ "message": "Driver with id=<driverId> not found." }`
+
+Missing bearer token is `401` `{ "message": "Unauthorized! No token provided." }`. An invalid or expired token is `401` `{ "message": "Unauthorized! Invalid or expired token." }`.
+
+## Destinations
+
+Destination routes are mounted on the vehicle router at `/api/vehicle`. Every destination route uses `authenticate` only. `GET` and `POST /api/vehicle/destinations` are allowed for any authenticated role, including `requestor` and `maintenance`. Role is not a reason to return `403` on list or create.
+
+`PUT /api/vehicle/destinations/:destinationId` is allowed for a system admin (`system_admin` or legacy `admin`), an `area_admin`, and a `maintenance` user. A `requestor` receives `403` `{ "message": "Requestors cannot update or delete destinations." }` before the id is loaded. The destination is unchanged.
+
+`DELETE /api/vehicle/destinations/:destinationId` is allowed for a system admin (`system_admin` or legacy `admin`) and an `area_admin`. A `requestor` receives `403` `{ "message": "Requestors cannot update or delete destinations." }`. A `maintenance` user receives `403` `{ "message": "Maintenance cannot delete destinations." }`. The requestor check runs first. Both checks run before the id is loaded, so a missing or non-integer id still returns that `403`. The destination is unchanged.
+
+These routes do not use `requireSystemAdmin`, `requireAdmin`, `requireAnyAdmin`, or `requireFleetAccess`.
+
+A `userId` in a create or update body is ignored. The `destinations` table has no `userId` column, and responses do not include `userId`. The list is not filtered by role or area.
+
+### Create – `POST /api/vehicle/destinations`
+
+```json
+{
+  "name": "Garvey Center",
+  "addressLine1": "2501 E Memorial Rd",
+  "addressLine2": "Suite 100",
+  "city": "Edmond",
+  "state": "OK",
+  "zip": "73013"
+}
+```
+
+**201** returns the saved destination: `id`, `name`, `addressLine1`, `addressLine2`, `city`, `state`, `zip`, `createdAt`, and `updatedAt`. `addressLine2` is `null` when it was blank or omitted, and the key is present.
+
+Every string is trimmed before it is stored. `state` is stored uppercase. `name` is not unique. `name` and `addressLine1` are at most 100 characters. `addressLine2`, when present, is at most 100 characters. `city` is at most 50 characters. Fields are checked in this order, and the first error is returned: `name`, `addressLine1`, `addressLine2`, `city`, `state`, `zip`. A missing value, a non-string, an empty string, or whitespace-only text is an empty string.
+
+| Condition | `message` |
+|-----------|-----------|
+| Missing or blank `name` | `Name cannot be empty.` |
+| `name` longer than 100 characters | `Name cannot exceed 100 characters.` |
+| Missing or blank `addressLine1` | `Address Line 1 cannot be empty.` |
+| `addressLine1` longer than 100 characters | `Address Line 1 cannot exceed 100 characters.` |
+| `addressLine2` longer than 100 characters | `Address Line 2 cannot exceed 100 characters.` |
+| Missing or blank `city` | `City cannot be empty.` |
+| `city` longer than 50 characters | `City cannot exceed 50 characters.` |
+| Missing `state`, or `state` is not exactly two letters | `State must be a 2-letter abbreviation.` |
+| Missing `zip`, or `zip` does not match `^\d{5}(-\d{4})?$` | `Zip must be 5 digits or ZIP+4.` |
+
+A blank `addressLine2` is not an error.
+
+### List – `GET /api/vehicle/destinations`
+
+**200** returns a JSON array of every destination, ordered by `name` ascending, then `city` ascending, then `id` ascending. Each item has the create fields.
+
+### Update – `PUT /api/vehicle/destinations/:destinationId`
+
+The body uses the same fields and validation as create. A `userId` in the body is ignored.
+
+**200** `{ "message": "Destination was updated successfully." }`
+
+**404** `{ "message": "Destination with id=<destinationId> not found." }` A non-integer `:destinationId` uses this same `404`. The message keeps the raw path param. A `requestor` receives `403` before that lookup.
+
+### Delete – `DELETE /api/vehicle/destinations/:destinationId`
+
+**200** `{ "message": "Destination was deleted successfully." }`
+
+**404** `{ "message": "Destination with id=<destinationId> not found." }` A non-integer `:destinationId` uses this same `404`. The message keeps the raw path param. A `requestor` or `maintenance` user receives `403` before that lookup.
 
 Missing bearer token is `401` `{ "message": "Unauthorized! No token provided." }`. An invalid or expired token is `401` `{ "message": "Unauthorized! Invalid or expired token." }`.

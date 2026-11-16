@@ -109,7 +109,9 @@ describe("Feature 1 — User Authentication & Session Management", () => {
       expect(wrapper.text()).toContain("Sign out");
       expect(wrapper.text()).toContain("System Admin");
       expect(wrapper.text()).toContain("Vehicle");
-      for (const label of catalogLabels.filter((item) => item !== "Vehicle" && item !== "Driver")) {
+      for (const label of catalogLabels.filter(
+        (item) => item !== "Vehicle" && item !== "Driver" && item !== "Destination"
+      )) {
         expect(wrapper.text()).not.toContain(label);
       }
     });
@@ -120,12 +122,14 @@ describe("Feature 1 — User Authentication & Session Management", () => {
       expect(wrapper.text()).toContain("System Admin");
       expect(wrapper.text()).toContain("Sign out");
       expect(wrapper.text()).toContain("Vehicle");
-      for (const label of catalogLabels.filter((item) => item !== "Vehicle" && item !== "Driver")) {
+      for (const label of catalogLabels.filter(
+        (item) => item !== "Vehicle" && item !== "Driver" && item !== "Destination"
+      )) {
         expect(wrapper.text()).not.toContain(label);
       }
     });
 
-    it("Area admin MenuBar shows the assigned area and no catalog links yet", async () => {
+    it("Area admin MenuBar shows the assigned area and Vehicle", async () => {
       const { wrapper } = await mountApp(
         "/",
         userWithRole("area_admin", { areaId: 5, areaName: "Athletics" })
@@ -133,8 +137,11 @@ describe("Feature 1 — User Authentication & Session Management", () => {
 
       expect(wrapper.text()).toContain("Sign out");
       expect(wrapper.text()).toContain("Area Admin · Athletics");
+      expect(wrapper.find(".menu-bar__nav").text()).toContain("Vehicle");
       const buttonText = wrapper.findAll("button, a").map((node) => node.text());
-      for (const label of catalogLabels.filter((item) => item !== "Driver")) {
+      for (const label of catalogLabels.filter(
+        (item) => item !== "Driver" && item !== "Destination" && item !== "Vehicle"
+      )) {
         expect(buttonText.some((text) => text.trim() === label)).toBe(false);
       }
     });
@@ -145,7 +152,9 @@ describe("Feature 1 — User Authentication & Session Management", () => {
       expect(wrapper.text()).toContain("Sign out");
       expect(wrapper.text()).toContain("Maintenance");
       expect(wrapper.text()).toContain("Vehicle");
-      for (const label of catalogLabels.filter((item) => item !== "Vehicle" && item !== "Driver")) {
+      for (const label of catalogLabels.filter(
+        (item) => item !== "Vehicle" && item !== "Driver" && item !== "Destination"
+      )) {
         expect(wrapper.text()).not.toContain(label);
       }
     });
@@ -161,6 +170,15 @@ describe("Feature 2 — Vehicle Management", () => {
   });
 
   describe("US-2.1 — View Vehicle List Page", () => {
+    it("Area admin sees Vehicle in the menu", async () => {
+      const { wrapper } = await mountApp(
+        "/",
+        userWithRole("area_admin", { areaId: 5, areaName: "Athletics" })
+      );
+
+      expect(wrapper.find(".menu-bar__nav").text()).toContain("Vehicle");
+    });
+
     it("Requestor does not see Vehicle in the menu", async () => {
       const { wrapper } = await mountApp("/", userWithRole("requestor"));
 
@@ -174,7 +192,7 @@ describe("Feature 2 — Vehicle Management", () => {
       expect(wrapper.find(".menu-bar__session").text()).toContain("Jane Doe");
       expect(wrapper.find(".menu-bar__session").text()).toContain("Sign out");
       const labels = wrapper.findAll(".menu-bar__item").map((item) => item.text());
-      expect(labels).toEqual(["Vehicle", "Driver", "Sign out"]);
+      expect(labels).toEqual(["Vehicle", "Destination", "Driver", "Sign out"]);
     });
 
     it("Maintenance sees their name and Sign out on the vehicle page", async () => {
@@ -231,6 +249,50 @@ describe("Feature 3 — Driver Management", () => {
       const { wrapper } = await mountApp("/login");
 
       expect(wrapper.find(".menu-bar__nav").text()).not.toContain("Driver");
+    });
+  });
+});
+
+describe("Feature 4 — Destination Management", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    clearCurrentUser();
+    logout.mockReset();
+    logout.mockResolvedValue({ data: { message: "Signed out." } });
+  });
+
+  describe("US-4.6 — Role-Based Menu Access", () => {
+    it("System admin sees Destination in the menu", async () => {
+      const { wrapper } = await mountApp("/", userWithRole("system_admin"));
+
+      expect(wrapper.find(".menu-bar__nav").text()).toContain("Destination");
+    });
+
+    it("Area admin sees Destination in the menu", async () => {
+      const { wrapper } = await mountApp(
+        "/",
+        userWithRole("area_admin", { areaId: 5, areaName: "Athletics" })
+      );
+
+      expect(wrapper.find(".menu-bar__nav").text()).toContain("Destination");
+    });
+
+    it("Maintenance user sees Destination in the menu", async () => {
+      const { wrapper } = await mountApp("/", userWithRole("maintenance"));
+
+      expect(wrapper.find(".menu-bar__nav").text()).toContain("Destination");
+    });
+
+    it("Requestor does not see Destination in the menu", async () => {
+      const { wrapper } = await mountApp("/", userWithRole("requestor"));
+
+      expect(wrapper.find(".menu-bar__nav").text()).not.toContain("Destination");
+    });
+
+    it("Signed-out menu does not show Destination", async () => {
+      const { wrapper } = await mountApp("/login");
+
+      expect(wrapper.find(".menu-bar__nav").text()).not.toContain("Destination");
     });
   });
 });
