@@ -67,7 +67,7 @@ function plateLabel(vehicle) {
         @click="emit('select', vehicle.id)"
       >
         <template #prepend>
-          <VehicleIcon :category="vehicle.category" :color="vehicle.color" />
+          <VehicleIcon :category="vehicle.category" />
         </template>
         <v-list-item-title>{{ vehicleTitle(vehicle) }}</v-list-item-title>
         <v-list-item-subtitle>

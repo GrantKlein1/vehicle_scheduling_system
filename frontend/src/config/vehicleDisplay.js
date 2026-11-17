@@ -1,5 +1,3 @@
-import { vehicleColorHex } from "../../../backend/app/config/vehicleColors.js";
-
 const VEHICLE_STATUS_LABELS = {
   available: "Available",
   checked_out: "Checked Out",
@@ -34,26 +32,6 @@ export const CATEGORY_ICONS = {
   Car: "mdi-car",
   Van: "mdi-van-passenger",
 };
-
-function relativeLuminance(hex) {
-  const channels = [1, 3, 5].map((start) => {
-    const value = parseInt(hex.slice(start, start + 2), 16) / 255;
-    return value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
-  });
-  return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
-}
-
-export function vehicleIconPaint(colorName) {
-  return vehicleColorHex(colorName) ?? "#616161";
-}
-
-export function vehicleIconBackdrop(colorName) {
-  const hex = vehicleColorHex(colorName);
-  if (!hex) {
-    return "#E8E8E8";
-  }
-  return relativeLuminance(hex) > 0.45 ? "#3A3A3A" : "#E8E8E8";
-}
 
 export function vehicleTitle(vehicle) {
   return `${vehicle.year} ${vehicle.make} ${vehicle.model}`;

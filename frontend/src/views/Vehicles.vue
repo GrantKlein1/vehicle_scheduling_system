@@ -13,7 +13,7 @@ import {
   makesForCategory,
   modelsForMake,
 } from "../config/vehicleCatalog.js";
-import { canonicalVehicleColor, VEHICLE_COLOR_NAMES } from "../../../backend/app/config/vehicleColors.js";
+import { canonicalVehicleColor } from "../../../backend/app/config/vehicleColors.js";
 import {
   formatDate,
   formatMileage,
@@ -235,10 +235,11 @@ function vehicleFieldMessage(key, value) {
     }
   }
   if (key === "color") {
-    if (String(value).trim().length > 30) {
+    const color = titleCaseColor(value).trim();
+    if (color.length > 30) {
       return "Color cannot exceed 30 characters.";
     }
-    if (!canonicalVehicleColor(value)) {
+    if (!canonicalVehicleColor(color)) {
       return "Color must be a recognized color such as White, Black, Silver, Gray, Red, Blue, or Green.";
     }
   }
@@ -350,6 +351,16 @@ function setLicensePlate(value) {
   form.value.licensePlateNumber = String(value ?? "").toUpperCase();
 }
 
+function titleCaseColor(value) {
+  return String(value ?? "").replace(/\S+/g, (word) => {
+    return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+  });
+}
+
+function setColor(value) {
+  form.value.color = titleCaseColor(value);
+}
+
 function setPassengerCapacity(value) {
   if (value === "" || value === null || value === undefined) {
     form.value.passengerCapacity = "";
@@ -409,7 +420,7 @@ function vehiclePayload() {
     year: toInteger(form.value.year),
     vin: golfCart ? null : String(form.value.vin ?? "").trim(),
     purchasedDate: form.value.purchasedDate,
-    color: canonicalVehicleColor(form.value.color) ?? String(form.value.color ?? "").trim(),
+    color: canonicalVehicleColor(form.value.color) ?? titleCaseColor(form.value.color).trim(),
     passengerCapacity: toInteger(form.value.passengerCapacity),
     licensePlateNumber: golfCart
       ? null
@@ -716,7 +727,7 @@ onMounted(async () => {
           <template v-if="selectedVehicle">
             <v-card-item :title="vehicleTitle(selectedVehicle)">
               <template #prepend>
-                <VehicleIcon :category="selectedVehicle.category" :color="selectedVehicle.color" />
+                <VehicleIcon :category="selectedVehicle.category" />
               </template>
               <template #subtitle>
                 <v-chip size="small" color="primary" variant="tonal" class="mr-2">
@@ -977,11 +988,11 @@ onMounted(async () => {
                 />
               </v-col>
               <v-col cols="12" sm="6">
-                <v-combobox
-                  v-model="form.color"
+                <v-text-field
+                  :model-value="form.color"
                   label="Color"
-                  :items="VEHICLE_COLOR_NAMES"
                   :error-messages="vehicleErrors.color"
+                  @update:model-value="setColor"
                   @update:focused="focused => onVehicleBlur('color', focused)"
                 />
               </v-col>
