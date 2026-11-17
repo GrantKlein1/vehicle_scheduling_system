@@ -1,11 +1,7 @@
 <script setup>
 import { computed, ref } from "vue";
-import {
-  CATEGORY_ICONS,
-  vehicleStatusColor,
-  vehicleStatusLabel,
-  vehicleTitle,
-} from "../../config/vehicleDisplay.js";
+import VehicleIcon from "./VehicleIcon.vue";
+import { vehicleStatusColor, vehicleStatusLabel, vehicleTitle } from "../../config/vehicleDisplay.js";
 
 const props = defineProps({
   vehicles: { type: Array, required: true },
@@ -66,14 +62,12 @@ function plateLabel(vehicle) {
         :key="vehicle.id"
         class="vehicle-list-item"
         :active="vehicle.id === selectedId"
-        color="primary"
+        color="on-surface"
         rounded="lg"
         @click="emit('select', vehicle.id)"
       >
         <template #prepend>
-          <v-avatar color="primary" variant="tonal">
-            <v-icon :icon="CATEGORY_ICONS[vehicle.category]" />
-          </v-avatar>
+          <VehicleIcon :category="vehicle.category" :color="vehicle.color" />
         </template>
         <v-list-item-title>{{ vehicleTitle(vehicle) }}</v-list-item-title>
         <v-list-item-subtitle>
