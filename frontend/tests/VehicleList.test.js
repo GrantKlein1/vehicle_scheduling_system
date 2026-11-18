@@ -339,7 +339,7 @@ describe("Feature 2 — Vehicle Management", () => {
       await setLabeled(wrapper, "License Plate Number", "OC-1001");
       await clickDialogButton("Add Vehicle");
 
-      expect(pageText()).toContain("License Plate Number must be 2 to 8 letters or digits.");
+      expect(pageText()).toContain("Use 2 to 8 letters or numbers. Spaces and symbols are not allowed.");
       expect(createVehicle).not.toHaveBeenCalled();
     });
 

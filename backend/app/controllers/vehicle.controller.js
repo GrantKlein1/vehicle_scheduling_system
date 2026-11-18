@@ -1,3 +1,4 @@
+import { canonicalVehicleColor } from "../config/vehicleColors.js";
 import db from "../models/index.js";
 import { DEFAULT_VEHICLE_STATUS, VEHICLE_STATUSES } from "../models/vehicle.model.js";
 
@@ -115,12 +116,18 @@ function validateVehicle(body, { currentStatus } = {}) {
     return { error: "Date cannot be in the future." };
   }
 
-  const color = trimmedString(body?.color);
-  if (!color) {
+  const colorText = trimmedString(body?.color);
+  if (!colorText) {
     return { error: "Color cannot be empty." };
   }
-  if (color.length > 30) {
+  if (colorText.length > 30) {
     return { error: "Color cannot exceed 30 characters." };
+  }
+  const color = canonicalVehicleColor(colorText);
+  if (!color) {
+    return {
+      error: "Color must be a recognized color such as White, Black, Silver, Gray, Red, Blue, or Green.",
+    };
   }
 
   if (!isIntegerInRange(body?.passengerCapacity, 1, 15)) {
@@ -130,12 +137,12 @@ function validateVehicle(body, { currentStatus } = {}) {
   let licensePlateNumber = null;
   let licensePlateExpirationMonth = null;
   if (!isGolfCart) {
-    licensePlateNumber = trimmedString(body?.licensePlateNumber);
+    licensePlateNumber = trimmedString(body?.licensePlateNumber).toUpperCase();
     if (!licensePlateNumber) {
       return { error: "License Plate Number cannot be empty." };
     }
     if (!PLATE_PATTERN.test(licensePlateNumber)) {
-      return { error: "License Plate Number must be 2 to 8 letters or digits." };
+      return { error: "Use 2 to 8 letters or numbers. Spaces and symbols are not allowed." };
     }
 
     if (!isIntegerInRange(body?.licensePlateExpirationMonth, 1, 12)) {

@@ -309,6 +309,43 @@ describe("Feature 1 — User Authentication & Session Management", () => {
       expect(user.areaId).toBeNull();
     });
 
+    it("Returning system admin sign-in clears a leftover area", async () => {
+      const area = await db.area.create({ name: "Athletics" });
+      await db.sequelize.query(
+        "INSERT INTO users (fName, lName, email, googleSub, role, areaId) VALUES (?, ?, ?, ?, ?, ?)",
+        {
+          replacements: [
+            "Sys",
+            "Admin",
+            "sysadmin@eagles.oc.edu",
+            "google-sub-sysadmin",
+            "system_admin",
+            area.id,
+          ],
+        }
+      );
+
+      mockGoogleProfile({
+        sub: "google-sub-sysadmin",
+        email: "sysadmin@eagles.oc.edu",
+        fName: "Sys",
+        lName: "Admin",
+      });
+
+      const response = await request(app).post("/vehicle-t4/login").send({
+        credential: "google-credential-sysadmin",
+      });
+
+      expect(response.status).toBe(200);
+      expect(response.body.role).toBe("system_admin");
+      expect(response.body.areaId).toBeNull();
+      expect(response.body.areaName).toBeNull();
+
+      const user = await db.user.findOne({ where: { email: "sysadmin@eagles.oc.edu" } });
+      expect(user.role).toBe("system_admin");
+      expect(user.areaId).toBeNull();
+    });
+
     it("Area admin sign-in keeps the assigned area", async () => {
       const area = await db.area.create({ name: "Athletics" });
       const existing = await db.user.create({
