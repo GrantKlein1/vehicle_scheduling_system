@@ -48,15 +48,46 @@ export function toAvailableVehicle(vehicle) {
   };
 }
 
+function dateOnly(value) {
+  if (value == null || value === "") {
+    return null;
+  }
+  return String(value).slice(0, 10);
+}
+
 export function toFleetVehicle(vehicle) {
   return {
     id: vehicle.id,
     name: vehicleDisplayName(vehicle),
     category: vehicle.category,
+    make: vehicle.make,
+    model: vehicle.model,
+    year: vehicle.year,
+    vin: vehicle.vin ?? null,
+    purchasedDate: dateOnly(vehicle.purchasedDate),
+    color: vehicle.color,
     status: vehicle.status,
     passengerCapacity: vehicle.passengerCapacity,
     areaAssigned: vehicle.areaAssigned,
     licensePlateNumber: vehicle.licensePlateNumber ?? null,
+    licensePlateExpirationMonth: vehicle.licensePlateExpirationMonth ?? null,
+  };
+}
+
+export function toMileageLog(log) {
+  return {
+    id: log.id,
+    entryDate: dateOnly(log.entryDate),
+    currentMileage: log.currentMileage,
+  };
+}
+
+export function toServiceLog(log) {
+  return {
+    id: log.id,
+    entryDate: dateOnly(log.entryDate),
+    servicePerformed: log.servicePerformed,
+    comments: log.comments ?? null,
   };
 }
 
@@ -64,8 +95,15 @@ export function toDriver(driver) {
   return {
     id: driver.id,
     name: `${driver.firstName} ${driver.lastName}`.trim(),
+    firstName: driver.firstName,
+    lastName: driver.lastName,
     status: driver.status,
     approvedCategories: driver.approvedCategories ?? null,
+    driverLicenseNumber: driver.driverLicenseNumber,
+    driverLicenseExpDate: dateOnly(driver.driverLicenseExpDate),
+    insuranceProvider: driver.insuranceProvider,
+    insuranceNumber: driver.insuranceNumber,
+    approvedDate: dateOnly(driver.approvedDate),
   };
 }
 
@@ -81,21 +119,29 @@ export function toDestination(destination) {
   };
 }
 
-export function toArea(area) {
+export function toArea(area, admins = []) {
   return {
     id: area.id,
     name: area.name,
+    logo: area.logo ?? null,
     notificationEmail: area.notificationEmail ?? null,
+    admins,
   };
 }
 
 export function toEmailSummary(email) {
   return {
+    id: email.id,
+    reservationId: email.reservationId,
+    event: email.event,
     recipientRole: email.recipientRole,
-    eventType: email.event,
-    status: email.status,
-    sentAt: toIso(email.sentAt),
+    recipientEmail: email.recipientEmail,
+    fromEmail: email.fromEmail,
     subject: email.subject,
+    body: email.body,
+    status: email.status,
+    errorMessage: email.errorMessage ?? null,
+    sentAt: toIso(email.sentAt),
   };
 }
 

@@ -18,6 +18,8 @@ import {
   toDriver,
   toEmailSummary,
   toFleetVehicle,
+  toMileageLog,
+  toServiceLog,
   toReservationSummary,
 } from "./sanitize.js";
 
@@ -275,6 +277,36 @@ async function listVehicles(_user, args) {
   return ok(vehicles.map(toFleetVehicle));
 }
 
+async function getVehicleRecord(_user, args) {
+  const id = integerId(args.id);
+  if (id == null) {
+    return fail(404, "Vehicle not found.");
+  }
+  const vehicle = await db.vehicle.findByPk(id);
+  if (!vehicle) {
+    return fail(404, "Vehicle not found.");
+  }
+  const mileageLogs = await db.mileageLog.findAll({
+    where: { vehicleId: vehicle.id },
+    order: [
+      ["entryDate", "ASC"],
+      ["id", "ASC"],
+    ],
+  });
+  const serviceLogs = await db.serviceLog.findAll({
+    where: { vehicleId: vehicle.id },
+    order: [
+      ["entryDate", "ASC"],
+      ["id", "ASC"],
+    ],
+  });
+  return ok({
+    ...toFleetVehicle(vehicle),
+    mileageLogs: mileageLogs.map(toMileageLog),
+    serviceLogs: serviceLogs.map(toServiceLog),
+  });
+}
+
 async function listDrivers(user) {
   await refreshDriverStatuses();
   const where = isAnyAdmin(user) ? {} : { status: "valid" };
@@ -307,7 +339,30 @@ async function listAreas() {
       ["id", "ASC"],
     ],
   });
-  return ok(areas.map(toArea));
+  const admins = await db.user.findAll({
+    where: { role: "area_admin" },
+    attributes: ["id", "fName", "lName", "email", "areaId"],
+    order: [
+      ["lName", "ASC"],
+      ["fName", "ASC"],
+      ["id", "ASC"],
+    ],
+  });
+  return ok(
+    areas.map((area) =>
+      toArea(
+        area,
+        admins
+          .filter((admin) => admin.areaId === area.id)
+          .map((admin) => ({
+            id: admin.id,
+            fName: admin.fName,
+            lName: admin.lName,
+            email: admin.email,
+          }))
+      )
+    )
+  );
 }
 
 async function listReservationEmails(user, args) {
@@ -438,7 +493,7 @@ export const TOOLS = [
   {
     name: "list_vehicles",
     description:
-      "List the whole fleet for an administrator or maintenance user, including status and license plate. Use this for catalog questions, not for booking availability. VINs are not included.",
+      "List the whole fleet for an administrator or maintenance user, with the same fields as the vehicle screen: status, color, make, model, year, VIN, plate, purchase date, capacity, and area. Status available is the Available label in the vehicle menu. Use this for how many vehicles are available and for color or catalog questions. Do not ask for a trip time. VINs are included because this role can see them.",
     parameters: objectSchema({
       category: {
         type: "string",
@@ -455,9 +510,22 @@ export const TOOLS = [
     handler: listVehicles,
   },
   {
+    name: "get_vehicle",
+    description:
+      "Fetch one vehicle the caller can open on the vehicle screen, including its mileage log and service log. Use this for mileage, service, or one vehicle's full record.",
+    parameters: objectSchema(
+      {
+        id: { type: "integer", description: "Vehicle id from list_vehicles." },
+      },
+      ["id"]
+    ),
+    allowedRoles: ["area_admin", "maintenance", "system_admin"],
+    handler: getVehicleRecord,
+  },
+  {
     name: "list_drivers",
     description:
-      "List drivers the caller may see. Administrators see every driver and status. Requestors and maintenance see valid drivers only. Use this to name a driver. License and insurance numbers are not included.",
+      "List drivers the caller may see on the driver screen, including license, insurance, and approval dates. Administrators see every driver and status. Requestors and maintenance see valid drivers only.",
     parameters: emptyParameters,
     allowedRoles: ["requestor", "area_admin", "maintenance", "system_admin"],
     handler: listDrivers,
@@ -473,7 +541,7 @@ export const TOOLS = [
   {
     name: "list_areas",
     description:
-      "List areas and their notification emails. System administrators only. Use this when the caller asks which areas exist.",
+      "List areas for a system administrator, including logo, notification email, and assigned area admins.",
     parameters: emptyParameters,
     allowedRoles: ["system_admin"],
     handler: listAreas,
@@ -481,7 +549,7 @@ export const TOOLS = [
   {
     name: "list_reservation_emails",
     description:
-      "List email log headers for one reservation the caller can see: recipient role, event, status, sent time, and subject. Use this to answer whether a notice was sent. The body and recipient address are not included.",
+      "List the email notices for one reservation the caller can see, including recipient, subject, body, status, and error. Use this to answer whether a notice was sent and what it said.",
     parameters: objectSchema(
       {
         reservationId: { type: "integer", description: "Reservation id." },

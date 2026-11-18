@@ -340,6 +340,49 @@ describe("Feature 9 — AI Assistant", () => {
       const fleet = await tool(signToolToken(jane.id)).post("list_vehicles").send({});
       expect(fleet.status).toBe(403);
       expect(fleet.body).toEqual({ message: "You do not have access to this information." });
+
+      const detail = await tool(signToolToken(jane.id)).post("get_vehicle").send({ id: 1 });
+      expect(detail.status).toBe(403);
+    });
+
+    it("Fleet roles can read the vehicle screen fields, mileage, and service", async () => {
+      const { user } = await signIn("maintenance");
+      const vehicle = await createVehicle({
+        color: "Onyx",
+        vin: "1FTFW1E50NFA00099",
+        licensePlateNumber: "ONYX1",
+      });
+      await db.mileageLog.create({
+        vehicleId: vehicle.id,
+        entryDate: "2026-01-02",
+        currentMileage: 1200,
+      });
+      await db.serviceLog.create({
+        vehicleId: vehicle.id,
+        entryDate: "2026-02-02",
+        servicePerformed: "Oil change",
+        comments: "Done",
+      });
+
+      const res = await tool(signToolToken(user.id)).post("get_vehicle").send({ id: vehicle.id });
+      expect(res.status).toBe(200);
+      expect(res.body.color).toBe("Onyx");
+      expect(res.body.vin).toBe("1FTFW1E50NFA00099");
+      expect(res.body.mileageLogs).toEqual([
+        { id: expect.any(Number), entryDate: "2026-01-02", currentMileage: 1200 },
+      ]);
+      expect(res.body.serviceLogs).toEqual([
+        {
+          id: expect.any(Number),
+          entryDate: "2026-02-02",
+          servicePerformed: "Oil change",
+          comments: "Done",
+        },
+      ]);
+
+      const missing = await tool(signToolToken(user.id)).post("get_vehicle").send({ id: vehicle.id + 1000 });
+      expect(missing.status).toBe(404);
+      expect(missing.body).toEqual({ message: "Vehicle not found." });
     });
   });
 
@@ -403,7 +446,7 @@ describe("Feature 9 — AI Assistant", () => {
       const { user } = await signIn("maintenance", { fName: "Morgan", lName: "Maint" });
       const names = manifestForRole(user).map((entry) => entry.name);
       expect(names).not.toContain("list_reservations");
-      expect(names).toEqual(["list_vehicles", "list_drivers", "list_destinations"]);
+      expect(names).toEqual(["list_vehicles", "get_vehicle", "list_drivers", "list_destinations"]);
 
       const res = await tool(signToolToken(user.id)).post("list_reservations").send({});
       expect(res.status).toBe(403);
@@ -527,47 +570,87 @@ describe("Feature 9 — AI Assistant", () => {
       expect(drivers.status).toBe(200);
       expect(drivers.body.map((row) => row.name)).toEqual(["Old Driver", "Sam Driver"]);
       for (const row of drivers.body) {
-        expect(Object.keys(row).sort()).toEqual(["approvedCategories", "id", "name", "status"].sort());
+        expect(Object.keys(row).sort()).toEqual(
+          [
+            "approvedCategories",
+            "approvedDate",
+            "driverLicenseExpDate",
+            "driverLicenseNumber",
+            "firstName",
+            "id",
+            "insuranceNumber",
+            "insuranceProvider",
+            "lastName",
+            "name",
+            "status",
+          ].sort()
+        );
       }
-      expect(drivers.body.find((row) => row.name === "Sam Driver").approvedCategories).toBe("Van,Car");
+      const sam = drivers.body.find((row) => row.name === "Sam Driver");
+      expect(sam.approvedCategories).toBe("Van,Car");
+      expect(sam.driverLicenseNumber).toBe("SECRET-LICENSE-1");
+      expect(sam.insuranceNumber).toBe("SECRET-POLICY-1");
 
       expect(vehicles.status).toBe(200);
       const fleet = vehicles.body.find((row) => row.id === vehicle.id);
       expect(Object.keys(fleet).sort()).toEqual(
-        ["areaAssigned", "category", "id", "licensePlateNumber", "name", "passengerCapacity", "status"].sort()
+        [
+          "areaAssigned",
+          "category",
+          "color",
+          "id",
+          "licensePlateExpirationMonth",
+          "licensePlateNumber",
+          "make",
+          "model",
+          "name",
+          "passengerCapacity",
+          "purchasedDate",
+          "status",
+          "vin",
+          "year",
+        ].sort()
       );
       expect(fleet.licensePlateNumber).toBe("PLATE123");
-      expect(JSON.stringify(fleet)).not.toContain("vin");
-
-      const secretBlob = JSON.stringify({ drivers: drivers.body, vehicles: vehicles.body });
-      expect(secretBlob).not.toContain("SECRET-LICENSE-1");
-      expect(secretBlob).not.toContain("SECRET-POLICY-1");
-      expect(secretBlob).not.toContain("SECRETVIN1234567");
-      expect(secretBlob).not.toContain("owner-secret@eagles.oc.edu");
+      expect(fleet.color).toBe("White");
+      expect(fleet.vin).toBe("SECRETVIN1234567");
+      expect(JSON.stringify(fleet)).not.toContain("googleSub");
 
       expect(emails.status).toBe(200);
       expect(emails.body.map((row) => row.subject)).toEqual(["Earlier notice", "Later notice"]);
       for (const row of emails.body) {
         expect(Object.keys(row).sort()).toEqual(
-          ["eventType", "recipientRole", "sentAt", "status", "subject"].sort()
+          [
+            "body",
+            "errorMessage",
+            "event",
+            "fromEmail",
+            "id",
+            "recipientEmail",
+            "recipientRole",
+            "reservationId",
+            "sentAt",
+            "status",
+            "subject",
+          ].sort()
         );
-        expect(row.body).toBeUndefined();
-        expect(row.recipientEmail).toBeUndefined();
-        expect(row.event).toBeUndefined();
       }
-      expect(emails.body[0].eventType).toBe("submitted");
-      expect(emails.body[1].eventType).toBe("approved");
-      const emailBlob = JSON.stringify(emails.body);
-      expect(emailBlob).not.toContain("SECRET EMAIL BODY");
-      expect(emailBlob).not.toContain("hidden-recipient@eagles.oc.edu");
-      expect(emailBlob).not.toContain("another-hidden@eagles.oc.edu");
+      expect(emails.body[0].event).toBe("submitted");
+      expect(emails.body[0].body).toBe("SECRET EMAIL BODY TWO");
+      expect(emails.body[0].recipientEmail).toBe("another-hidden@eagles.oc.edu");
+      expect(emails.body[1].event).toBe("approved");
+      expect(emails.body[1].body).toBe("SECRET EMAIL BODY");
+      expect(emails.body[1].recipientEmail).toBe("hidden-recipient@eagles.oc.edu");
 
       const areas = await tool(token).post("list_areas").send({});
       expect(areas.status).toBe(200);
-      expect(areas.body.find((row) => row.name === "Athletics Mail").notificationEmail).toBe(
-        "athletics-notify@eagles.oc.edu"
+      const athletics = areas.body.find((row) => row.name === "Athletics Mail");
+      expect(athletics.notificationEmail).toBe("athletics-notify@eagles.oc.edu");
+      expect(athletics.logo).toBeNull();
+      expect(athletics.admins).toEqual([]);
+      expect(Object.keys(areas.body[0]).sort()).toEqual(
+        ["admins", "id", "logo", "name", "notificationEmail"].sort()
       );
-      expect(Object.keys(areas.body[0]).sort()).toEqual(["id", "name", "notificationEmail"].sort());
     });
   });
 

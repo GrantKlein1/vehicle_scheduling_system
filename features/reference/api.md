@@ -558,15 +558,16 @@ Manifest by role:
 | `get_reservation` | yes | yes | | yes |
 | `check_vehicle_availability` | yes | yes | | yes |
 | `list_vehicles` | | yes | yes | yes |
+| `get_vehicle` | | yes | yes | yes |
 | `list_drivers` | yes | yes | yes | yes |
 | `list_destinations` | yes | yes | yes | yes |
 | `list_areas` | | | | yes |
 | `list_reservation_emails` | yes | yes | | yes |
 | `draft_reservation` | yes | yes | | yes |
 
-Scope matches the feature that owns the data. Reservation tools follow Feature 6: a requestor sees `requestorId`, an area admin sees `areaName`, and a system admin sees every row. `check_vehicle_availability` is the requestor's vehicle list. It returns `id`, `name`, `category`, `passengerCapacity`, and `areaAssigned` for vehicles that are not `in_repair` or `out_of_service` and have no overlapping `pending` or `approved` reservation. `GET /api/vehicle/vehicles` stays forbidden to a requestor. `list_vehicles` is the whole fleet and adds `status` and `licensePlateNumber`. It does not include `vin`.
+Scope matches the feature that owns the data. Reservation tools follow Feature 6: a requestor sees `requestorId`, an area admin sees `areaName`, and a system admin sees every row. `check_vehicle_availability` is the requestor's vehicle list. It returns `id`, `name`, `category`, `passengerCapacity`, and `areaAssigned` for vehicles that are not `in_repair` or `out_of_service` and have no overlapping `pending` or `approved` reservation. `GET /api/vehicle/vehicles` stays forbidden to a requestor. `list_vehicles` and `get_vehicle` are the fleet screen for system admins, area admins, and maintenance. They include `color`, `vin`, plate, and purchase date. `get_vehicle` also returns that vehicle's mileage and service logs.
 
-`list_drivers` returns `id`, `name`, `status`, and `approvedCategories`. Administrators see `expired` and `valid`. Requestors and maintenance see `valid` only. License and insurance fields are not returned. `list_destinations` returns the address fields for every destination. `list_areas` returns `id`, `name`, and `notificationEmail` to system administrators only. `list_reservation_emails` returns `recipientRole`, `eventType`, `status`, `sentAt`, and `subject` ordered by `sentAt` ascending, then `id` ascending. It omits `body`, `recipientEmail`, `fromEmail`, and `errorMessage`. A hidden reservation is `404`, including for another requestor.
+`list_drivers` returns the driver screen fields, including license and insurance. Administrators see `expired` and `valid`. Requestors and maintenance see `valid` only. `list_destinations` returns the address fields for every destination. `list_areas` returns `id`, `name`, `logo`, `notificationEmail`, and area admins to system administrators only. `list_reservation_emails` returns the notice the caller can open, including `body`, `recipientEmail`, `fromEmail`, and `errorMessage`, ordered by `sentAt` ascending, then `id` ascending. A hidden reservation is `404`, including for another requestor.
 
 ### Draft – `draft_reservation`
 
