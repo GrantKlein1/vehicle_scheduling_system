@@ -21,6 +21,7 @@ No application code may be written unless it maps to a requirement in one of the
 | 3 | [feature-3-driver-management.md](./feature-3-driver-management.md) | `feature/3-driver-management` | Feature 1 |
 | 4 | [feature-4-destination-management.md](./feature-4-destination-management.md) | `feature/4-destination-management` | Feature 1 |
 | 7 | [feature-7-email-management.md](./feature-7-email-management.md) | `feature/7-email-management` | Feature 1, 6 |
+| 9 | [feature-9-ai-assistant.md](./feature-9-ai-assistant.md) | `feature/9-ai-assistant` | Feature 1, 2, 3, 4, 5, 6, 7 |
 
 New features: follow [framework.md](./framework.md#feature-spec-template) — **Status**, **Input**, **FR-00N**, **SC-00N**, **Key Entities**, Gherkin, **Agent implementation request**, **Definition of Done**.
 
