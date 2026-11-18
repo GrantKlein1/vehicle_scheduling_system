@@ -1,4 +1,4 @@
-import { Sequelize } from "sequelize";
+import { Op, Sequelize } from "sequelize";
 import { ROLES } from "../authorization/roles.js";
 
 function tableNames(tables) {
@@ -51,6 +51,26 @@ export async function migrateLegacyAdmins(userModel) {
     { role: ROLES.SYSTEM_ADMIN, areaId: null },
     {
       where: { role: ROLES.LEGACY_ADMIN },
+      validate: false,
+      hooks: false,
+    }
+  );
+  return count;
+}
+
+/**
+ * Drop area assignments on roles that are not allowed to have one.
+ * Rows can get here from a direct database edit. The model hook rejects
+ * that combination on the next save, which blocks Google sign-in.
+ */
+export async function clearStrayAreaAssignments(userModel) {
+  const [count] = await userModel.update(
+    { areaId: null },
+    {
+      where: {
+        areaId: { [Op.ne]: null },
+        role: { [Op.ne]: ROLES.AREA_ADMIN },
+      },
       validate: false,
       hooks: false,
     }
