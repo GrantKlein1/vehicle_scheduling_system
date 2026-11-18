@@ -9,8 +9,17 @@ import { sanitizeChatMessages } from "./sanitize.js";
 const UNAVAILABLE = { message: "The assistant is not available." };
 const UPSTREAM_FAILURE = { message: "The assistant could not answer right now. Please try again." };
 
-function upstreamFailure(res, status) {
-  logger.warn(`assistant upstream status=${status}`);
+function upstreamDetail(error) {
+  const cause = error?.cause;
+  const code = cause?.code || error?.code;
+  const message = typeof cause?.message === "string" ? cause.message : error?.message;
+  const safe = typeof message === "string" ? message.replace(/\s+/g, " ").slice(0, 200) : "";
+  return [code, safe].filter(Boolean).join(" ");
+}
+
+function upstreamFailure(res, status, detail = "") {
+  const extra = detail ? ` ${detail}` : "";
+  logger.warn(`assistant upstream status=${status}${extra}`);
   return res.status(502).json(UPSTREAM_FAILURE);
 }
 
@@ -74,7 +83,11 @@ export async function chat(req, res) {
       reply: payload.reply,
       draft: payload.draft && typeof payload.draft === "object" ? payload.draft : null,
     });
-  } catch {
-    return upstreamFailure(res, "error");
+  } catch (error) {
+    const detail = upstreamDetail(error);
+    const hint = /ECONNREFUSED|ENOTFOUND|EAI_AGAIN/.test(detail)
+      ? "Start the assistant with npm run dev in assistant/ and set ASSISTANT_URL=http://127.0.0.1:3300."
+      : "";
+    return upstreamFailure(res, "error", [detail, hint].filter(Boolean).join(" "));
   }
 }

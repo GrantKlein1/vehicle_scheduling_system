@@ -14,7 +14,7 @@ cp .env.example .env
 npm run dev
 ```
 
-`npm run dev` listens on `PORT` or `3300`. Point the API at it with `ASSISTANT_URL=http://localhost:3300`. The same `ASSISTANT_SHARED_SECRET` must be set on both sides. `APP_API_BASE_URL` must end with `/` (local default `http://localhost:3200/api/`).
+`npm run dev` listens on `127.0.0.1` and `::1`, port `PORT` or `3300`. Point the API at it with `ASSISTANT_URL=http://127.0.0.1:3300`. The same `ASSISTANT_SHARED_SECRET` must be set on both sides. `APP_API_BASE_URL` must end with `/` (local default `http://localhost:3200/api/`). Leave this process running in its own terminal while the API is running.
 
 ```bash
 npm test

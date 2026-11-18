@@ -8,6 +8,14 @@ try {
 }
 
 const port = Number(process.env.PORT) || 3300;
+const REQUIRED_ENV = ["GROQ_API_KEY", "GROQ_MODEL", "ASSISTANT_SHARED_SECRET", "APP_API_BASE_URL"];
+const missingEnv = REQUIRED_ENV.filter((key) => {
+  const value = process.env[key];
+  return typeof value !== "string" || value.trim().length === 0;
+});
+if (missingEnv.length > 0) {
+  console.error(`Assistant is missing ${missingEnv.join(", ")}. Requests will fail until assistant/.env sets them.`);
+}
 
 function toHeaders(incoming) {
   const headers = new Headers();
@@ -24,7 +32,19 @@ function toHeaders(incoming) {
   return headers;
 }
 
-const server = createServer(async (req, res) => {
+function onRequest(req, res) {
+  handleRequest(req, res).catch((error) => {
+    console.error(`Assistant request failed. ${error instanceof Error ? error.message : "request failed"}`);
+    if (res.headersSent) {
+      res.destroy();
+      return;
+    }
+    res.writeHead(500, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ message: "Model request failed." }));
+  });
+}
+
+async function handleRequest(req, res) {
   const url = new URL(req.url || "/", `http://127.0.0.1:${port}`);
   if (req.method !== "POST" || url.pathname !== "/api/chat") {
     res.writeHead(404, { "Content-Type": "application/json" });
@@ -50,13 +70,20 @@ const server = createServer(async (req, res) => {
     });
     res.writeHead(response.status, out);
     res.end(payload);
-  } catch {
-    console.error("Assistant request failed.");
+  } catch (error) {
+    console.error(`Assistant request failed. ${error instanceof Error ? error.message : "request failed"}`);
     res.writeHead(500, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ message: "Model request failed." }));
   }
-});
+}
 
-server.listen(port, () => {
-  console.log(`Assistant service listening on http://localhost:${port}`);
-});
+for (const host of ["127.0.0.1", "::1"]) {
+  const server = createServer(onRequest);
+  server.on("error", (error) => {
+    console.error(`Assistant could not listen on ${host}:${port} (${error.code || error.message}).`);
+  });
+  server.listen(port, host, () => {
+    const shown = host.includes(":") ? `[${host}]` : host;
+    console.log(`Assistant service listening on http://${shown}:${port}`);
+  });
+}

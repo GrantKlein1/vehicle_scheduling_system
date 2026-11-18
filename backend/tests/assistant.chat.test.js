@@ -322,6 +322,21 @@ describe("Feature 9 — AI Assistant", () => {
       expect(fetchSpy).not.toHaveBeenCalled();
     });
 
+    it("A refused assistant connection returns 502", async () => {
+      enableAssistant();
+      const { token } = await signIn("requestor");
+      jest.spyOn(globalThis, "fetch").mockRejectedValue(Object.assign(new TypeError("fetch failed"), {
+        cause: Object.assign(new Error("connect ECONNREFUSED 127.0.0.1:3300"), { code: "ECONNREFUSED" }),
+      }));
+
+      const res = await postChat(token, [{ role: "user", content: "Hello" }]);
+      expect(res.status).toBe(502);
+      expect(res.body).toEqual({
+        message: "The assistant could not answer right now. Please try again.",
+      });
+      expect(JSON.stringify(res.body)).not.toContain("ECONNREFUSED");
+    });
+
     it("Upstream non-200 returns 502", async () => {
       enableAssistant();
       const { token } = await signIn("requestor");
