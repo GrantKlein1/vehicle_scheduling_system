@@ -13,8 +13,8 @@ const API_BASE = "http://localhost:3200/api/";
 const FIVE_MINUTES = 5 * 60 * 1000;
 
 const ENV = {
-  XAI_API_KEY: "xai-test-key",
-  XAI_MODEL: "grok-4-fast",
+  GROQ_API_KEY: "groq-test-key",
+  GROQ_MODEL: "llama-3.3-70b-versatile",
   ASSISTANT_SHARED_SECRET: SECRET,
   APP_API_BASE_URL: API_BASE,
 };
@@ -409,7 +409,7 @@ describe("Feature 9: AI Assistant", () => {
 
     it("Missing configuration returns 503 before the signature is checked", async () => {
       const generate = vi.fn();
-      for (const key of ["XAI_API_KEY", "XAI_MODEL", "ASSISTANT_SHARED_SECRET", "APP_API_BASE_URL"]) {
+      for (const key of ["GROQ_API_KEY", "GROQ_MODEL", "ASSISTANT_SHARED_SECRET", "APP_API_BASE_URL"]) {
         const env = { ...ENV, [key]: "  " };
         const handler = createHandler({ env, generateText: generate });
         const missing = await post(handler, buildRequest(chatBody(), { omitSignature: true }));
@@ -445,7 +445,7 @@ describe("Feature 9: AI Assistant", () => {
       const handler = createHandler({
         model: new MockLanguageModelV3({ doGenerate: textResult("unused") }),
         generateText: async () => {
-          throw new Error(`provider rejected key ${ENV.XAI_API_KEY} token tool-token-value`);
+          throw new Error(`provider rejected key ${ENV.GROQ_API_KEY} token tool-token-value`);
         },
       });
       const result = await post(handler, buildRequest(chatBody()));
@@ -454,7 +454,7 @@ describe("Feature 9: AI Assistant", () => {
       expect(result.body).toEqual({ message: "Model request failed." });
       const logged = errorSpy.mock.calls.flat().join(" ");
       expect(logged).toContain("Model request failed.");
-      expect(logged).not.toContain(ENV.XAI_API_KEY);
+      expect(logged).not.toContain(ENV.GROQ_API_KEY);
       expect(logged).not.toContain(SECRET);
       expect(logged).not.toContain("tool-token-value");
     });

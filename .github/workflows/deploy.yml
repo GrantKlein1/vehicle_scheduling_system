@@ -63,7 +63,7 @@ jobs:
       PORT: ${{ secrets.PORT }}
       NODE_ENV: production
       SEQUELIZE_SYNC_ALTER: ${{ secrets.SEQUELIZE_SYNC_ALTER }}
-      # The xAI key lives only on Vercel; EC2 gets the assistant URL and the request-signing secret.
+      # The Groq key lives only on Vercel; EC2 gets the assistant URL and the request-signing secret.
       ASSISTANT_ENABLED: ${{ secrets.ASSISTANT_ENABLED }}
       ASSISTANT_URL: ${{ secrets.ASSISTANT_URL }}
       ASSISTANT_SHARED_SECRET: ${{ secrets.ASSISTANT_SHARED_SECRET }}

@@ -10,7 +10,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@ai-sdk/xai": "^5.0.47",
+    "@ai-sdk/groq": "^4.0.85",
     "ai": "^7.0.176"
   },
   "devDependencies": {

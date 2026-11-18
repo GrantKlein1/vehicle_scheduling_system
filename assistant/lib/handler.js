@@ -1,16 +1,16 @@
-import { createXai } from "@ai-sdk/xai";
+import { createGroq } from "@ai-sdk/groq";
 import { generateText as defaultGenerateText, isStepCount } from "ai";
 import { buildSystemPrompt } from "./prompt.js";
 import { buildTools } from "./tools.js";
 import { verifySignature } from "./verify.js";
 
-const REQUIRED_ENV = ["XAI_API_KEY", "XAI_MODEL", "ASSISTANT_SHARED_SECRET", "APP_API_BASE_URL"];
+const REQUIRED_ENV = ["GROQ_API_KEY", "GROQ_MODEL", "ASSISTANT_SHARED_SECRET", "APP_API_BASE_URL"];
 const TOOL_NAME = /^[a-z][a-z0-9_]*$/;
 const STEP_LIMIT = 6;
 
 function defaultCreateModel(env) {
-  const xai = createXai({ apiKey: env.XAI_API_KEY });
-  return xai(env.XAI_MODEL);
+  const groq = createGroq({ apiKey: env.GROQ_API_KEY });
+  return groq(env.GROQ_MODEL);
 }
 
 function isConfigured(env) {
