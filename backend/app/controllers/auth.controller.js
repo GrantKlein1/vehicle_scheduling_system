@@ -101,6 +101,9 @@ export async function login(req, res) {
       if (user.role === ROLES.LEGACY_ADMIN) {
         updates.role = ROLES.SYSTEM_ADMIN;
         updates.areaId = null;
+      } else if (user.role !== ROLES.AREA_ADMIN && user.areaId != null) {
+        // A leftover area on a non-area-admin fails the save hook and blocks sign-in.
+        updates.areaId = null;
       }
       await user.update(updates);
     } else {
