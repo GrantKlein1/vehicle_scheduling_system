@@ -1,8 +1,8 @@
 # Data Model Reference
 
-**Status:** Feature 1 users and sessions, plus system admin / area admin, Feature 2 vehicles, mileage logs, and service logs, Feature 3 drivers, and Feature 4 destinations.
+**Status:** Feature 1 users and sessions, plus system admin / area admin, Feature 2 vehicles, mileage logs, and service logs, Feature 3 drivers, Feature 4 destinations, and Feature 5 areas.
 
-Sequelize model names: `user` → table `users`, `session` → table `sessions`, `area` → table `areas`. None of these tables use `createdAt` / `updatedAt`.
+Sequelize model names: `user` → table `users`, `session` → table `sessions`, `area` → table `areas`.
 
 ## Tables
 
@@ -30,9 +30,10 @@ Startup seed inserts these rows only when the email is not already present. It d
 `db.prepareAdminTypes()` runs after sync, outside tests:
 
 1. Create `areas` and `users.areaId` when an older database does not have them.
-2. Set `role` to `system_admin` and `areaId` to null where `role` is `admin`.
-3. Insert the placeholder areas below when the name is missing.
-4. Insert the two users above when the email is missing.
+2. Ensure `areas.logo`, `areas.notificationEmail`, `areas.createdAt`, and `areas.updatedAt` exist.
+3. Set `role` to `system_admin` and `areaId` to null where `role` is `admin`.
+4. Insert the placeholder areas below when the name is missing.
+5. Insert the two users above when the email is missing.
 
 ### `areas`
 
@@ -40,18 +41,18 @@ Startup seed inserts these rows only when the email is not already present. It d
 |-------|------|-------|
 | `id` | INTEGER PK | Auto-increment |
 | `name` | STRING(50) | Required, unique. Trimmed. At most 50 characters |
+| `logo` | STRING(255) | Nullable. Logo URL or path. At most 255 characters |
+| `notificationEmail` | STRING(255) | Required in API validation. Valid email format. At most 255 characters |
+| `createdAt` | DATE | Managed by Sequelize |
+| `updatedAt` | DATE | Managed by Sequelize |
 
-Placeholder catalog so an area admin can be assigned to an area. Feature 5 adds logo, notification email, timestamps, and editing on this table.
+Startup seed inserts these default areas when missing:
 
-Startup seed inserts these names when they are missing:
-
-| name |
-|------|
-| `Athletics` |
-| `Support Central` |
-| `Maintenance` |
-
-Other names, such as `Biology`, can be inserted without a code change. This feature has no area CRUD API.
+| name | notificationEmail |
+|------|-------------------|
+| `Athletics` | `athletics@eagles.oc.edu` |
+| `Support Central` | `supportcentral@eagles.oc.edu` |
+| `Maintenance` | `maint@eagles.oc.edu` |
 
 ### `sessions`
 

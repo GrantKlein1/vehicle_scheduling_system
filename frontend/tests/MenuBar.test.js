@@ -121,7 +121,11 @@ describe("Feature 1 — User Authentication & Session Management", () => {
       expect(wrapper.text()).toContain("System Admin");
       expect(wrapper.text()).toContain("Vehicle");
       for (const label of catalogLabels.filter(
-        (item) => item !== "Vehicle" && item !== "Driver" && item !== "Destination"
+        (item) =>
+          item !== "Vehicle" &&
+          item !== "Driver" &&
+          item !== "Destination" &&
+          item !== "Area"
       )) {
         expect(wrapper.text()).not.toContain(label);
       }
@@ -135,7 +139,11 @@ describe("Feature 1 — User Authentication & Session Management", () => {
       expect(wrapper.text()).toContain("Sign out");
       expect(wrapper.text()).toContain("Vehicle");
       for (const label of catalogLabels.filter(
-        (item) => item !== "Vehicle" && item !== "Driver" && item !== "Destination"
+        (item) =>
+          item !== "Vehicle" &&
+          item !== "Driver" &&
+          item !== "Destination" &&
+          item !== "Area"
       )) {
         expect(wrapper.text()).not.toContain(label);
       }
@@ -207,7 +215,7 @@ describe("Feature 2 — Vehicle Management", () => {
       expect(wrapper.find(".menu-bar__session").text()).toContain("Jane Doe");
       expect(wrapper.find(".menu-bar__signout").text()).toContain("Sign out");
       const labels = wrapper.findAll(".menu-bar__nav .menu-bar__item").map((item) => item.text());
-      expect(labels).toEqual(["Vehicle", "Destination", "Driver"]);
+      expect(labels).toEqual(["Vehicle", "Destination", "Driver", "Area"]);
     });
 
     it("Maintenance sees their name and Sign out on the vehicle page", async () => {
