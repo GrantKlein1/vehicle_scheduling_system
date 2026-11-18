@@ -6,8 +6,10 @@ import {
   loadAssistantHistory,
   saveAssistantHistory,
 } from "../config/assistantState.js";
+import { currentUser } from "../config/session.js";
 import { chat } from "../services/assistantServices.js";
 import ReservationDraftCard from "./ReservationDraftCard.vue";
+import TripRequestForm from "./TripRequestForm.vue";
 
 const ASSISTANT_ERROR = "The assistant could not answer right now. Please try again.";
 const MAX_CHAT_MESSAGES = 20;
@@ -22,6 +24,7 @@ const messageInput = ref(null);
 let requestSerial = 0;
 
 const canSend = computed(() => String(input.value ?? "").trim().length > 0 && !sending.value);
+const canBook = computed(() => currentUser.value?.role !== "maintenance");
 
 watch(
   [messages, draft],
@@ -64,9 +67,6 @@ async function sendMessage() {
       ...messages.value,
       { role: "assistant", content: typeof reply === "string" ? reply : "" },
     ];
-    if (response?.data?.draft != null) {
-      draft.value = response.data.draft;
-    }
   } catch (error) {
     if (serial !== requestSerial) return;
     errorMessage.value = readErrorMessage(error);
@@ -88,6 +88,10 @@ function clearConversation() {
 
 function discardDraft() {
   draft.value = null;
+}
+
+function onTripDraft(next) {
+  draft.value = next && typeof next === "object" ? next : null;
 }
 
 function onDraftCreated(result) {
@@ -138,7 +142,7 @@ defineExpose({ messageInput, focusMessage });
       <div class="assistant-drawer__scroll">
       <div class="assistant-drawer__messages" role="log" aria-live="polite">
         <p v-if="messages.length === 0" class="assistant-drawer__empty text-body-2 text-medium-emphasis">
-          Ask about your reservations, available vehicles, or say "Book a van for Friday".
+          Ask about your reservations or available vehicles. Booking uses the trip form.
         </p>
         <div
           v-for="(message, index) in messages"
@@ -153,6 +157,8 @@ defineExpose({ messageInput, focusMessage });
           {{ message.content }}
         </div>
       </div>
+
+      <TripRequestForm v-if="canBook" @draft="onTripDraft" />
 
       <ReservationDraftCard
         v-if="draft"

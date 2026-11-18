@@ -8,12 +8,18 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "../src/App.vue";
 import { assistantOpen } from "../src/config/assistantState.js";
 import { clearCurrentUser, setCurrentUser } from "../src/config/session.js";
-import { chat } from "../src/services/assistantServices.js";
+import { chat, planTrip } from "../src/services/assistantServices.js";
+import { listDestinations } from "../src/services/destinationServices.js";
 import { createReservation } from "../src/services/reservationServices.js";
 import { createTestRouter, mountWithPlugins } from "./testUtils.js";
 
 vi.mock("../src/services/assistantServices.js", () => ({
   chat: vi.fn(),
+  planTrip: vi.fn(),
+}));
+
+vi.mock("../src/services/destinationServices.js", () => ({
+  listDestinations: vi.fn(),
 }));
 
 vi.mock("../src/services/reservationServices.js", () => ({
@@ -24,6 +30,17 @@ vi.mock("../src/services/reservationServices.js", () => ({
   denyReservation: vi.fn(),
   cancelReservation: vi.fn(),
 }));
+
+const maintenance = {
+  userId: 8,
+  email: "mike@eagles.oc.edu",
+  fName: "Mike",
+  lName: "Lee",
+  role: "maintenance",
+  areaId: null,
+  areaName: null,
+  token: "session-token",
+};
 
 const requestor = {
   userId: 7,
@@ -116,6 +133,9 @@ describe("Feature 9 — AI Assistant", () => {
     clearCurrentUser();
     assistantOpen.value = false;
     vi.clearAllMocks();
+    listDestinations.mockResolvedValue({
+      data: [{ name: "Edmond High School" }, { name: "Memorial Road" }],
+    });
   });
 
   afterEach(() => {
@@ -299,6 +319,140 @@ describe("Feature 9 — AI Assistant", () => {
       expect(wrapper.text()).toContain("Hello");
       expect(wrapper.findAll(".assistant-drawer__bubble--user")).toHaveLength(1);
       expect(wrapper.findAll(".assistant-drawer__bubble--assistant")).toHaveLength(0);
+    });
+  });
+
+  describe("US-9.4 trip form", () => {
+    function labeledSelect(label) {
+      return wrapper.findAllComponents({ name: "VSelect" }).find((item) => item.props("label") === label);
+    }
+
+    async function choose(label, value) {
+      const select = labeledSelect(label);
+      select.vm.$emit("update:modelValue", value);
+      await flushPromises();
+    }
+
+    async function fillTrip() {
+      await choose("Destination", "Memorial Road");
+      await choose("Vehicle type", "Van");
+      const passengers = wrapper
+        .findAllComponents({ name: "VTextField" })
+        .find((item) => item.props("label") === "Passengers");
+      await passengers.find("input").setValue("4");
+      const start = wrapper
+        .findAllComponents({ name: "VTextField" })
+        .find((item) => item.props("label") === "Start");
+      const end = wrapper
+        .findAllComponents({ name: "VTextField" })
+        .find((item) => item.props("label") === "End");
+      await start.find("input").setValue("2027-08-19T08:00");
+      await end.find("input").setValue("2027-08-19T12:00");
+    }
+
+    it("A chat reply does not fill in a destination", async () => {
+      chat.mockResolvedValue({
+        data: {
+          reply: "Tell me the destination, vehicle type, and passengers in the trip form.",
+          draft: validDraft,
+        },
+      });
+      wrapper = await mountApp({ user: requestor, open: true });
+
+      await setMessage(wrapper, "Please book a van");
+      await buttonByText(wrapper, "Send").trigger("click");
+      await flushPromises();
+
+      expect(wrapper.text()).toContain("Tell me the destination, vehicle type, and passengers in the trip form.");
+      expect(wrapper.text()).not.toContain("2020 Ford Transit");
+      expect(buttonByText(wrapper, "Confirm")).toBeUndefined();
+    });
+
+    it("The form requires destination, vehicle type, and passengers", async () => {
+      wrapper = await mountApp({ user: requestor, open: true });
+
+      expect(labeledSelect("Destination")).toBeTruthy();
+      expect(labeledSelect("Vehicle type")).toBeTruthy();
+      expect(wrapper.text()).toContain("Passengers");
+
+      await buttonByText(wrapper, "Find vehicles").trigger("click");
+      await flushPromises();
+
+      expect(planTrip).not.toHaveBeenCalled();
+      expect(wrapper.text()).toContain("Destination is required.");
+      expect(wrapper.text()).toContain("Vehicle type is required.");
+      expect(wrapper.text()).toContain("Passengers are required.");
+    });
+
+    it("Review draft uses the form values", async () => {
+      planTrip
+        .mockResolvedValueOnce({
+          data: {
+            vehicles: [
+              {
+                id: 4,
+                name: "2020 Ford Transit",
+                category: "Van",
+                passengerCapacity: 8,
+                areaAssigned: "Athletics",
+              },
+            ],
+            draft: null,
+          },
+        })
+        .mockResolvedValueOnce({
+          data: {
+            vehicles: [],
+            draft: {
+              ...validDraft,
+              vehicleId: 4,
+              destinationName: "Memorial Road",
+              passengers: 4,
+            },
+          },
+        });
+      wrapper = await mountApp({ user: requestor, open: true });
+      await flushPromises();
+      await fillTrip();
+
+      await buttonByText(wrapper, "Find vehicles").trigger("click");
+      await flushPromises();
+
+      expect(planTrip).toHaveBeenCalledWith({
+        destinationName: "Memorial Road",
+        category: "Van",
+        passengers: 4,
+        start: "2027-08-19T13:00:00.000Z",
+        end: "2027-08-19T17:00:00.000Z",
+      });
+      expect(wrapper.text()).toContain("2020 Ford Transit");
+      expect(buttonByText(wrapper, "Confirm")).toBeUndefined();
+
+      const group = wrapper.findComponent({ name: "VRadioGroup" });
+      group.vm.$emit("update:modelValue", 4);
+      await flushPromises();
+      await buttonByText(wrapper, "Review draft").trigger("click");
+      await flushPromises();
+
+      expect(planTrip).toHaveBeenLastCalledWith({
+        destinationName: "Memorial Road",
+        category: "Van",
+        passengers: 4,
+        start: "2027-08-19T13:00:00.000Z",
+        end: "2027-08-19T17:00:00.000Z",
+        vehicleId: 4,
+      });
+      expect(wrapper.text()).toContain("Memorial Road");
+      expect(wrapper.text()).toContain("Reservation");
+      expect(buttonByText(wrapper, "Confirm")).toBeTruthy();
+    });
+
+    it("Maintenance does not see the trip form", async () => {
+      wrapper = await mountApp({ user: maintenance, open: true });
+
+      expect(wrapper.find(".trip-form").exists()).toBe(false);
+      expect(buttonByText(wrapper, "Find vehicles")).toBeUndefined();
+      expect(listDestinations).not.toHaveBeenCalled();
     });
   });
 });

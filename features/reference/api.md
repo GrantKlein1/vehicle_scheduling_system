@@ -43,6 +43,7 @@ API health stays on `/api/health`. Authentication routes are mounted at `/vehicl
 | `POST` | `/vehicleScheduling/reservations/:id/cancel` | Owning `requestor`, authorized `area_admin`, `system_admin` | Cancel a pending or approved reservation | Feature 6 |
 | `GET` | `/vehicleScheduling/reservations/:id/emails` | Owning `requestor`, authorized `area_admin`, `system_admin` | List recorded emails for one reservation | Feature 7 |
 | `POST` | `/api/assistant/chat` | Session (`authenticate`) | Send a sanitized conversation and receive `{ reply, draft }`. Also mounted at `/vehicle-t4/assistant/chat` | Feature 9 |
+| `POST` | `/api/assistant/trip` | Session (`authenticate`) | Find vehicles or draft a trip from the form. Also mounted at `/vehicle-t4/assistant/trip` | Feature 9 |
 | `POST` | `/api/assistant/tools/:name` | Tool token | Run one role-scoped assistant tool. Also mounted at `/vehicle-t4/assistant/tools/:name` | Feature 9 |
 
 ## Conventions
@@ -486,6 +487,7 @@ The browser calls only the Express API. Express forwards a signed request to the
 | Method | Path | Auth | Purpose |
 |--------|------|------|---------|
 | `POST` | `/api/assistant/chat` | Session JWT plus a `sessions` row | Sanitize the conversation, apply the rate limit, and return `{ reply, draft }` |
+| `POST` | `/api/assistant/trip` | Session JWT plus a `sessions` row | Find vehicles or draft a reservation from the trip form |
 | `POST` | `/api/assistant/tools/:name` | Tool token | Run one registry tool as the reloaded user |
 
 Both paths are also available under `/vehicle-t4/assistant/...`. `/api/assistant` is registered before the reservation router so a tool token is not rejected by session `authenticate`.
@@ -511,6 +513,26 @@ The server drops any role other than `user` or `assistant`, keeps the last 20 re
 | `503` | `The assistant is not available.` | `ASSISTANT_ENABLED` is not `true`, or `ASSISTANT_URL` or `ASSISTANT_SHARED_SECRET` is missing |
 
 When the assistant is configured, Express `POST`s `{ASSISTANT_URL}/api/chat` with `x-assistant-timestamp` and `x-assistant-signature` (hex HMAC-SHA256 of `${timestamp}.${rawBody}`). The JSON body contains the sanitized `messages`, `user` (`id`, `role`, `areaName`, `firstName`), `now`, `timezone` `America/Chicago`, the role's tool manifest, and a 120-second `toolToken`. A legacy `admin` receives the system-admin manifest. `firstName` is the user's `fName`.
+
+### Trip form – `POST /api/assistant/trip`
+
+Session auth, same rate limit as chat. Maintenance receives `403` `{ "message": "You do not have access to this information." }`.
+
+```json
+{
+  "destinationName": "Memorial Road",
+  "category": "Van",
+  "passengers": 4,
+  "start": "2026-12-02T14:00:00.000Z",
+  "end": "2026-12-02T18:00:00.000Z"
+}
+```
+
+**Destination**, **Vehicle type** (`Golf Cart`, `Truck`, `Car`, or `Van`), **Passengers** (integer of at least 1), **Start**, and **End** are required. A missing destination is `400` `{ "message": "Destination is required." }`. A missing vehicle type is `400` `{ "message": "Vehicle type is required." }`. A missing passenger count is `400` `{ "message": "Passengers are required." }`. A count below 1 is `400` `{ "message": "Enter a passenger count of at least 1." }`.
+
+Without `vehicleId`, **200** is `{ "vehicles": [ { "id", "name", "category", "passengerCapacity", "areaAssigned" } ], "draft": null }`. The list uses the same availability rules as `check_vehicle_availability` for that category, passenger count, and window.
+
+With `vehicleId`, the vehicle must be in that list. **200** is `{ "vehicles": [ ... ], "draft": { ... } }` using the submitted destination and passenger count. A vehicle outside the list is `400` `{ "message": "That vehicle is not available for this trip." }`. The draft writes no reservation, summary file, or email.
 
 ### Tools – `POST /api/assistant/tools/:name`
 
