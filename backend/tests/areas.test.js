@@ -374,5 +374,12 @@ describe("Feature 5 — Area Management", () => {
       expect(refreshed.role).toBe(ROLES.REQUESTOR);
       expect(refreshed.areaId).toBeNull();
     });
+
+    it("System admin lists all users for area admin assignment", async () => {
+      const response = await authed(systemAdminToken).get("/api/area/users");
+      expect(response.status).toBe(200);
+      expect(Array.isArray(response.body)).toBe(true);
+      expect(response.body.length).toBeGreaterThan(0);
+    });
   });
 });

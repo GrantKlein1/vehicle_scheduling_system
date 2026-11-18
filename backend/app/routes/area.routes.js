@@ -7,6 +7,7 @@ import {
   getArea,
   listAreaAdmins,
   listAreas,
+  listUsers,
   removeAreaAdmin,
   updateArea,
 } from "../controllers/area.controller.js";
@@ -16,6 +17,7 @@ const router = Router();
 router.use(authenticate);
 router.use(requireSystemAdmin);
 
+router.get("/users", listUsers);
 router.post("/areas", createArea);
 router.get("/areas", listAreas);
 router.get("/areas/:areaId", getArea);

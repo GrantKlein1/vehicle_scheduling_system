@@ -280,3 +280,20 @@ export async function removeAreaAdmin(req, res) {
   }
 }
 
+export async function listUsers(req, res) {
+  try {
+    const users = await db.user.findAll({
+      attributes: ["id", "fName", "lName", "email", "role", "areaId"],
+      order: [
+        ["lName", "ASC"],
+        ["fName", "ASC"],
+        ["email", "ASC"],
+      ],
+    });
+    return res.status(200).json(users);
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
+  }
+}
+
+
