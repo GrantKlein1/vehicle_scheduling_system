@@ -368,8 +368,29 @@ describe("Feature 9 — AI Assistant", () => {
       expect(buttonByText(wrapper, "Confirm")).toBeUndefined();
     });
 
-    it("The form requires destination, vehicle type, and passengers", async () => {
+    it("A question does not open the trip form", async () => {
+      chat.mockResolvedValue({ data: { reply: "You have one pending reservation.", draft: null } });
       wrapper = await mountApp({ user: requestor, open: true });
+
+      expect(wrapper.find(".trip-form").exists()).toBe(false);
+
+      await setMessage(wrapper, "What reservations do I have?");
+      await buttonByText(wrapper, "Send").trigger("click");
+      await flushPromises();
+
+      expect(wrapper.find(".trip-form").exists()).toBe(false);
+      expect(listDestinations).not.toHaveBeenCalled();
+    });
+
+    it("The form requires destination, vehicle type, and passengers", async () => {
+      wrapper = await mountApp({
+        user: requestor,
+        open: true,
+        history: {
+          messages: [{ role: "user", content: "I want to make a reservation" }],
+          draft: null,
+        },
+      });
 
       expect(labeledSelect("Destination")).toBeTruthy();
       expect(labeledSelect("Vehicle type")).toBeTruthy();
@@ -411,7 +432,14 @@ describe("Feature 9 — AI Assistant", () => {
             },
           },
         });
-      wrapper = await mountApp({ user: requestor, open: true });
+      wrapper = await mountApp({
+        user: requestor,
+        open: true,
+        history: {
+          messages: [{ role: "user", content: "I want to make a reservation" }],
+          draft: null,
+        },
+      });
       await flushPromises();
       await fillTrip();
 
@@ -448,7 +476,14 @@ describe("Feature 9 — AI Assistant", () => {
     });
 
     it("Maintenance does not see the trip form", async () => {
-      wrapper = await mountApp({ user: maintenance, open: true });
+      wrapper = await mountApp({
+        user: maintenance,
+        open: true,
+        history: {
+          messages: [{ role: "user", content: "I want to make a reservation" }],
+          draft: null,
+        },
+      });
 
       expect(wrapper.find(".trip-form").exists()).toBe(false);
       expect(buttonByText(wrapper, "Find vehicles")).toBeUndefined();

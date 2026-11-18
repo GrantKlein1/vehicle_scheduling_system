@@ -7,10 +7,44 @@ import { verifySignature } from "./verify.js";
 const REQUIRED_ENV = ["GROQ_API_KEY", "GROQ_MODEL", "ASSISTANT_SHARED_SECRET", "APP_API_BASE_URL"];
 const TOOL_NAME = /^[a-z][a-z0-9_]*$/;
 const STEP_LIMIT = 6;
+const RETIRED_GROQ_MODELS = {
+  "llama-3.1-8b-instant": "openai/gpt-oss-20b",
+  "llama-3.3-70b-versatile": "openai/gpt-oss-120b",
+};
+const announcedRetiredModels = new Set();
+
+export function resolveGroqModel(model) {
+  const requested = typeof model === "string" ? model.trim() : "";
+  const replacement = RETIRED_GROQ_MODELS[requested];
+  if (!replacement) return requested;
+  if (!announcedRetiredModels.has(requested)) {
+    announcedRetiredModels.add(requested);
+    console.warn(`GROQ_MODEL ${requested} was retired by Groq. Using ${replacement}.`);
+  }
+  return replacement;
+}
 
 function defaultCreateModel(env) {
   const groq = createGroq({ apiKey: env.GROQ_API_KEY });
-  return groq(env.GROQ_MODEL);
+  return groq(resolveGroqModel(env.GROQ_MODEL));
+}
+
+function groqProviderOptions(env) {
+  const model = resolveGroqModel(env.GROQ_MODEL);
+  if (!model.startsWith("openai/gpt-oss")) return undefined;
+  return { groq: { reasoningEffort: "low" } };
+}
+
+function safeErrorDetail(error, env) {
+  const detail = error instanceof Error ? error.message : "Model request failed.";
+  const secret = env?.GROQ_API_KEY;
+  const withoutKey = typeof secret === "string" && secret.length > 0
+    ? detail.split(secret).join("[redacted]")
+    : detail;
+  return withoutKey
+    .replace(/\btoken\s+\S+/gi, "token [redacted]")
+    .replace(/\s+/g, " ")
+    .slice(0, 300);
 }
 
 function isConfigured(env) {
@@ -125,11 +159,12 @@ export function createChatHandler({
         })),
         tools,
         stopWhen: isStepCount(STEP_LIMIT),
+        providerOptions: groqProviderOptions(env),
       });
       const reply = typeof result.text === "string" ? result.text : "";
       return Response.json({ reply, draft: lastDraft ?? null });
-    } catch {
-      console.error("Model request failed.");
+    } catch (error) {
+      console.error(`Model request failed. ${safeErrorDetail(error, env)}`);
       return Response.json({ message: "Model request failed." }, { status: 502 });
     }
   };

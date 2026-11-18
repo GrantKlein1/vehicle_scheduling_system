@@ -27,7 +27,7 @@ npm test
 3. Set the framework preset to **Other**.
 4. Add these environment variables as **Sensitive** for Production and Preview:
    - `GROQ_API_KEY`
-   - `GROQ_MODEL` (a Groq model that supports tool calling, such as `llama-3.3-70b-versatile`; verify the id in the Groq console)
+   - `GROQ_MODEL` (a Groq model that supports tool calling, such as `openai/gpt-oss-120b`; verify the id in the Groq console)
    - `ASSISTANT_SHARED_SECRET`
    - `APP_API_BASE_URL` (production base, with a trailing slash, for example `https://<host>/vehicle-t4/`)
 5. Deploy.

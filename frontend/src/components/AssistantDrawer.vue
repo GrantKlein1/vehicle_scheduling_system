@@ -25,6 +25,16 @@ let requestSerial = 0;
 
 const canSend = computed(() => String(input.value ?? "").trim().length > 0 && !sending.value);
 const canBook = computed(() => currentUser.value?.role !== "maintenance");
+const bookingRequested = computed(
+  () => canBook.value && messages.value.some((message) => message.role === "user" && asksToBook(message.content))
+);
+
+function asksToBook(content) {
+  if (typeof content !== "string") return false;
+  return /\b(book(?:ing)?|reserve[ds]?|make a reservation|schedule a(?: trip| van| vehicle| reservation)?|new reservation)\b/i.test(
+    content
+  );
+}
 
 watch(
   [messages, draft],
@@ -142,7 +152,7 @@ defineExpose({ messageInput, focusMessage });
       <div class="assistant-drawer__scroll">
       <div class="assistant-drawer__messages" role="log" aria-live="polite">
         <p v-if="messages.length === 0" class="assistant-drawer__empty text-body-2 text-medium-emphasis">
-          Ask about your reservations or available vehicles. Booking uses the trip form.
+          Ask about your reservations or available vehicles. Ask to make a reservation when you want to book.
         </p>
         <div
           v-for="(message, index) in messages"
@@ -158,7 +168,7 @@ defineExpose({ messageInput, focusMessage });
         </div>
       </div>
 
-      <TripRequestForm v-if="canBook" @draft="onTripDraft" />
+      <TripRequestForm v-if="bookingRequested" @draft="onTripDraft" />
 
       <ReservationDraftCard
         v-if="draft"

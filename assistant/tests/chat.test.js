@@ -4,7 +4,7 @@
  */
 import { MockLanguageModelV3 } from "ai/test";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createChatHandler } from "../lib/handler.js";
+import { createChatHandler, resolveGroqModel } from "../lib/handler.js";
 import { signBody, verifySignature } from "../lib/verify.js";
 
 const SECRET = "test-shared-secret";
@@ -14,7 +14,7 @@ const FIVE_MINUTES = 5 * 60 * 1000;
 
 const ENV = {
   GROQ_API_KEY: "groq-test-key",
-  GROQ_MODEL: "llama-3.3-70b-versatile",
+  GROQ_MODEL: "openai/gpt-oss-120b",
   ASSISTANT_SHARED_SECRET: SECRET,
   APP_API_BASE_URL: API_BASE,
 };
@@ -405,6 +405,11 @@ describe("Feature 9: AI Assistant", () => {
       expect(result.body.reply).toBe("I could not reach the driver list.");
       expect(result.body.draft).toBeNull();
       expect(JSON.stringify(model.doGenerateCalls[1].prompt)).toContain("The tool could not be reached.");
+    });
+
+    it("A retired Groq model id is replaced", () => {
+      expect(resolveGroqModel("llama-3.3-70b-versatile")).toBe("openai/gpt-oss-120b");
+      expect(resolveGroqModel("openai/gpt-oss-120b")).toBe("openai/gpt-oss-120b");
     });
 
     it("Missing configuration returns 503 before the signature is checked", async () => {
