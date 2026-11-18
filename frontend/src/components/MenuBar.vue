@@ -1,8 +1,9 @@
 <script setup>
 import { computed } from "vue";
 import { useRouter } from "vue-router";
-import { clearCurrentUser, currentUser } from "../config/session.js";
+import { toggleAssistant } from "../config/assistantState.js";
 import { formatRoleLabel, roleMatchesNav } from "../config/roles.js";
+import { clearCurrentUser, currentUser } from "../config/session.js";
 import { logout } from "../services/authServices.js";
 
 const router = useRouter();
@@ -75,6 +76,14 @@ async function signOut() {
       <div v-if="showSessionActions" class="menu-bar__session">
         <span class="menu-bar__name">{{ displayName }}</span>
         <span v-if="roleLabel" class="menu-bar__name">{{ roleLabel }}</span>
+        <v-btn
+          class="menu-bar__assistant"
+          icon="mdi-robot-outline"
+          variant="text"
+          aria-label="Open assistant"
+          title="Assistant"
+          @click="toggleAssistant"
+        />
         <v-btn class="menu-bar__item" variant="text" @click="signOut">Sign out</v-btn>
       </div>
     </div>
@@ -110,6 +119,12 @@ async function signOut() {
   align-items: center;
   gap: 16px;
   padding-left: 16px;
+}
+
+.menu-bar :deep(.menu-bar__assistant.v-btn) {
+  width: 40px;
+  height: 40px;
+  min-width: 0;
 }
 
 .menu-bar :deep(.menu-bar__item.v-btn) {

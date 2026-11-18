@@ -1,4 +1,5 @@
 import { ref } from "vue";
+import { clearAssistantHistory, closeAssistant } from "./assistantState.js";
 import Utils from "./utils.js";
 
 function readStoredUser() {
@@ -24,4 +25,6 @@ export function setCurrentUser(user) {
 export function clearCurrentUser() {
   Utils.removeItem("user");
   currentUser.value = null;
+  clearAssistantHistory();
+  closeAssistant();
 }

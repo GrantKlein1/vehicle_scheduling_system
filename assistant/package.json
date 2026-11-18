@@ -1,0 +1,19 @@
+{
+  "name": "vehicle-scheduling-assistant",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "node dev.js",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@ai-sdk/xai": "^5.0.47",
+    "ai": "^7.0.176"
+  },
+  "devDependencies": {
+    "vitest": "^3.2.7"
+  }
+}

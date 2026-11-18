@@ -48,8 +48,10 @@ app.use("/api", apiRouter);
 app.use("/vehicleScheduling", vehicleSchedulingRouter);
 // Team 4 Apache rule keeps the prefix:
 // ProxyPass /vehicle-t4 http://localhost:3024/vehicle-t4
-app.use("/vehicle-t4", vehicleSchedulingRouter);
+// apiRouter is first so /vehicle-t4/assistant is handled before vehicleSchedulingRouter.
+// That router mounts reservation routes, whose session authenticate would reject a tool token.
 app.use("/vehicle-t4", apiRouter);
+app.use("/vehicle-t4", vehicleSchedulingRouter);
 
 // Apache on the server proxies to 3024, and deploy plus the systemd unit set PORT.
 // Local `npm run dev` does not, and the Vite app calls http://localhost:3200.

@@ -1,115 +1,36 @@
 import fs from "fs";
 import path from "path";
-import { Op } from "sequelize";
 import db from "../models/index.js";
 import logger from "../config/logger.js";
-import { isSystemAdmin } from "../authorization/roles.js";
 import { dispatchReservationEmail } from "../services/reservationEmail.js";
+import {
+  canSeeReservation,
+  reservationScopeWhere,
+  validateReservationInput,
+  vehicleDisplayName,
+} from "../services/reservationQueries.js";
 
 export async function createReservation(req, res) {
   try {
+    const validated = await validateReservationInput(req.body);
+    if (validated.error) {
+      return res.status(validated.error.status).json({ message: validated.error.message });
+    }
+
+    const { start, end, purpose, driverName, driverEmail, passengers, notes } = req.body ?? {};
     const {
-      vehicleId,
-      destinationName,
-      start,
-      end,
-      areaName,
-      purpose,
-      driverName,
-      driverEmail,
-      passengers,
-      notes,
-    } = req.body;
-
-    if (!vehicleId) {
-      return res.status(400).json({ message: "Vehicle is required." });
-    }
-
-    if (!destinationName || typeof destinationName !== "string" || !destinationName.trim()) {
-      return res.status(400).json({ message: "Destination cannot be empty." });
-    }
-
-    if (!start || !end) {
-      return res.status(400).json({ message: "Start and end times are required." });
-    }
-
-    const startDate = new Date(start);
-    const endDate = new Date(end);
-
-    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime()) || endDate <= startDate) {
-      return res.status(400).json({ message: "End time must be after start time." });
-    }
-
-    const now = new Date();
-    const pastThreshold =
-      process.env.NODE_ENV === "test"
-        ? new Date("2026-10-28T00:00:00Z").getTime()
-        : now.getTime() - 60000;
-
-    if (startDate.getTime() < pastThreshold) {
-      return res.status(400).json({ message: "Reservation start time cannot be in the past." });
-    }
-
-    const vehicle = await db.vehicle.findByPk(vehicleId);
-    if (!vehicle) {
-      return res.status(404).json({ message: "Vehicle not found." });
-    }
-
-    // FR-005: Conflict check with pending or approved reservations for the same vehicle
-    const activeReservations = await db.reservation.findAll({
-      where: {
-        vehicleId,
-        status: { [Op.in]: ["pending", "approved"] },
-      },
-    });
-
-    const hasConflict = activeReservations.some((r) => {
-      const rStart = new Date(r.start).getTime();
-      const rEnd = new Date(r.end).getTime();
-      return rStart < endDate.getTime() && rEnd > startDate.getTime();
-    });
-
-    if (hasConflict) {
-      return res.status(400).json({
-        message: "The requested vehicle is not available for the selected dates.",
-      });
-    }
-
-    // FR-006: Driver category authorization check
-    if (driverName || driverEmail || req.body.driverId) {
-      let driver = null;
-      if (req.body.driverId) {
-        driver = await db.driver.findByPk(req.body.driverId);
-      }
-      if (!driver && driverName) {
-        const trimmedName = driverName.trim().toLowerCase();
-        const allDrivers = await db.driver.findAll();
-        driver = allDrivers.find((d) => {
-          const full = `${d.firstName} ${d.lastName}`.toLowerCase();
-          return (
-            full === trimmedName ||
-            d.firstName.toLowerCase() === trimmedName ||
-            d.lastName.toLowerCase() === trimmedName
-          );
-        });
-      }
-
-      if (driver && driver.approvedCategories) {
-        const approvedCategories = driver.approvedCategories
-          .split(",")
-          .map((c) => c.trim().toLowerCase());
-        const vehicleCategory = (vehicle.category || "").trim().toLowerCase();
-        if (!approvedCategories.includes(vehicleCategory)) {
-          return res.status(400).json({
-            message: "Driver is not approved to drive this vehicle type.",
-          });
-        }
-      }
-    }
-
-    const vehicleName = `${vehicle.year ? vehicle.year + " " : ""}${vehicle.make} ${vehicle.model}`.trim();
-    const finalAreaName = (areaName && areaName.trim()) || vehicle.areaAssigned || null;
-    const finalDestination = destinationName.trim();
+      vehicle,
+      startDate,
+      endDate,
+      destinationName: finalDestination,
+      areaName: finalAreaName,
+      passengers: storedPassengers,
+      purpose: storedPurpose,
+      driverName: storedDriverName,
+      driverEmail: storedDriverEmail,
+      notes: storedNotes,
+    } = validated.value;
+    const vehicleName = vehicleDisplayName(vehicle);
     const passengerCount = passengers ? parseInt(passengers, 10) : 1;
 
     const reservation = await db.reservation.create({
@@ -121,11 +42,11 @@ export async function createReservation(req, res) {
       start: startDate,
       end: endDate,
       areaName: finalAreaName,
-      purpose: purpose ? purpose.trim() : null,
-      driverName: driverName ? driverName.trim() : null,
-      driverEmail: driverEmail ? driverEmail.trim() : null,
-      passengers: isNaN(passengerCount) ? 1 : passengerCount,
-      notes: notes ? notes.trim() : null,
+      purpose: storedPurpose,
+      driverName: storedDriverName,
+      driverEmail: storedDriverEmail,
+      passengers: storedPassengers,
+      notes: storedNotes,
       denialReason: null,
       summaryFilePath: null,
     });
@@ -176,17 +97,9 @@ export async function createReservation(req, res) {
 
 export async function listReservations(req, res) {
   try {
-    if (req.user.role === "maintenance") {
+    const whereClause = reservationScopeWhere(req.user);
+    if (!whereClause) {
       return res.status(403).json({ message: "Admin role required." });
-    }
-
-    let whereClause = {};
-    if (isSystemAdmin(req.user)) {
-      whereClause = {};
-    } else if (req.user.role === "area_admin") {
-      whereClause = { areaName: req.user.areaName };
-    } else {
-      whereClause = { requestorId: req.user.id };
     }
 
     const reservations = await db.reservation.findAll({
@@ -206,34 +119,12 @@ export async function listReservations(req, res) {
 
 export async function getReservation(req, res) {
   try {
-    if (req.user.role === "maintenance") {
-      return res.status(404).json({ message: "Reservation not found." });
-    }
-
     const reservation = await db.reservation.findByPk(req.params.id);
-    if (!reservation) {
+    if (!reservation || !canSeeReservation(req.user, reservation)) {
       return res.status(404).json({ message: "Reservation not found." });
     }
 
-    if (isSystemAdmin(req.user)) {
-      return res.json(reservation);
-    }
-
-    if (req.user.role === "area_admin") {
-      if (reservation.areaName === req.user.areaName) {
-        return res.json(reservation);
-      }
-      return res.status(404).json({ message: "Reservation not found." });
-    }
-
-    if (req.user.role === "requestor") {
-      if (reservation.requestorId === req.user.id) {
-        return res.json(reservation);
-      }
-      return res.status(404).json({ message: "Reservation not found." });
-    }
-
-    return res.status(404).json({ message: "Reservation not found." });
+    return res.json(reservation);
   } catch (err) {
     logger.error(`Error fetching reservation: ${err.message}`);
     return res.status(500).json({ message: err.message });
@@ -317,20 +208,7 @@ export async function denyReservation(req, res) {
 export async function cancelReservation(req, res) {
   try {
     const reservation = await db.reservation.findByPk(req.params.id);
-    if (!reservation) {
-      return res.status(404).json({ message: "Reservation not found." });
-    }
-
-    let hasAccess = false;
-    if (isSystemAdmin(req.user)) {
-      hasAccess = true;
-    } else if (req.user.role === "area_admin" && reservation.areaName === req.user.areaName) {
-      hasAccess = true;
-    } else if (req.user.role === "requestor" && reservation.requestorId === req.user.id) {
-      hasAccess = true;
-    }
-
-    if (!hasAccess) {
+    if (!reservation || !canSeeReservation(req.user, reservation)) {
       return res.status(404).json({ message: "Reservation not found." });
     }
 

@@ -1,7 +1,7 @@
 import db from "../models/index.js";
 import { DEFAULT_VEHICLE_STATUS, VEHICLE_STATUSES } from "../models/vehicle.model.js";
 
-const CATEGORIES = ["Golf Cart", "Truck", "Car", "Van"];
+export const CATEGORIES = ["Golf Cart", "Truck", "Car", "Van"];
 const AREAS = ["Athletics", "Support Central", "Maintenance"];
 const SERVICE_LIMIT = 80;
 const COMMENT_LIMIT = 500;

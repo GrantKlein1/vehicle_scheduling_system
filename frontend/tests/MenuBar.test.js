@@ -367,3 +367,46 @@ describe("Feature 6 — Reservation Management", () => {
   });
 });
 
+describe("Feature 9 — AI Assistant", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    sessionStorage.clear();
+    clearCurrentUser();
+    logout.mockReset();
+    logout.mockResolvedValue({ data: { message: "Signed out." } });
+  });
+
+  describe("US-9.6", () => {
+    it("History cleared on logout", async () => {
+      clearCurrentUser();
+      sessionStorage.setItem(
+        "assistantHistory",
+        JSON.stringify({
+          messages: [
+            { role: "user", content: "Which of my reservations are still pending?" },
+            { role: "assistant", content: "You have one pending reservation." },
+          ],
+          draft: null,
+        })
+      );
+      setCurrentUser(userWithRole("requestor"));
+
+      const router = await createTestRouter("/");
+      const { wrapper } = await mountWithPlugins(App, { router });
+      await flushPromises();
+
+      expect(sessionStorage.getItem("assistantHistory")).not.toBeNull();
+      expect(wrapper.find(".assistant-drawer").exists()).toBe(true);
+
+      const button = wrapper.findAll("button").find((node) => node.text().includes("Sign out"));
+      await button.trigger("click");
+      await flushPromises();
+
+      expect(sessionStorage.getItem("assistantHistory")).toBeNull();
+      expect(wrapper.find(".assistant-drawer").exists()).toBe(false);
+      expect(wrapper.find("[aria-label='Open assistant']").exists()).toBe(false);
+      wrapper.unmount();
+    });
+  });
+});
+
