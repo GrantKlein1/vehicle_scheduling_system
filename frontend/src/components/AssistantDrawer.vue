@@ -135,6 +135,7 @@ defineExpose({ messageInput, focusMessage });
         />
       </div>
 
+      <div class="assistant-drawer__scroll">
       <div class="assistant-drawer__messages" role="log" aria-live="polite">
         <p v-if="messages.length === 0" class="assistant-drawer__empty text-body-2 text-medium-emphasis">
           Ask about your reservations, available vehicles, or say "Book a van for Friday".
@@ -169,6 +170,7 @@ defineExpose({ messageInput, focusMessage });
       >
         {{ errorMessage }}
       </v-alert>
+      </div>
 
       <v-progress-linear
         v-if="sending"
@@ -204,11 +206,31 @@ defineExpose({ messageInput, focusMessage });
 </template>
 
 <style scoped>
+.assistant-drawer {
+  top: 64px !important;
+  height: calc(100vh - 64px) !important;
+  max-height: calc(100vh - 64px) !important;
+}
+
+.assistant-drawer :deep(.v-navigation-drawer__content) {
+  height: 100%;
+  overflow: hidden;
+}
+
 .assistant-drawer__body {
   display: flex;
   flex-direction: column;
   height: 100%;
   min-height: 0;
+  overflow: hidden;
+}
+
+.assistant-drawer__scroll {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .assistant-drawer__header {
@@ -221,11 +243,9 @@ defineExpose({ messageInput, focusMessage });
 
 .assistant-drawer__messages {
   display: flex;
-  flex: 1 1 auto;
+  flex: 1 0 auto;
   flex-direction: column;
   gap: 8px;
-  min-height: 0;
-  overflow-y: auto;
   padding: 4px 16px 12px;
 }
 

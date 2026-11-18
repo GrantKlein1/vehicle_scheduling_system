@@ -164,6 +164,7 @@ async function confirm() {
 .reservation-draft {
   margin: 0 16px 12px;
   padding: 12px;
+  color: rgb(28, 27, 31);
 }
 
 .reservation-draft__details {
@@ -176,11 +177,13 @@ async function confirm() {
 
 .reservation-draft__row dd {
   margin: 0;
+  color: rgb(28, 27, 31);
   white-space: pre-wrap;
 }
 
 .reservation-draft__status {
   margin: 12px 0 0;
+  color: rgb(28, 27, 31);
   font-weight: 600;
 }
 
