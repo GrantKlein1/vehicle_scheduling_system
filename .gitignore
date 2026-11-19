@@ -6,6 +6,8 @@ dist/
 frontend/dist/
 backend/deploy/
 backend/logs/
+backend/storage/
+storage/
 *.log
 .DS_Store
 docs/vehicle-scheduling-system-specs.md

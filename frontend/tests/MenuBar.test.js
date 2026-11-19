@@ -108,7 +108,7 @@ describe("Feature 1 — User Authentication & Session Management", () => {
       await openAccountMenu(wrapper);
 
       expect(wrapper.text()).toContain("Sign out");
-      for (const label of catalogLabels) {
+      for (const label of catalogLabels.filter((item) => item !== "Reservation")) {
         expect(wrapper.text()).not.toContain(label);
       }
     });
@@ -125,7 +125,8 @@ describe("Feature 1 — User Authentication & Session Management", () => {
           item !== "Vehicle" &&
           item !== "Driver" &&
           item !== "Destination" &&
-          item !== "Area"
+          item !== "Area" &&
+          item !== "Reservation"
       )) {
         expect(wrapper.text()).not.toContain(label);
       }
@@ -143,7 +144,8 @@ describe("Feature 1 — User Authentication & Session Management", () => {
           item !== "Vehicle" &&
           item !== "Driver" &&
           item !== "Destination" &&
-          item !== "Area"
+          item !== "Area" &&
+          item !== "Reservation"
       )) {
         expect(wrapper.text()).not.toContain(label);
       }
@@ -161,10 +163,32 @@ describe("Feature 1 — User Authentication & Session Management", () => {
       expect(wrapper.find(".menu-bar__nav").text()).toContain("Vehicle");
       const buttonText = wrapper.findAll("button, a").map((node) => node.text());
       for (const label of catalogLabels.filter(
-        (item) => item !== "Driver" && item !== "Destination" && item !== "Vehicle"
+        (item) =>
+          item !== "Driver" &&
+          item !== "Destination" &&
+          item !== "Vehicle" &&
+          item !== "Reservation"
       )) {
         expect(buttonText.some((text) => text.trim() === label)).toBe(false);
       }
+    });
+
+    it("Requestor MenuBar has no Email item", async () => {
+      const { wrapper } = await mountApp("/", userWithRole("requestor"));
+      const labels = wrapper.findAll("button, a").map((node) => node.text().trim());
+      expect(labels).not.toContain("Email");
+    });
+
+    it("System admin MenuBar has no Email item", async () => {
+      const { wrapper } = await mountApp("/", userWithRole("system_admin"));
+      const labels = wrapper.findAll("button, a").map((node) => node.text().trim());
+      expect(labels).not.toContain("Email");
+    });
+
+    it("Maintenance MenuBar has no Email item", async () => {
+      const { wrapper } = await mountApp("/", userWithRole("maintenance"));
+      const labels = wrapper.findAll("button, a").map((node) => node.text().trim());
+      expect(labels).not.toContain("Email");
     });
 
     it("Maintenance MenuBar shows Sign out and Vehicle", async () => {
@@ -215,7 +239,7 @@ describe("Feature 2 — Vehicle Management", () => {
       expect(wrapper.find(".menu-bar__session").text()).toContain("Jane Doe");
       expect(wrapper.find(".menu-bar__signout").text()).toContain("Sign out");
       const labels = wrapper.findAll(".menu-bar__nav .menu-bar__item").map((item) => item.text());
-      expect(labels).toEqual(["Vehicle", "Destination", "Driver", "Area"]);
+      expect(labels).toEqual(["Vehicle", "Destination", "Driver", "Area", "Reservation"]);
     });
 
     it("Maintenance sees their name and Sign out on the vehicle page", async () => {
@@ -321,3 +345,86 @@ describe("Feature 4 — Destination Management", () => {
     });
   });
 });
+
+describe("Feature 6 — Reservation Management", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    clearCurrentUser();
+    logout.mockReset();
+    logout.mockResolvedValue({ data: { message: "Signed out." } });
+  });
+
+  describe("US-6.1 — View Reservations List", () => {
+    it("Maintenance user cannot access reservations", async () => {
+      const { wrapper } = await mountApp("/", userWithRole("maintenance"));
+
+      expect(wrapper.find(".menu-bar__nav").text()).not.toContain("Reservation");
+    });
+
+    it("Requestor sees Reservation in the menu", async () => {
+      const { wrapper } = await mountApp("/", userWithRole("requestor"));
+
+      expect(wrapper.find(".menu-bar__nav").text()).toContain("Reservation");
+    });
+
+    it("Area admin sees Reservation in the menu", async () => {
+      const { wrapper } = await mountApp(
+        "/",
+        userWithRole("area_admin", { areaId: 5, areaName: "Athletics" })
+      );
+
+      expect(wrapper.find(".menu-bar__nav").text()).toContain("Reservation");
+    });
+
+    it("System admin sees Reservation in the menu", async () => {
+      const { wrapper } = await mountApp("/", userWithRole("system_admin"));
+
+      expect(wrapper.find(".menu-bar__nav").text()).toContain("Reservation");
+    });
+  });
+});
+
+describe("Feature 9 — AI Assistant", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    sessionStorage.clear();
+    clearCurrentUser();
+    logout.mockReset();
+    logout.mockResolvedValue({ data: { message: "Signed out." } });
+  });
+
+  describe("US-9.6", () => {
+    it("History cleared on logout", async () => {
+      clearCurrentUser();
+      sessionStorage.setItem(
+        "assistantHistory",
+        JSON.stringify({
+          messages: [
+            { role: "user", content: "Which of my reservations are still pending?" },
+            { role: "assistant", content: "You have one pending reservation." },
+          ],
+          draft: null,
+        })
+      );
+      setCurrentUser(userWithRole("requestor"));
+
+      const router = await createTestRouter("/");
+      const { wrapper } = await mountWithPlugins(App, { router });
+      await flushPromises();
+
+      expect(sessionStorage.getItem("assistantHistory")).not.toBeNull();
+      expect(wrapper.find(".assistant-drawer").exists()).toBe(true);
+
+      await openAccountMenu(wrapper);
+      const button = wrapper.findAll("button").find((node) => node.text().includes("Sign out"));
+      await button.trigger("click");
+      await flushPromises();
+
+      expect(sessionStorage.getItem("assistantHistory")).toBeNull();
+      expect(wrapper.find(".assistant-drawer").exists()).toBe(false);
+      expect(wrapper.find("[aria-label='Open assistant']").exists()).toBe(false);
+      wrapper.unmount();
+    });
+  });
+});
+

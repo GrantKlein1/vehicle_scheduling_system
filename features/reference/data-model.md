@@ -1,8 +1,8 @@
 # Data Model Reference
 
-**Status:** Feature 1 users and sessions, plus system admin / area admin, Feature 2 vehicles, mileage logs, and service logs, Feature 3 drivers, Feature 4 destinations, and Feature 5 areas.
+**Status:** Feature 1 users and sessions, plus system admin / area admin, Feature 2 vehicles, mileage logs, and service logs, Feature 3 drivers, Feature 4 destinations, Feature 5 areas, Feature 6 reservations, and Feature 7 emails.
 
-Sequelize model names: `user` → table `users`, `session` → table `sessions`, `area` → table `areas`.
+Sequelize model names: `user` → table `users`, `session` → table `sessions`, `area` → table `areas`, `reservation` → table `reservations`.
 
 ## Tables
 
@@ -161,3 +161,50 @@ Feature 6 adds `Reservation` belongsTo `Destination`. This feature does not crea
 An area admin must reference an existing area. That rule is enforced in a `users` `beforeValidate` hook. Deleting an area that still has users is restricted by the foreign key.
 | `vehicles` | `mileage_logs` | one-to-many (`mileage_logs.vehicleId`) | CASCADE |
 | `vehicles` | `service_logs` | one-to-many (`service_logs.vehicleId`) | CASCADE |
+| `users` | `reservations` | one-to-many (`reservations.requestorId`) | CASCADE |
+| `vehicles` | `reservations` | one-to-many (`reservations.vehicleId`) | RESTRICT |
+| `reservations` | `emails` | one-to-many (`emails.reservationId`) | CASCADE |
+
+### `reservations`
+
+| Field | Type | Rules |
+|-------|------|-------|
+| `id` | INTEGER PK | Auto-increment |
+| `requestorId` | INTEGER FK | Required, references `users.id` |
+| `status` | STRING(20) | Required. `pending`, `approved`, `denied`, or `cancelled`. Default `pending` |
+| `vehicleId` | INTEGER FK | Required, references `vehicles.id` |
+| `vehicleName` | STRING(100) | Required. Snapshot of vehicle year/make/model |
+| `destinationName` | STRING(255) | Required. Destination name from catalog or free-form |
+| `start` | DATE | Required datetime |
+| `end` | DATE | Required datetime. Must be after `start` |
+| `areaName` | STRING(50) | Optional nullable string |
+| `purpose` | STRING(255) | Optional nullable string |
+| `driverName` | STRING(100) | Optional nullable string |
+| `driverEmail` | STRING(255) | Optional nullable string |
+| `passengers` | INTEGER | Optional integer, default 1 |
+| `denialReason` | TEXT | Nullable. Populated when denied |
+| `notes` | TEXT | Optional nullable string |
+| `summaryFilePath` | STRING(255) | Nullable. Server path to generated text summary file |
+| `createdAt` | DATE | Managed by Sequelize |
+| `updatedAt` | DATE | Managed by Sequelize |
+
+Introduced in Feature 6.
+
+### `emails`
+
+| Field | Type | Rules |
+|-------|------|-------|
+| `id` | INTEGER PK | Auto-increment |
+| `reservationId` | INTEGER FK | Required, references `reservations.id` |
+| `event` | STRING(20) | `submitted`, `approved`, `denied`, or `cancelled` |
+| `recipientEmail` | STRING(255) | Required |
+| `recipientRole` | STRING(20) | `requestor`, `system_admin`, `area`, or `driver` |
+| `fromEmail` | STRING(255) | `vehicle-scheduling@eagles.oc.edu` |
+| `subject` | STRING(255) | Required |
+| `body` | TEXT | Required |
+| `status` | STRING(20) | `sent` or `failed` |
+| `errorMessage` | STRING(255) | Null when `sent`. `Mail could not be sent.` when `failed` |
+| `sentAt` | DATE | Required |
+
+Introduced in Feature 7. No `createdAt` or `updatedAt`. Recipient identity is the stored address and role, not a user foreign key.
+

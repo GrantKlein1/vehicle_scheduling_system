@@ -72,6 +72,8 @@ They do **not** authorize new scope — implement only from `features/feature-*.
 | `/destination` without a session redirects to `login`. A signed-in user, including a `requestor` and an `area_admin`, stays on the destination list | Router `beforeEach` | Feature 4 |
 | **Area** is in `MenuBar` for `admin` and `system_admin`, and opens `/area`. Non-system-admin users do not see this menu item | `MenuBar` | Feature 5 |
 | `/area` without a session redirects to `login`. A signed-in user who is not a system admin (`area_admin`, `maintenance`, `requestor`) is redirected to `home` | Router `beforeEach` | Feature 5 |
+| **Reservation** is in `MenuBar` for `requestor`, `area_admin`, `admin`, and `system_admin`, and opens `/reservations`. `maintenance` and signed-out users do not see this item | `MenuBar` | Feature 6 |
+| `/reservations` without a session redirects to `login`. A signed-in `maintenance` user is redirected to `home` | Router `beforeEach` | Feature 6 |
 
 ## Vehicles
 
@@ -147,4 +149,54 @@ They do **not** authorize new scope — implement only from `features/feature-*.
 | Deleting an unreferenced area removes the area row with confirmation | Area delete controller and dialog | Feature 5 |
 | System admin can assign an existing user by email as an `area_admin` for that area. The user's role is set to `area_admin` and `areaId` is updated | Area controller and `Areas.vue` | Feature 5 |
 | System admin can remove an area admin from an area. The user's `areaId` is set to null and their role is reset to `requestor` | Area controller and `Areas.vue` | Feature 5 |
+
+## Reservations
+
+| Rule | Enforcement | Introduced |
+|------|-------------|------------|
+| Requestor can create a reservation in status `pending` (`POST /vehicleScheduling/reservations`) and cancel active reservations | Reservation controller | Feature 6 |
+| Required fields on submit: `vehicleId`, `destinationName`, `start`, and `end` | Form validation and controller | Feature 6 |
+| `destinationName` is trimmed and at most 255 characters | Reservation create and `draft_reservation` | Feature 6, Feature 9 |
+| `start` time cannot be in the past (`400`). `end` time must be after `start` time (`400`) | Reservation controller | Feature 6 |
+| Requested vehicle must not conflict with an overlapping `pending` or `approved` reservation | Reservation controller conflict check | Feature 6 |
+| Selected driver must be approved for the category of the requested vehicle | Driver check in controller | Feature 6 |
+| Successful reservation creation creates a formatted text summary file on the server (`storage/reservations/reservation-<id>.txt`) | Reservation controller | Feature 6 |
+| Listing reservations is scoped: `requestor` sees only own reservations; `area_admin` sees reservations for their area; `system_admin` sees all reservations; `maintenance` receives `403` | `GET /vehicleScheduling/reservations` | Feature 6 |
+| System admins and authorized area admins can approve pending reservations | `POST /vehicleScheduling/reservations/:id/approve` | Feature 6 |
+| System admins and authorized area admins can deny pending reservations with a required reason | `POST /vehicleScheduling/reservations/:id/deny` | Feature 6 |
+| Owning requestor, authorized area admin, or system admin can cancel a pending or approved reservation | `POST /vehicleScheduling/reservations/:id/cancel` | Feature 6 |
+| Non-owning requestor or area admin outside their area receives `404` for details or actions | Reservation controller | Feature 6 |
+
+## Reservation email
+
+| Rule | Enforcement | Introduced |
+|------|-------------|------------|
+| Submit emails the requestor, every system administrator, and the matching area `notificationEmail`. The driver is not emailed | `dispatchReservationEmail` after a `201` | Feature 7 |
+| Approve emails the requestor, the driver when `driverEmail` is set, and the area mailbox. The requestor and driver bodies include `Pickup instructions: contact {notificationEmail}.` when that address exists | `dispatchReservationEmail` after approve | Feature 7 |
+| Deny emails the requestor only and includes the denial reason | `dispatchReservationEmail` after deny | Feature 7 |
+| A requestor cancellation emails system administrators, the area mailbox, and the driver. An administrator cancellation emails the other parties and does not email the actor | `dispatchReservationEmail` after cancel | Feature 7 |
+| A mail failure stores `failed` with `Mail could not be sent.` and does not change the reservation success status or JSON | Mail transport and `emails` rows | Feature 7 |
+| Email rows are readable by the same people who can read the reservation. `maintenance` and another requestor receive `404` | `GET /vehicleScheduling/reservations/:id/emails` | Feature 7 |
+| There is no **Email** menu item | `MenuBar` | Feature 7 |
+
+## Assistant
+
+| Rule | Enforcement | Introduced |
+|------|-------------|------------|
+| Any signed-in role may call `POST /api/assistant/chat`. The manifest lists only the tools that role may call. A legacy `admin` receives the system-admin list | Chat gateway and `manifestForRole` | Feature 9 |
+| Replies are accurate, succinct, and a little snarky. A remark never changes a count, name, time, or status, and the prompt names only the tools on that request | System prompt | Feature 9 |
+| An empty drawer offers role-specific suggestions. **Try again** resends the last user message after a failed chat and does not duplicate that bubble | `AssistantDrawer` | Feature 9 |
+| Reservation tools use Feature 6 scope. A requestor sees their own rows, an area admin sees their `areaName`, and a system admin sees every row. Maintenance is not offered those tools and receives `403` | Tool registry | Feature 9 |
+| A reservation outside the caller's scope, including its email log, is `404` `{ "message": "Reservation not found." }` | `get_reservation` and `list_reservation_emails` | Feature 9 |
+| The assistant can draft a reservation and cannot create, approve, deny, or cancel one. Confirm uses `POST /reservations` with the session token, so the summary file and emails still run | `draft_reservation` writes nothing | Feature 9 |
+| Destination, vehicle type, and passengers come from the trip form. A chat sentence does not fill them in or open a draft card | `POST /assistant/trip` and the drawer | Feature 9 |
+| A requestor may check which vehicles are free (`id`, `name`, `category`, `passengerCapacity`, `areaAssigned`) and still cannot call `GET /api/vehicle/vehicles` | `check_vehicle_availability` | Feature 9 |
+| `in_repair`, `out_of_service`, and vehicles with an overlapping `pending` or `approved` reservation are omitted from availability. A booking that ends at the window start, or starts at the window end, does not block | Availability overlap query | Feature 9 |
+| Driver, destination, vehicle, area, and email tools return allow-listed fields. License numbers, insurance numbers, VINs, email bodies, and other users' addresses are omitted. `notificationEmail` is returned only by `list_areas` | `sanitize.js` | Feature 9 |
+| Administrators see every driver. Requestors and maintenance see `valid` drivers only | `list_drivers` | Feature 9 |
+| The tool token expires in 120 seconds, uses audience `assistant-tools`, and is not a session. `authenticate` rejects it. The tool route rejects a session token | `signToolToken` and `authenticateToolToken` | Feature 9 |
+| Chat is limited to 20 requests per user in a sliding 60 seconds. Unauthenticated calls and tool calls do not consume that window | `assistantRateLimit` | Feature 9 |
+| A disabled or incomplete assistant configuration returns `503` and does not call upstream. An upstream failure or 45 second timeout returns `502` | `getAssistantConfig` and the chat gateway | Feature 9 |
+| Tool logs name the user, role, tool, and outcome. They do not contain the conversation, arguments, or token | `runTool` | Feature 9 |
+
 

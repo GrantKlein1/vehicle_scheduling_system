@@ -220,3 +220,74 @@ describe("Feature 5 — Area Management", () => {
   });
 });
 
+describe("Feature 6 — Reservation Management", () => {
+  beforeEach(async () => {
+    clearCurrentUser();
+    await router.push({ name: "login" });
+    await router.isReady();
+  });
+
+  describe("US-6.1 / US-6.8 — Role-Based Access Control", () => {
+    it("Unauthenticated visit to reservations redirects to login", async () => {
+      clearCurrentUser();
+
+      await router.push("/reservations");
+      await router.isReady();
+
+      expect(router.currentRoute.value.name).toBe("login");
+    });
+
+    it("Maintenance visiting reservations redirects to home", async () => {
+      setCurrentUser({
+        ...signedInUser,
+        role: "maintenance",
+      });
+
+      await router.push("/reservations");
+      await router.isReady();
+
+      expect(router.currentRoute.value.name).toBe("home");
+    });
+
+    it("Requestor can navigate to reservations", async () => {
+      setCurrentUser({
+        ...signedInUser,
+        role: "requestor",
+      });
+
+      await router.push("/reservations");
+      await router.isReady();
+
+      expect(router.currentRoute.value.name).toBe("reservations");
+      expect(router.currentRoute.value.path).toBe("/reservations");
+    });
+
+    it("Area admin can navigate to reservations", async () => {
+      setCurrentUser({
+        ...signedInUser,
+        role: "area_admin",
+        areaId: 1,
+      });
+
+      await router.push("/reservations");
+      await router.isReady();
+
+      expect(router.currentRoute.value.name).toBe("reservations");
+      expect(router.currentRoute.value.path).toBe("/reservations");
+    });
+
+    it("System admin can navigate to reservations", async () => {
+      setCurrentUser({
+        ...signedInUser,
+        role: "system_admin",
+      });
+
+      await router.push("/reservations");
+      await router.isReady();
+
+      expect(router.currentRoute.value.name).toBe("reservations");
+      expect(router.currentRoute.value.path).toBe("/reservations");
+    });
+  });
+});
+

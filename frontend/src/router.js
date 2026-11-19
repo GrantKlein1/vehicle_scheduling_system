@@ -5,6 +5,7 @@ import Vehicles from "./views/Vehicles.vue";
 import Drivers from "./views/Drivers.vue";
 import Destinations from "./views/Destinations.vue";
 import Areas from "./views/Areas.vue";
+import Reservations from "./views/Reservations.vue";
 import Utils from "./config/utils.js";
 import { isAnyAdmin, isSystemAdmin, ROLES } from "./config/roles.js";
 
@@ -40,6 +41,11 @@ const router = createRouter({
       path: "/area",
       name: "areas",
       component: Areas,
+    },
+    {
+      path: "/reservations",
+      name: "reservations",
+      component: Reservations,
     },
     {
       path: "/:pathMatch(.*)*",
@@ -81,6 +87,15 @@ router.beforeEach((to) => {
       return { name: "login" };
     }
     if (!isSystemAdmin(user)) {
+      return { name: "home" };
+    }
+  }
+
+  if (to.name === "reservations") {
+    if (!signedIn) {
+      return { name: "login" };
+    }
+    if (user.role === ROLES.MAINTENANCE) {
       return { name: "home" };
     }
   }

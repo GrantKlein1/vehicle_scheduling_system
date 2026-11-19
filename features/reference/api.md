@@ -1,6 +1,6 @@
 # API Reference
 
-**Status:** Feature 1 authentication, Feature 2 vehicle catalog, Feature 3 driver catalog, Feature 4 destination catalog, and Feature 5 area management are implemented.
+**Status:** Feature 1 authentication, Feature 2 vehicle catalog, Feature 3 driver catalog, Feature 4 destination catalog, Feature 5 area management, Feature 6 reservation management, Feature 7 reservation email, and Feature 9 assistant are implemented.
 
 API health stays on `/api/health`. Authentication routes are mounted at `/vehicle-t4`.
 
@@ -35,6 +35,16 @@ API health stays on `/api/health`. Authentication routes are mounted at `/vehicl
 | `GET` | `/api/area/areas/:areaId/admins` | system admin | List users assigned as area admins for an area | Feature 5 |
 | `POST` | `/api/area/areas/:areaId/admins` | system admin | Assign an existing user as an area admin for an area | Feature 5 |
 | `DELETE` | `/api/area/areas/:areaId/admins/:userId` | system admin | Remove an area admin from an area (resets role to requestor) | Feature 5 |
+| `POST` | `/vehicleScheduling/reservations` | `requestor`, `area_admin`, `system_admin` | Submit a vehicle reservation request (status `pending`) | Feature 6 |
+| `GET` | `/vehicleScheduling/reservations` | `requestor`, `area_admin`, `system_admin` | List scoped reservations (requestor=own, area_admin=area, system_admin=all) | Feature 6 |
+| `GET` | `/vehicleScheduling/reservations/:id` | Owning `requestor`, authorized `area_admin`, `system_admin` | Fetch single reservation details | Feature 6 |
+| `POST` | `/vehicleScheduling/reservations/:id/approve` | `system_admin`, authorized `area_admin` | Approve a pending reservation | Feature 6 |
+| `POST` | `/vehicleScheduling/reservations/:id/deny` | `system_admin`, authorized `area_admin` | Deny a pending reservation with reason | Feature 6 |
+| `POST` | `/vehicleScheduling/reservations/:id/cancel` | Owning `requestor`, authorized `area_admin`, `system_admin` | Cancel a pending or approved reservation | Feature 6 |
+| `GET` | `/vehicleScheduling/reservations/:id/emails` | Owning `requestor`, authorized `area_admin`, `system_admin` | List recorded emails for one reservation | Feature 7 |
+| `POST` | `/api/assistant/chat` | Session (`authenticate`) | Send a sanitized conversation and receive `{ reply, draft }`. Also mounted at `/vehicle-t4/assistant/chat` | Feature 9 |
+| `POST` | `/api/assistant/trip` | Session (`authenticate`) | Find vehicles or draft a trip from the form. Also mounted at `/vehicle-t4/assistant/trip` | Feature 9 |
+| `POST` | `/api/assistant/tools/:name` | Tool token | Run one role-scoped assistant tool. Also mounted at `/vehicle-t4/assistant/tools/:name` | Feature 9 |
 
 ## Conventions
 
@@ -382,4 +392,196 @@ Resets the user's `areaId` to `null` and demotes their role back to `requestor`.
 
 **200** `{ "message": "Area admin removed successfully." }`
 **404** `{ "message": "Area admin not found for this area." }`
+
+## Reservations
+
+Mounted at `/vehicleScheduling/reservations` (and available under `/api/reservations` and `/vehicle-t4/reservations`). All routes require `authenticate`.
+
+### Submit Reservation Request – `POST /vehicleScheduling/reservations`
+
+Request body:
+```json
+{
+  "vehicleId": 1,
+  "destinationName": "Edmond High School",
+  "start": "2026-11-02 08:00",
+  "end": "2026-11-02 12:00",
+  "areaName": "Athletics",
+  "purpose": "Campus visit",
+  "driverName": "Sam Driver",
+  "driverEmail": "sdriver@eagles.oc.edu",
+  "passengers": 4,
+  "notes": "Need key pickup at 07:45"
+}
+```
+
+Validation & Conflict rules:
+- `vehicleId`: Required. `400` `{ "message": "Vehicle is required." }`.
+- `destinationName`: Required, non-empty. `400` `{ "message": "Destination cannot be empty." }`. Longer than 255 characters: `400` `{ "message": "Destination cannot be longer than 255 characters." }`.
+- `start`, `end`: Required. `400` `{ "message": "Start and end times are required." }`.
+- `end <= start`: `400` `{ "message": "End time must be after start time." }`.
+- `start` in past: `400` `{ "message": "Reservation start time cannot be in the past." }`.
+- Vehicle availability: Rejects with `400` `{ "message": "The requested vehicle is not available for the selected dates." }` if an overlapping `pending` or `approved` reservation exists for that vehicle.
+- Driver qualification: Rejects with `400` `{ "message": "Driver is not approved to drive this vehicle type." }` if driver is not approved for vehicle category.
+
+**201** returns the created reservation record with status `pending`. Also writes text summary file to `storage/reservations/reservation-<id>.txt`.
+
+### List Reservations – `GET /vehicleScheduling/reservations`
+
+- `requestor`: Receives only own reservations (`requestorId === req.user.id`).
+- `area_admin`: Receives reservations for their assigned area (`areaName === req.user.areaName`).
+- `system_admin`: Receives all reservations across the campus fleet.
+- `maintenance`: `403` `{ "message": "Admin role required." }`.
+
+**200** returns array of reservations ordered by `start DESC`, `id DESC`.
+
+### Fetch Reservation – `GET /vehicleScheduling/reservations/:id`
+
+- Returns reservation details for owning `requestor`, authorized `area_admin`, or `system_admin`.
+- Returns `404` `{ "message": "Reservation not found." }` for unknown IDs, unauthorized requestors/area admins, and maintenance callers.
+
+### Approve Reservation – `POST /vehicleScheduling/reservations/:id/approve`
+
+- Allowed for `system_admin` or authorized `area_admin` for their area.
+- Non-admin receives `403` `{ "message": "Admin role required." }`.
+- Must currently be `pending`; non-pending returns `400` `{ "message": "This reservation cannot be approved." }`.
+
+**200** returns updated reservation with `status: "approved"`.
+
+### Deny Reservation – `POST /vehicleScheduling/reservations/:id/deny`
+
+```json
+{
+  "reason": "The van is already booked."
+}
+```
+
+- Allowed for `system_admin` or authorized `area_admin`.
+- Missing or empty `reason` returns `400` `{ "message": "A denial reason is required." }`.
+- Must currently be `pending`; non-pending returns `400` `{ "message": "This reservation cannot be denied." }`.
+
+**200** returns updated reservation with `status: "denied"` and `denialReason`.
+
+### Cancel Reservation – `POST /vehicleScheduling/reservations/:id/cancel`
+
+- Allowed for owning `requestor`, authorized `area_admin`, or `system_admin`.
+- Unauthorized caller receives `404` `{ "message": "Reservation not found." }`.
+- Must currently be `pending` or `approved`; `denied` or `cancelled` returns `400` `{ "message": "This reservation cannot be cancelled." }`.
+
+**200** returns updated reservation with `status: "cancelled"`.
+
+Submit, approve, deny, and cancel responses stay the reservation object. Feature 7 does not add an `emails` field. After a successful transition it records one `emails` row per recipient.
+
+### List reservation emails – `GET /vehicleScheduling/reservations/:id/emails`
+
+Same reader rules as fetching the reservation. `maintenance`, another requestor, and an unknown id return `404` `{ "message": "Reservation not found." }`.
+
+**200** returns an array ordered by `sentAt` ascending, then `id` ascending. Each item has `id`, `reservationId`, `event` (`submitted`, `approved`, `denied`, `cancelled`), `recipientEmail`, `recipientRole` (`requestor`, `system_admin`, `area`, `driver`), `fromEmail` (`vehicle-scheduling@eagles.oc.edu`), `subject`, `body`, `status` (`sent` or `failed`), `errorMessage`, and `sentAt`.
+
+`PUT` and `DELETE` of an email row return `404` `{ "message": "Not found." }`. The row is not changed.
+
+## Assistant
+
+The browser calls only the Express API. Express forwards a signed request to the assistant service. The model may read data and draft a reservation. It cannot create, approve, deny, or cancel one. Confirm still uses `POST /vehicleScheduling/reservations` (also `/api/reservations`) with the user's session token.
+
+| Method | Path | Auth | Purpose |
+|--------|------|------|---------|
+| `POST` | `/api/assistant/chat` | Session JWT plus a `sessions` row | Sanitize the conversation, apply the rate limit, and return `{ reply, draft }` |
+| `POST` | `/api/assistant/trip` | Session JWT plus a `sessions` row | Find vehicles or draft a reservation from the trip form |
+| `POST` | `/api/assistant/tools/:name` | Tool token | Run one registry tool as the reloaded user |
+
+Both paths are also available under `/vehicle-t4/assistant/...`. `/api/assistant` is registered before the reservation router so a tool token is not rejected by session `authenticate`.
+
+### Chat – `POST /api/assistant/chat`
+
+```json
+{ "messages": [{ "role": "user", "content": "Which of my reservations are still pending?" }] }
+```
+
+The server drops any role other than `user` or `assistant`, keeps the last 20 remaining messages, and truncates each `content` to 2000 characters. Non-string content is treated as empty. The last kept message must be a `user` message with non-empty trimmed content.
+
+**200** `{ "reply": "You have one pending reservation.", "draft": null }`
+
+`draft` is the object returned by the assistant service when that value is an object, and `null` otherwise.
+
+| Status | Body `message` | When |
+|--------|----------------|------|
+| `400` | `A message is required.` | No usable trailing user message |
+| `401` | Feature 1 no-token or invalid-token message | Missing, invalid, or tool-token bearer. These requests do not consume the rate limit |
+| `429` | `Too many assistant requests. Please wait a moment.` | More than 20 chats for that user in a sliding 60 seconds. Tool calls are not counted |
+| `502` | `The assistant could not answer right now. Please try again.` | Upstream non-200, invalid reply, network error, or the 45 second timeout |
+| `503` | `The assistant is not available.` | `ASSISTANT_ENABLED` is not `true`, or `ASSISTANT_URL` or `ASSISTANT_SHARED_SECRET` is missing |
+
+When the assistant is configured, Express `POST`s `{ASSISTANT_URL}/api/chat` with `x-assistant-timestamp` and `x-assistant-signature` (hex HMAC-SHA256 of `${timestamp}.${rawBody}`). The JSON body contains the sanitized `messages`, `user` (`id`, `role`, `areaName`, `firstName`), `now`, `timezone` `America/Chicago`, the role's tool manifest, and a 120-second `toolToken`. A legacy `admin` receives the system-admin manifest. `firstName` is the user's `fName`.
+
+### Trip form – `POST /api/assistant/trip`
+
+Session auth, same rate limit as chat. Maintenance receives `403` `{ "message": "You do not have access to this information." }`.
+
+```json
+{
+  "destinationName": "Memorial Road",
+  "category": "Van",
+  "passengers": 4,
+  "start": "2026-12-02T14:00:00.000Z",
+  "end": "2026-12-02T18:00:00.000Z"
+}
+```
+
+**Destination**, **Vehicle type** (`Golf Cart`, `Truck`, `Car`, or `Van`), **Passengers** (integer of at least 1), **Start**, and **End** are required. A missing destination is `400` `{ "message": "Destination is required." }`. A missing vehicle type is `400` `{ "message": "Vehicle type is required." }`. A missing passenger count is `400` `{ "message": "Passengers are required." }`. A count below 1 is `400` `{ "message": "Enter a passenger count of at least 1." }`.
+
+Without `vehicleId`, **200** is `{ "vehicles": [ { "id", "name", "category", "passengerCapacity", "areaAssigned" } ], "draft": null }`. The list uses the same availability rules as `check_vehicle_availability` for that category, passenger count, and window.
+
+With `vehicleId`, the vehicle must be in that list. **200** is `{ "vehicles": [ ... ], "draft": { ... } }` using the submitted destination and passenger count. A vehicle outside the list is `400` `{ "message": "That vehicle is not available for this trip." }`. The draft writes no reservation, summary file, or email.
+
+### Tools – `POST /api/assistant/tools/:name`
+
+The JSON body is the tool arguments. The tool token is a JWT signed with `AUTH_SECRET`, `sub` set to the user id, `aud` `assistant-tools`, and `iss` `vehicle-scheduling-api`. It expires in 120 seconds and does not create a `sessions` row. A missing, invalid, expired, wrong-audience, or wrong-issuer token, or an unknown user id, returns `401` `{ "message": "Unauthorized! Invalid or expired token." }`. The same token on `GET /api/reservations` returns that `401` because `authenticate` requires a session row.
+
+The handler reloads `role`, `areaId`, and `areaName`. A legacy `admin` is treated as `system_admin`.
+
+| Status | Body `message` | When |
+|--------|----------------|------|
+| `400` | A message that states the required value | Invalid `status`, `limit`, `category`, `passengers`, or datetime |
+| `403` | `You do not have access to this information.` | The reloaded role is not allowed to call that tool |
+| `404` | `Unknown assistant tool.` | The name is not in the registry |
+| `404` | `Reservation not found.` | `get_reservation` or `list_reservation_emails` cannot show that row |
+| `500` | `The tool failed.` | The tool handler threw |
+
+`list_reservations` uses `limit` 25 by default. A limit above 50 is treated as 50. A limit below 1 is `400`. `from` and `to` bound reservation `start`, inclusive. Results are ordered by `start` descending, then `id` descending.
+
+Manifest by role:
+
+| Tool | requestor | area_admin | maintenance | system_admin |
+|------|-----------|------------|-------------|--------------|
+| `list_reservations` | yes | yes | | yes |
+| `get_reservation` | yes | yes | | yes |
+| `check_vehicle_availability` | yes | yes | | yes |
+| `list_vehicles` | | yes | yes | yes |
+| `get_vehicle` | | yes | yes | yes |
+| `list_drivers` | yes | yes | yes | yes |
+| `list_destinations` | yes | yes | yes | yes |
+| `list_areas` | | | | yes |
+| `list_reservation_emails` | yes | yes | | yes |
+| `draft_reservation` | yes | yes | | yes |
+
+Scope matches the feature that owns the data. Reservation tools follow Feature 6: a requestor sees `requestorId`, an area admin sees `areaName`, and a system admin sees every row. `check_vehicle_availability` is the requestor's vehicle list. It returns `id`, `name`, `category`, `passengerCapacity`, and `areaAssigned` for vehicles that are not `in_repair` or `out_of_service` and have no overlapping `pending` or `approved` reservation. `GET /api/vehicle/vehicles` stays forbidden to a requestor. `list_vehicles` and `get_vehicle` are the fleet screen for system admins, area admins, and maintenance. They include `color`, `vin`, plate, and purchase date. `get_vehicle` also returns that vehicle's mileage and service logs.
+
+`list_drivers` returns the driver screen fields, including license and insurance. Administrators see `expired` and `valid`. Requestors and maintenance see `valid` only. `list_destinations` returns the address fields for every destination. `list_areas` returns `id`, `name`, `logo`, `notificationEmail`, and area admins to system administrators only. `list_reservation_emails` returns the notice the caller can open, including `body`, `recipientEmail`, `fromEmail`, and `errorMessage`, ordered by `sentAt` ascending, then `id` ascending. A hidden reservation is `404`, including for another requestor.
+
+### Draft – `draft_reservation`
+
+**200** `{ "draft": { "vehicleId", "vehicleName", "destinationName", "start", "end", "areaName", "passengers", "driverName", "driverEmail", "purpose", "notes" } }`
+
+`start` and `end` are ISO 8601 strings. `areaName` defaults to the vehicle's `areaAssigned`. `passengers` defaults to 1. The tool writes no reservation, summary file, or email.
+
+**400** uses the Feature 6 create messages. An unknown vehicle is `400` `{ "message": "Vehicle not found." }` here; `POST /reservations` still returns `404` for that case. Two more draft checks follow the Feature 6 checks:
+
+| Condition | `message` |
+|-----------|-----------|
+| Vehicle `status` is `in_repair` or `out_of_service` | `This vehicle is not available for reservation.` |
+| Resolved passengers greater than `passengerCapacity` | `Passenger count exceeds this vehicle's capacity.` |
+
+Tool logs record `userId`, `role`, tool name, and status. They do not record arguments, message text, or the token.
+
 

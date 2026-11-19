@@ -1,10 +1,13 @@
 <script setup>
+import AssistantDrawer from "./components/AssistantDrawer.vue";
 import MenuBar from "./components/MenuBar.vue";
+import { currentUser } from "./config/session.js";
 </script>
 
 <template>
   <v-app>
     <MenuBar />
+    <AssistantDrawer v-if="currentUser?.token" />
     <v-main>
       <router-view />
     </v-main>

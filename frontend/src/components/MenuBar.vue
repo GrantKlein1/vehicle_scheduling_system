@@ -1,8 +1,9 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
-import { clearCurrentUser, currentUser } from "../config/session.js";
+import { toggleAssistant } from "../config/assistantState.js";
 import { formatRoleLabel, roleMatchesNav } from "../config/roles.js";
+import { clearCurrentUser, currentUser } from "../config/session.js";
 import { logout } from "../services/authServices.js";
 
 const router = useRouter();
@@ -24,6 +25,11 @@ const navItems = [
     title: "Area",
     to: { name: "areas" },
     roles: ["admin", "system_admin"],
+  },
+  {
+    title: "Reservation",
+    to: { name: "reservations" },
+    roles: ["requestor", "area_admin", "admin", "system_admin"],
   },
 ];
 
@@ -110,6 +116,14 @@ async function signOut() {
         </v-btn>
       </nav>
       <div v-if="showSessionActions" class="menu-bar__session">
+        <v-btn
+          class="menu-bar__assistant"
+          icon="mdi-robot-outline"
+          variant="text"
+          aria-label="Open assistant"
+          title="Assistant"
+          @click="toggleAssistant"
+        />
         <button
           type="button"
           class="menu-bar__profile"
@@ -174,6 +188,22 @@ async function signOut() {
   position: relative;
   grid-column: 3;
   justify-self: end;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.menu-bar :deep(.menu-bar__assistant.v-btn) {
+  width: 40px;
+  height: 40px;
+  min-width: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+}
+
+.menu-bar :deep(.menu-bar__assistant.v-btn:hover) {
+  background: rgba(255, 255, 255, 0.24);
 }
 
 .menu-bar :deep(.menu-bar__item.v-btn) {
