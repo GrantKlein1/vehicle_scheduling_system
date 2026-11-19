@@ -32,3 +32,8 @@ export function removeAreaAdmin(areaId, userId) {
   return apiClient.delete(`area/areas/${areaId}/admins/${userId}`);
 }
 
+export function listUsers() {
+  return apiClient.get("area/users");
+}
+
+

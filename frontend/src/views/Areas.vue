@@ -8,6 +8,7 @@ import {
   listAreaAdmins,
   assignAreaAdmin,
   removeAreaAdmin,
+  listUsers,
 } from "../services/areaServices.js";
 
 const areas = ref([]);
@@ -53,6 +54,29 @@ const adminFormErrors = ref({});
 const areaAdmins = ref([]);
 const loadingAdmins = ref(false);
 const adminToRemove = ref(null);
+const availableUsers = ref([]);
+
+const userOptions = computed(() => {
+  const currentAdminEmails = new Set(areaAdmins.value.map((a) => a.email?.toLowerCase()));
+  return availableUsers.value
+    .filter((u) => u.email && !currentAdminEmails.has(u.email.toLowerCase()))
+    .map((u) => {
+      const name = `${u.fName || ""} ${u.lName || ""}`.trim();
+      return {
+        title: name ? `${name} (${u.email})` : u.email,
+        value: u.email,
+      };
+    });
+});
+
+async function loadUsers() {
+  try {
+    const res = await listUsers();
+    availableUsers.value = res.data || [];
+  } catch {
+    availableUsers.value = [];
+  }
+}
 
 const filteredAreas = computed(() => {
   const query = search.value.trim().toLowerCase();
@@ -137,10 +161,11 @@ function openDeleteDialog() {
   isDeleteDialogOpen.value = true;
 }
 
-function openAssignAdminDialog() {
+async function openAssignAdminDialog() {
   adminForm.value = { email: "" };
   adminFormErrors.value = {};
   isAssignAdminDialogOpen.value = true;
+  await loadUsers();
 }
 
 function promptRemoveAdmin(admin) {
@@ -213,7 +238,18 @@ async function handleDeleteArea() {
 }
 
 async function handleAssignAdmin() {
-  const email = adminForm.value.email?.trim();
+  let email = "";
+  if (typeof adminForm.value.email === "object" && adminForm.value.email !== null) {
+    email = adminForm.value.email.value || adminForm.value.email.email || adminForm.value.email.title || "";
+  } else {
+    email = String(adminForm.value.email || "").trim();
+  }
+
+  const emailInParens = email.match(/\(([^)]+@[^)]+)\)/);
+  if (emailInParens) {
+    email = emailInParens[1].trim();
+  }
+
   if (!email) {
     adminFormErrors.value = { email: "Email is required." };
     return;
@@ -223,6 +259,7 @@ async function handleAssignAdmin() {
     isAssignAdminDialogOpen.value = false;
     showSnackbar("User assigned as area admin successfully.");
     await loadAreaAdmins(selectedAreaId.value);
+    await loadUsers();
   } catch (err) {
     showSnackbar(err.response?.data?.message || "Failed to assign area admin.", "error");
   }
@@ -243,15 +280,17 @@ async function handleRemoveAdmin() {
 
 onMounted(() => {
   loadAreas();
+  loadUsers();
 });
 </script>
 
 <template>
-  <v-container fluid class="areas-view pa-6">
-    <div class="d-flex align-center justify-space-between mb-4">
-      <h1 class="text-h4 font-weight-bold">Areas</h1>
-      <v-btn class="oc-cta" color="primary" prepend-icon="mdi-plus" @click="openAddDialog">
-        + Add Area
+  <v-container class="py-8">
+    <div class="d-flex align-center mb-4">
+      <h1 class="text-h4">Areas</h1>
+      <v-spacer />
+      <v-btn class="oc-cta" color="primary" type="button" @click="openAddDialog">
+        Add Area
       </v-btn>
     </div>
 
@@ -263,38 +302,45 @@ onMounted(() => {
       <v-progress-circular indeterminate color="primary" />
     </div>
 
-    <div v-else-if="areas.length === 0" class="text-center my-12 text-h6 text-medium-emphasis">
-      No areas yet.
-    </div>
+    <v-card v-else-if="areas.length === 0" class="area-panel" variant="outlined">
+      <v-card-text class="text-center py-8">No areas yet.</v-card-text>
+    </v-card>
 
     <v-row v-else>
       <!-- Left Column: List -->
-      <v-col cols="12" md="5" lg="4">
-        <v-card variant="outlined" class="mb-4">
-          <v-card-text class="pa-3">
+      <v-col cols="12" md="4">
+        <v-card class="area-panel" variant="outlined">
+          <v-card-text class="pb-2">
             <v-text-field
               v-model="search"
+              label="Search areas"
               placeholder="Search areas"
-              density="compact"
-              variant="outlined"
               prepend-inner-icon="mdi-magnify"
-              hide-details
               clearable
+              density="compact"
+              hide-details
             />
+            <p class="text-caption mt-2 mb-0">{{ filteredAreas.length }} areas</p>
           </v-card-text>
-        </v-card>
-
-        <v-card variant="outlined" class="area-list-card">
-          <v-list v-if="filteredAreas.length > 0" lines="two" class="pa-0">
+          <v-progress-linear v-if="loading" indeterminate />
+          <v-list v-if="filteredAreas.length > 0" class="area-list" nav>
             <v-list-item
               v-for="area in filteredAreas"
               :key="area.id"
-              :class="{ 'v-list-item--active bg-primary-lighten-5': area.id === selectedAreaId }"
+              class="area-list-item"
+              :active="area.id === selectedAreaId"
+              color="primary"
+              rounded="lg"
               @click="selectArea(area)"
             >
               <template #prepend>
                 <v-avatar color="primary" variant="tonal" rounded>
-                  <img v-if="area.logo" :src="area.logo" :alt="area.name" style="object-fit: cover; width: 100%; height: 100%;" />
+                  <img
+                    v-if="area.logo"
+                    :src="area.logo"
+                    :alt="area.name"
+                    style="object-fit: cover; width: 100%; height: 100%;"
+                  />
                   <v-icon v-else icon="mdi-domain" />
                 </v-avatar>
               </template>
@@ -306,15 +352,13 @@ onMounted(() => {
               </v-list-item-subtitle>
             </v-list-item>
           </v-list>
-          <div v-else class="pa-6 text-center text-medium-emphasis">
-            No areas match your search.
-          </div>
+          <p v-else class="text-body-2 px-4 pb-4">No areas match your search.</p>
         </v-card>
       </v-col>
 
       <!-- Right Column: Detail Panel -->
-      <v-col cols="12" md="7" lg="8">
-        <v-card v-if="selectedArea" variant="outlined" class="pa-4">
+      <v-col cols="12" md="8">
+        <v-card v-if="selectedArea" class="area-panel pa-4" variant="outlined">
           <div class="d-flex align-center justify-space-between mb-4">
             <div class="d-flex align-center">
               <v-avatar size="48" color="primary" variant="tonal" rounded class="mr-4">
@@ -333,23 +377,24 @@ onMounted(() => {
                 </div>
               </div>
             </div>
-            <div class="d-flex gap-2">
+            <div class="d-flex align-center gap-1">
               <v-btn
-                variant="outlined"
-                color="primary"
-                prepend-icon="mdi-pencil"
-                class="mr-2"
+                icon
+                variant="text"
+                type="button"
+                aria-label="Edit area"
                 @click="openEditDialog"
               >
-                Edit area
+                <v-icon icon="mdi-pencil" />
               </v-btn>
               <v-btn
-                variant="outlined"
-                color="error"
-                prepend-icon="mdi-delete"
+                icon
+                variant="text"
+                type="button"
+                aria-label="Delete area"
                 @click="openDeleteDialog"
               >
-                Delete area
+                <v-icon icon="mdi-delete" />
               </v-btn>
             </div>
           </div>
@@ -389,12 +434,12 @@ onMounted(() => {
               <h3 class="text-h6 font-weight-bold">Area Administrators</h3>
               <v-btn
                 size="small"
-                variant="tonal"
+                class="oc-cta"
                 color="primary"
-                prepend-icon="mdi-account-plus"
+                type="button"
                 @click="openAssignAdminDialog"
               >
-                + Assign Area Admin
+                Assign Area Admin
               </v-btn>
             </div>
 
@@ -543,13 +588,18 @@ onMounted(() => {
         </v-card-title>
         <v-divider />
         <v-card-text class="pa-4">
-          <v-text-field
+          <v-combobox
             v-model="adminForm.email"
+            :items="userOptions"
+            item-title="title"
+            item-value="value"
+            :return-object="false"
             label="User Email *"
             placeholder="user@eagles.oc.edu"
             variant="outlined"
             density="compact"
             :error-messages="adminFormErrors.email"
+            clearable
           />
         </v-card-text>
         <v-divider />
@@ -588,8 +638,15 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.area-list-card {
-  max-height: 600px;
-  overflow-y: auto;
+.area-panel {
+  color: rgb(var(--v-theme-on-surface));
+  border-color: rgb(var(--v-theme-outline));
+}
+
+@media (min-width: 960px) {
+  .area-list {
+    max-height: calc(100vh - 220px);
+    overflow-y: auto;
+  }
 }
 </style>

@@ -121,6 +121,35 @@ describe("Admin types", () => {
     });
   });
 
+  describe("stray area assignments", () => {
+    it("clears an area on a non-area-admin and keeps an area admin assignment", async () => {
+      const biology = await createArea("Biology");
+      const areaAdmin = await createUser({
+        email: "area-admin@eagles.oc.edu",
+        googleSub: "google-sub-area",
+        role: "area_admin",
+        areaId: biology.id,
+      });
+      await db.sequelize.query(
+        "INSERT INTO users (fName, lName, email, googleSub, role, areaId) VALUES (?, ?, ?, ?, ?, ?)",
+        {
+          replacements: ["Sys", "Admin", "sys@eagles.oc.edu", "google-sub-sys", "system_admin", biology.id],
+        }
+      );
+
+      const cleared = await db.clearStrayAreaAssignments();
+      expect(cleared).toBe(1);
+
+      const systemAdmin = await db.user.findOne({ where: { email: "sys@eagles.oc.edu" } });
+      expect(systemAdmin.role).toBe("system_admin");
+      expect(systemAdmin.areaId).toBeNull();
+      await areaAdmin.reload();
+      expect(areaAdmin.areaId).toBe(biology.id);
+
+      expect(await db.clearStrayAreaAssignments()).toBe(0);
+    });
+  });
+
   describe("area assignment rules", () => {
     it("requires an existing area for an area admin and no area for other roles", async () => {
       await expect(
