@@ -6,8 +6,10 @@ import {
   loadAssistantHistory,
   saveAssistantHistory,
 } from "../config/assistantState.js";
+import { assistantMessageIsWide } from "../config/assistantFormat.js";
 import { currentUser } from "../config/session.js";
 import { chat } from "../services/assistantServices.js";
+import AssistantMessage from "./AssistantMessage.vue";
 import ReservationDraftCard from "./ReservationDraftCard.vue";
 import TripRequestForm from "./TripRequestForm.vue";
 
@@ -28,6 +30,14 @@ const canBook = computed(() => currentUser.value?.role !== "maintenance");
 const bookingRequested = computed(
   () => canBook.value && messages.value.some((message) => message.role === "user" && asksToBook(message.content))
 );
+
+function bubbleClass(message) {
+  if (message.role === "user") return "assistant-drawer__bubble--user";
+  return {
+    "assistant-drawer__bubble--assistant": true,
+    "assistant-drawer__bubble--rich": assistantMessageIsWide(message.content),
+  };
+}
 
 function asksToBook(content) {
   if (typeof content !== "string") return false;
@@ -134,7 +144,7 @@ defineExpose({ messageInput, focusMessage });
     v-model="assistantOpen"
     class="assistant-drawer"
     location="right"
-    :width="380"
+    :width="520"
     temporary
     disable-resize-watcher
   >
@@ -158,13 +168,10 @@ defineExpose({ messageInput, focusMessage });
           v-for="(message, index) in messages"
           :key="`${index}-${message.role}`"
           class="assistant-drawer__bubble"
-          :class="
-            message.role === 'user'
-              ? 'assistant-drawer__bubble--user'
-              : 'assistant-drawer__bubble--assistant'
-          "
+          :class="bubbleClass(message)"
         >
-          {{ message.content }}
+          <AssistantMessage v-if="message.role === 'assistant'" :content="message.content" />
+          <template v-else>{{ message.content }}</template>
         </div>
       </div>
 
@@ -238,6 +245,7 @@ defineExpose({ messageInput, focusMessage });
   flex-direction: column;
   height: 100%;
   min-height: 0;
+  min-width: 0;
   overflow: hidden;
 }
 
@@ -246,6 +254,7 @@ defineExpose({ messageInput, focusMessage });
   flex: 1 1 auto;
   flex-direction: column;
   min-height: 0;
+  min-width: 0;
   overflow-y: auto;
 }
 
@@ -262,6 +271,7 @@ defineExpose({ messageInput, focusMessage });
   flex: 1 0 auto;
   flex-direction: column;
   gap: 8px;
+  min-width: 0;
   padding: 4px 16px 12px;
 }
 
@@ -273,20 +283,25 @@ defineExpose({ messageInput, focusMessage });
   max-width: 90%;
   padding: 8px 12px;
   border-radius: 12px;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
 }
 
 .assistant-drawer__bubble--user {
   align-self: flex-end;
   background: rgb(var(--v-theme-primary));
   color: rgb(var(--v-theme-on-primary));
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .assistant-drawer__bubble--assistant {
   align-self: flex-start;
   background: rgb(var(--v-theme-surface-variant));
   color: rgb(var(--v-theme-on-surface));
+}
+
+.assistant-drawer__bubble--rich {
+  max-width: 100%;
+  min-width: 0;
 }
 
 .assistant-drawer__error {

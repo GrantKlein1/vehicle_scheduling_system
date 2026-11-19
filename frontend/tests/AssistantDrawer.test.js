@@ -300,6 +300,47 @@ describe("Feature 9 — AI Assistant", () => {
     });
   });
 
+  describe("Answer formatting", () => {
+    it("Shows a vehicle list as a table and a short answer as text", async () => {
+      const reply = [
+        "Here are the vehicles currently marked **available**:",
+        "",
+        "- EZ-GO Liberty golf cart (orange, 4-passenger) - ID 4, Support Central",
+        "- 2023 Honda Accord (sea-green, 3-passenger) - ID 11, Maintenance",
+      ].join("\n");
+      wrapper = await mountApp({
+        user: requestor,
+        open: true,
+        history: {
+          messages: [
+            { role: "user", content: "what vehicles are available?" },
+            { role: "assistant", content: reply },
+            { role: "assistant", content: "Six vehicles are available." },
+            { role: "assistant", content: "See <img src=x onerror=alert(1)>." },
+          ],
+          draft: null,
+        },
+      });
+
+      const table = wrapper.get("table");
+      expect(table.text()).toContain("Vehicle");
+      expect(table.text()).toContain("EZ-GO Liberty golf cart");
+      expect(table.text()).toContain("Support Central");
+      expect(table.text()).not.toContain("ID");
+      expect(table.text()).not.toContain("11");
+      expect(wrapper.text()).toContain("available");
+      expect(wrapper.text()).not.toContain("**available**");
+      expect(wrapper.get(".assistant-drawer__bubble--rich").text()).toContain("EZ-GO Liberty golf cart");
+
+      const bubbles = wrapper.findAll(".assistant-drawer__bubble--assistant");
+      expect(bubbles[1].text()).toBe("Six vehicles are available.");
+      expect(bubbles[1].find("table").exists()).toBe(false);
+      expect(bubbles[1].find(".assistant-message__chart").exists()).toBe(false);
+      expect(bubbles[2].html()).toContain("&lt;img");
+      expect(bubbles[2].html()).not.toContain("<img");
+    });
+  });
+
   describe("US-9.7", () => {
     it("Assistant disabled returns 503", async () => {
       chat.mockRejectedValue({
