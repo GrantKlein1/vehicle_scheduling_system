@@ -1,6 +1,7 @@
 <script setup>
 import { computed, nextTick, onMounted, ref, watch } from "vue";
 import { useDisplay } from "vuetify";
+import VehicleIcon from "../components/vehicles/VehicleIcon.vue";
 import VehicleListPanel from "../components/vehicles/VehicleListPanel.vue";
 import { isAnyAdmin } from "../config/roles.js";
 import { currentUser } from "../config/session.js";
@@ -12,8 +13,8 @@ import {
   makesForCategory,
   modelsForMake,
 } from "../config/vehicleCatalog.js";
+import { canonicalVehicleColor } from "../../../backend/app/config/vehicleColors.js";
 import {
-  CATEGORY_ICONS,
   formatDate,
   formatMileage,
   monthName,
@@ -234,13 +235,19 @@ function vehicleFieldMessage(key, value) {
     }
   }
   if (key === "color") {
-    return textLimit(value, 30, "Color cannot exceed 30 characters.");
+    const color = titleCaseColor(value).trim();
+    if (color.length > 30) {
+      return "Color cannot exceed 30 characters.";
+    }
+    if (!canonicalVehicleColor(color)) {
+      return "Color must be a recognized color such as White, Black, Silver, Gray, Red, Blue, or Green.";
+    }
   }
   if (key === "passengerCapacity" && !integerInRange(value, 1, 15)) {
     return "Number of passengers must be from 1 through 15.";
   }
-  if (key === "licensePlateNumber" && !PLATE_PATTERN.test(String(value).trim())) {
-    return "License Plate Number must be 2 to 8 letters or digits.";
+  if (key === "licensePlateNumber" && !PLATE_PATTERN.test(String(value).trim().toUpperCase())) {
+    return "Use 2 to 8 letters or numbers. Spaces and symbols are not allowed.";
   }
   if (key === "licensePlateExpirationMonth" && !integerInRange(value, 1, 12)) {
     return "License Plate Expiration Month must be from 1 through 12.";
@@ -334,6 +341,39 @@ function onVehicleBlur(key, focused) {
   if (!focused) blurVehicle(key);
 }
 
+function blockNegativePassenger(event) {
+  if (event.key === "-" || event.key === "+" || event.key === "e" || event.key === "E") {
+    event.preventDefault();
+  }
+}
+
+function setLicensePlate(value) {
+  form.value.licensePlateNumber = String(value ?? "").toUpperCase();
+}
+
+function titleCaseColor(value) {
+  return String(value ?? "").replace(/\S+/g, (word) => {
+    return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+  });
+}
+
+function setColor(value) {
+  form.value.color = titleCaseColor(value);
+}
+
+function setPassengerCapacity(value) {
+  if (value === "" || value === null || value === undefined) {
+    form.value.passengerCapacity = "";
+    return;
+  }
+  const number = Number(value);
+  if (String(value).includes("-") || (Number.isFinite(number) && number < 0)) {
+    form.value.passengerCapacity = 1;
+    return;
+  }
+  form.value.passengerCapacity = value;
+}
+
 function onMileageBlur(key, focused) {
   if (!focused) blurMileage(key);
 }
@@ -380,9 +420,11 @@ function vehiclePayload() {
     year: toInteger(form.value.year),
     vin: golfCart ? null : String(form.value.vin ?? "").trim(),
     purchasedDate: form.value.purchasedDate,
-    color: String(form.value.color ?? "").trim(),
+    color: canonicalVehicleColor(form.value.color) ?? titleCaseColor(form.value.color).trim(),
     passengerCapacity: toInteger(form.value.passengerCapacity),
-    licensePlateNumber: golfCart ? null : String(form.value.licensePlateNumber ?? "").trim(),
+    licensePlateNumber: golfCart
+      ? null
+      : String(form.value.licensePlateNumber ?? "").trim().toUpperCase(),
     licensePlateExpirationMonth: golfCart ? null : toInteger(form.value.licensePlateExpirationMonth),
     areaAssigned: form.value.areaAssigned,
   };
@@ -685,9 +727,7 @@ onMounted(async () => {
           <template v-if="selectedVehicle">
             <v-card-item :title="vehicleTitle(selectedVehicle)">
               <template #prepend>
-                <v-avatar color="primary" variant="tonal">
-                  <v-icon :icon="CATEGORY_ICONS[selectedVehicle.category]" />
-                </v-avatar>
+                <VehicleIcon :category="selectedVehicle.category" />
               </template>
               <template #subtitle>
                 <v-chip size="small" color="primary" variant="tonal" class="mr-2">
@@ -949,18 +989,24 @@ onMounted(async () => {
               </v-col>
               <v-col cols="12" sm="6">
                 <v-text-field
-                  v-model="form.color"
+                  :model-value="form.color"
                   label="Color"
                   :error-messages="vehicleErrors.color"
+                  @update:model-value="setColor"
                   @update:focused="focused => onVehicleBlur('color', focused)"
                 />
               </v-col>
               <v-col cols="12" sm="6">
                 <v-text-field
-                  v-model="form.passengerCapacity"
+                  :model-value="form.passengerCapacity"
                   label="Number of passengers"
                   type="number"
+                  min="1"
+                  max="15"
+                  step="1"
                   :error-messages="vehicleErrors.passengerCapacity"
+                  @keydown="blockNegativePassenger"
+                  @update:model-value="setPassengerCapacity"
                   @update:focused="focused => onVehicleBlur('passengerCapacity', focused)"
                 />
               </v-col>
@@ -979,9 +1025,13 @@ onMounted(async () => {
                 </v-col>
                 <v-col cols="12" sm="6">
                   <v-text-field
-                    v-model="form.licensePlateNumber"
+                    :model-value="form.licensePlateNumber"
                     label="License Plate Number"
+                    hint="2 to 8 letters or numbers"
+                    persistent-hint
+                    maxlength="8"
                     :error-messages="vehicleErrors.licensePlateNumber"
+                    @update:model-value="setLicensePlate"
                     @update:focused="focused => onVehicleBlur('licensePlateNumber', focused)"
                   />
                 </v-col>

@@ -40,6 +40,13 @@ function userWithRole(role, extra = {}) {
   };
 }
 
+async function openAccountMenu(wrapper) {
+  const profile = wrapper.find(".menu-bar__profile");
+  if (profile.exists() && profile.attributes("aria-expanded") !== "true") {
+    await profile.trigger("click");
+  }
+}
+
 async function mountApp(path, user = null) {
   clearCurrentUser();
   if (user) {
@@ -61,6 +68,7 @@ describe("Feature 1 — User Authentication & Session Management", () => {
   describe("US-1.4 — Sign out", () => {
     it("User signs out", async () => {
       const { wrapper, router } = await mountApp("/", userWithRole("requestor"));
+      await openAccountMenu(wrapper);
 
       const button = wrapper.findAll("button").find((node) => node.text().includes("Sign out"));
       await button.trigger("click");
@@ -87,6 +95,7 @@ describe("Feature 1 — User Authentication & Session Management", () => {
 
     it("Signed-in user sees Sign out in MenuBar", async () => {
       const { wrapper } = await mountApp("/", userWithRole("requestor"));
+      await openAccountMenu(wrapper);
 
       expect(wrapper.find(".menu-bar").exists()).toBe(true);
       expect(wrapper.text()).toContain("Sign out");
@@ -96,6 +105,7 @@ describe("Feature 1 — User Authentication & Session Management", () => {
 
     it("Requestor MenuBar in Feature 1 has Sign out but no catalog links yet", async () => {
       const { wrapper } = await mountApp("/", userWithRole("requestor"));
+      await openAccountMenu(wrapper);
 
       expect(wrapper.text()).toContain("Sign out");
       for (const label of catalogLabels.filter((item) => item !== "Reservation")) {
@@ -105,6 +115,7 @@ describe("Feature 1 — User Authentication & Session Management", () => {
 
     it("System admin MenuBar shows the role label, Sign out, and Vehicle", async () => {
       const { wrapper } = await mountApp("/", userWithRole("system_admin"));
+      await openAccountMenu(wrapper);
 
       expect(wrapper.text()).toContain("Sign out");
       expect(wrapper.text()).toContain("System Admin");
@@ -123,6 +134,7 @@ describe("Feature 1 — User Authentication & Session Management", () => {
 
     it("Legacy admin MenuBar is shown as System Admin and includes Vehicle", async () => {
       const { wrapper } = await mountApp("/", userWithRole("admin"));
+      await openAccountMenu(wrapper);
 
       expect(wrapper.text()).toContain("System Admin");
       expect(wrapper.text()).toContain("Sign out");
@@ -144,6 +156,7 @@ describe("Feature 1 — User Authentication & Session Management", () => {
         "/",
         userWithRole("area_admin", { areaId: 5, areaName: "Athletics" })
       );
+      await openAccountMenu(wrapper);
 
       expect(wrapper.text()).toContain("Sign out");
       expect(wrapper.text()).toContain("Area Admin · Athletics");
@@ -180,6 +193,7 @@ describe("Feature 1 — User Authentication & Session Management", () => {
 
     it("Maintenance MenuBar shows Sign out and Vehicle", async () => {
       const { wrapper } = await mountApp("/", userWithRole("maintenance"));
+      await openAccountMenu(wrapper);
 
       expect(wrapper.text()).toContain("Sign out");
       expect(wrapper.text()).toContain("Maintenance");
@@ -219,16 +233,18 @@ describe("Feature 2 — Vehicle Management", () => {
 
     it("Admin sees their name and Sign out on the vehicle page", async () => {
       const { wrapper } = await mountApp("/vehicle", userWithRole("admin"));
+      await openAccountMenu(wrapper);
 
       expect(wrapper.find(".menu-bar__nav").exists()).toBe(true);
       expect(wrapper.find(".menu-bar__session").text()).toContain("Jane Doe");
-      expect(wrapper.find(".menu-bar__session").text()).toContain("Sign out");
-      const labels = wrapper.findAll(".menu-bar__item").map((item) => item.text());
-      expect(labels).toEqual(["Vehicle", "Destination", "Driver", "Area", "Reservation", "Sign out"]);
+      expect(wrapper.find(".menu-bar__signout").text()).toContain("Sign out");
+      const labels = wrapper.findAll(".menu-bar__nav .menu-bar__item").map((item) => item.text());
+      expect(labels).toEqual(["Vehicle", "Destination", "Driver", "Area", "Reservation"]);
     });
 
     it("Maintenance sees their name and Sign out on the vehicle page", async () => {
       const { wrapper } = await mountApp("/vehicle", userWithRole("maintenance"));
+      await openAccountMenu(wrapper);
 
       expect(wrapper.find(".menu-bar__session").text()).toContain("Jane Doe");
       expect(wrapper.find(".menu-bar__session").text()).toContain("Sign out");
@@ -237,6 +253,7 @@ describe("Feature 2 — Vehicle Management", () => {
 
     it("Requestor keeps their name and Sign out with no catalog links", async () => {
       const { wrapper } = await mountApp("/", userWithRole("requestor"));
+      await openAccountMenu(wrapper);
 
       expect(wrapper.find(".menu-bar__session").text()).toContain("Jane Doe");
       expect(wrapper.find(".menu-bar__session").text()).toContain("Sign out");
@@ -398,6 +415,7 @@ describe("Feature 9 — AI Assistant", () => {
       expect(sessionStorage.getItem("assistantHistory")).not.toBeNull();
       expect(wrapper.find(".assistant-drawer").exists()).toBe(true);
 
+      await openAccountMenu(wrapper);
       const button = wrapper.findAll("button").find((node) => node.text().includes("Sign out"));
       await button.trigger("click");
       await flushPromises();

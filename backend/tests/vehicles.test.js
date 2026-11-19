@@ -185,7 +185,32 @@ describe("Feature 2 — Vehicle Management", () => {
 
       expect(response.status).toBe(400);
       expect(response.body).toEqual({
-        message: "License Plate Number must be 2 to 8 letters or digits.",
+        message: "Use 2 to 8 letters or numbers. Spaces and symbols are not allowed.",
+      });
+      expect(await db.vehicle.count()).toBe(0);
+    });
+
+    it("Create stores a lowercase license plate in uppercase", async () => {
+      const token = await signIn("admin");
+
+      const response = await authed(token)
+        .post("/api/vehicle/vehicles")
+        .send(vehicleBody({ licensePlateNumber: "oc1001" }));
+
+      expect(response.status).toBe(201);
+      expect(response.body.licensePlateNumber).toBe("OC1001");
+    });
+
+    it("Create with an unrecognized color is rejected", async () => {
+      const token = await signIn("admin");
+
+      const response = await authed(token)
+        .post("/api/vehicle/vehicles")
+        .send(vehicleBody({ color: "Not A Color" }));
+
+      expect(response.status).toBe(400);
+      expect(response.body).toEqual({
+        message: "Color must be a recognized color such as White, Black, Silver, Gray, Red, Blue, or Green.",
       });
       expect(await db.vehicle.count()).toBe(0);
     });

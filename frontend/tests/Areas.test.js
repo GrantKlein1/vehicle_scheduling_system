@@ -13,6 +13,7 @@ vi.mock("../src/services/areaServices.js", () => ({
   listAreaAdmins: vi.fn(),
   assignAreaAdmin: vi.fn(),
   removeAreaAdmin: vi.fn(),
+  listUsers: vi.fn(),
 }));
 
 describe("Feature 5 — Area Management Frontend", () => {
@@ -37,6 +38,7 @@ describe("Feature 5 — Area Management Frontend", () => {
     vi.clearAllMocks();
     areaServices.listAreas.mockResolvedValue({ data: sampleAreas });
     areaServices.listAreaAdmins.mockResolvedValue({ data: [] });
+    areaServices.listUsers.mockResolvedValue({ data: [] });
   });
 
   function mountView() {
@@ -78,8 +80,8 @@ describe("Feature 5 — Area Management Frontend", () => {
     await wrapper.vm.$nextTick();
     await new Promise((resolve) => setTimeout(resolve, 50));
 
-    expect(wrapper.text()).toContain("Edit area");
-    expect(wrapper.text()).toContain("Delete area");
+    expect(wrapper.find('[aria-label="Edit area"]').exists()).toBe(true);
+    expect(wrapper.find('[aria-label="Delete area"]').exists()).toBe(true);
   });
 
   it("Cancel delete keeps area", async () => {
@@ -225,5 +227,38 @@ describe("Feature 5 — Area Management Frontend", () => {
 
     expect(areaServices.removeAreaAdmin).toHaveBeenCalledWith(1, 10);
     expect(wrapper.vm.isRemoveAdminDialogOpen).toBe(false);
+  });
+
+  it("Populates userOptions for assigning admin dropdown and supports manual typing", async () => {
+    areaServices.listUsers.mockResolvedValue({
+      data: [
+        { id: 20, fName: "Sam", lName: "User", email: "sam@eagles.oc.edu", role: "requestor" },
+        { id: 21, fName: "Alex", lName: "Smith", email: "alex@eagles.oc.edu", role: "requestor" },
+      ],
+    });
+    areaServices.assignAreaAdmin.mockResolvedValue({ data: {} });
+
+    const wrapper = mountView();
+    await wrapper.vm.$nextTick();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    await wrapper.vm.openAssignAdminDialog();
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.vm.userOptions).toHaveLength(2);
+    expect(wrapper.vm.userOptions[0]).toEqual({
+      title: "Sam User (sam@eagles.oc.edu)",
+      value: "sam@eagles.oc.edu",
+    });
+
+    // Selecting from options
+    wrapper.vm.adminForm.email = wrapper.vm.userOptions[0];
+    await wrapper.vm.handleAssignAdmin();
+    expect(areaServices.assignAreaAdmin).toHaveBeenCalledWith(1, { email: "sam@eagles.oc.edu" });
+
+    // Manually typing an email
+    wrapper.vm.adminForm.email = "manual@eagles.oc.edu";
+    await wrapper.vm.handleAssignAdmin();
+    expect(areaServices.assignAreaAdmin).toHaveBeenCalledWith(1, { email: "manual@eagles.oc.edu" });
   });
 });

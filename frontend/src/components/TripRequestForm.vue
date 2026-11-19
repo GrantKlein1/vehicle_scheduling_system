@@ -158,9 +158,9 @@ function vehicleLabel(vehicle) {
 
 <template>
   <v-card class="trip-form" variant="outlined">
-    <div class="text-subtitle-1 font-weight-bold">Book a trip</div>
+    <div class="trip-form__title">Book a trip</div>
     <p class="trip-form__hint text-body-2">
-      Choose the destination, vehicle type, and passengers. Times are Central Time.
+      Destination, vehicle type, and passengers are yours to enter. I will not guess them. Times are Central Time.
     </p>
 
     <v-alert v-if="catalogError" class="mb-3" type="error" variant="tonal">
@@ -248,8 +248,16 @@ function vehicleLabel(vehicle) {
 <style scoped>
 .trip-form {
   margin: 0 16px 12px;
-  padding: 12px;
+  padding: 14px;
+  border-color: rgba(128, 19, 40, 0.18) !important;
+  background: #fff;
   color: rgb(28, 27, 31);
+}
+
+.trip-form__title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #801328;
 }
 
 .trip-form__hint,

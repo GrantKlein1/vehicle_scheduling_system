@@ -2,7 +2,11 @@ import { Sequelize } from "sequelize";
 import sequelize from "../config/sequelizeInstance.js";
 import logger from "../config/logger.js";
 import { ROLES } from "../authorization/roles.js";
-import { ensureAdminTypeSchema, migrateLegacyAdmins } from "../migrations/adminTypes.js";
+import {
+  clearStrayAreaAssignments,
+  ensureAdminTypeSchema,
+  migrateLegacyAdmins,
+} from "../migrations/adminTypes.js";
 import userModel from "./user.model.js";
 import sessionModel from "./session.model.js";
 import areaModel from "./area.model.js";
@@ -164,10 +168,19 @@ db.migrateLegacyAdmins = async () => {
   return count;
 };
 
+db.clearStrayAreaAssignments = async () => {
+  const count = await clearStrayAreaAssignments(db.user);
+  if (count > 0) {
+    logger.info(`Cleared area assignments on ${count} non-area-admin account(s).`);
+  }
+  return count;
+};
+
 /** Schema, legacy admin rewrite, area placeholders, then role seed. */
 db.prepareAdminTypes = async () => {
   await db.ensureAdminTypeSchema();
   await db.migrateLegacyAdmins();
+  await db.clearStrayAreaAssignments();
   await db.seedAreas();
   await db.seedRoleUsers();
 };

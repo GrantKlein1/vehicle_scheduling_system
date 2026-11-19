@@ -434,7 +434,7 @@ export const TOOLS = [
   {
     name: "list_reservations",
     description:
-      "List reservations in the caller's scope, newest start first. A requestor sees only their own rows, an area admin sees their area, and a system admin sees every area. Use this for questions about existing trips.",
+      "List reservations this caller can already open, newest start first. A requestor sees only their own rows, an area admin sees their area, and a system admin sees every area. Use this for existing trips, pending or upcoming trips, and who booked. Filter with status when they name one.",
     parameters: objectSchema({
       status: {
         type: "string",
@@ -469,7 +469,7 @@ export const TOOLS = [
   {
     name: "check_vehicle_availability",
     description:
-      "List vehicles free for a time window. Omits vehicles that are in repair, out of service, or have a pending or approved reservation overlapping the window. Use this before drafting a reservation. This is the only vehicle list a requestor may see.",
+      "List vehicles free to book in a specific window. Omits vehicles that are in repair, out of service, or have a pending or approved reservation overlapping the window. Ask for the window when it is missing. Do not use this for a fleet count or a color, plate, or VIN question. This is the only vehicle list a requestor may see.",
     parameters: objectSchema(
       {
         start: dateTimeProperty("Window start, inclusive."),
@@ -525,7 +525,7 @@ export const TOOLS = [
   {
     name: "list_drivers",
     description:
-      "List drivers the caller may see on the driver screen, including license, insurance, and approval dates. Administrators see every driver and status. Requestors and maintenance see valid drivers only.",
+      "List drivers the caller may see on the driver screen, including license, insurance, approval dates, and approvedCategories. Use approvedCategories to answer who can drive a category. Do not name a driver who is not in the result. Administrators see every driver and status. Requestors and maintenance see valid drivers only.",
     parameters: emptyParameters,
     allowedRoles: ["requestor", "area_admin", "maintenance", "system_admin"],
     handler: listDrivers,
@@ -533,7 +533,7 @@ export const TOOLS = [
   {
     name: "list_destinations",
     description:
-      "List every destination in the catalog. Use this to choose a destinationName before drafting a reservation.",
+      "List every destination in the catalog, with address fields. Use this to answer where a trip can go. Do not pick a destination for the user.",
     parameters: emptyParameters,
     allowedRoles: ["requestor", "area_admin", "maintenance", "system_admin"],
     handler: listDestinations,
@@ -562,7 +562,7 @@ export const TOOLS = [
   {
     name: "draft_reservation",
     description:
-      "Check trip details and return a reservation draft without saving it. Use this after the caller has chosen a vehicle, destination, and time window. Never creates, approves, denies, or cancels a reservation.",
+      "Check trip details and return a reservation draft without saving it. Do not call this from a chat message. The trip form collects the destination, vehicle type, passengers, and window, and the user confirms in the app. Never creates, approves, denies, or cancels a reservation.",
     parameters: objectSchema(
       {
         vehicleId: { type: "integer", description: "Vehicle id from check_vehicle_availability." },
