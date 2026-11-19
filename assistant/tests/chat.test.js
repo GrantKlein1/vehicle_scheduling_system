@@ -30,6 +30,8 @@ const REQUESTOR_TOOLS = [
 ];
 
 const FR_022 = [
+  "Be accurate, succinct, and a little snarky.",
+  "A joke never changes a number, a name, a time, or a status.",
   "Answer only from tool results.",
   "Do not invent reservations, vehicles, drivers, destinations, or areas.",
   "If the user's role cannot access something, say so.",
@@ -217,6 +219,7 @@ describe("Feature 9: AI Assistant", () => {
       expect(prompt).toContain("Jane");
       expect(prompt).toContain("Requestor");
       expect(prompt).toContain("Athletics");
+      expect(prompt).toContain(`Tools on this turn: ${REQUESTOR_TOOLS.join(", ")}.`);
       for (const sentence of FR_022) {
         expect(prompt).toContain(sentence);
       }

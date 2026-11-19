@@ -132,6 +132,7 @@ async function confirm() {
 
 <template>
   <v-card class="reservation-draft" variant="outlined">
+    <p class="reservation-draft__title">Review before you confirm</p>
     <dl class="reservation-draft__details">
       <div v-for="row in rows" :key="row.label" class="reservation-draft__row">
         <dt class="text-caption text-medium-emphasis">{{ row.label }}</dt>
@@ -163,8 +164,19 @@ async function confirm() {
 <style scoped>
 .reservation-draft {
   margin: 0 16px 12px;
-  padding: 12px;
+  padding: 14px;
+  border-color: rgba(128, 19, 40, 0.18) !important;
+  background: #fff;
   color: rgb(28, 27, 31);
+}
+
+.reservation-draft__title {
+  margin: 0 0 10px;
+  color: #801328;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .reservation-draft__details {

@@ -197,6 +197,13 @@ async function signOut() {
   width: 40px;
   height: 40px;
   min-width: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+}
+
+.menu-bar :deep(.menu-bar__assistant.v-btn:hover) {
+  background: rgba(255, 255, 255, 0.24);
 }
 
 .menu-bar :deep(.menu-bar__item.v-btn) {

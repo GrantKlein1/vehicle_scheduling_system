@@ -184,6 +184,8 @@ They do **not** authorize new scope — implement only from `features/feature-*.
 | Rule | Enforcement | Introduced |
 |------|-------------|------------|
 | Any signed-in role may call `POST /api/assistant/chat`. The manifest lists only the tools that role may call. A legacy `admin` receives the system-admin list | Chat gateway and `manifestForRole` | Feature 9 |
+| Replies are accurate, succinct, and a little snarky. A remark never changes a count, name, time, or status, and the prompt names only the tools on that request | System prompt | Feature 9 |
+| An empty drawer offers role-specific suggestions. **Try again** resends the last user message after a failed chat and does not duplicate that bubble | `AssistantDrawer` | Feature 9 |
 | Reservation tools use Feature 6 scope. A requestor sees their own rows, an area admin sees their `areaName`, and a system admin sees every row. Maintenance is not offered those tools and receives `403` | Tool registry | Feature 9 |
 | A reservation outside the caller's scope, including its email log, is `404` `{ "message": "Reservation not found." }` | `get_reservation` and `list_reservation_emails` | Feature 9 |
 | The assistant can draft a reservation and cannot create, approve, deny, or cancel one. Confirm uses `POST /reservations` with the session token, so the summary file and emails still run | `draft_reservation` writes nothing | Feature 9 |

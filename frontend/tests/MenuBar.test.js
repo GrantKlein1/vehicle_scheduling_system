@@ -415,6 +415,7 @@ describe("Feature 9 — AI Assistant", () => {
       expect(sessionStorage.getItem("assistantHistory")).not.toBeNull();
       expect(wrapper.find(".assistant-drawer").exists()).toBe(true);
 
+      await openAccountMenu(wrapper);
       const button = wrapper.findAll("button").find((node) => node.text().includes("Sign out"));
       await button.trigger("click");
       await flushPromises();

@@ -300,6 +300,46 @@ describe("Feature 9 — AI Assistant", () => {
     });
   });
 
+  describe("US-9.6 suggestions", () => {
+    it("Suggestion sends a user message", async () => {
+      chat.mockResolvedValue({ data: { reply: "You have one pending reservation.", draft: null } });
+      wrapper = await mountApp({ user: requestor, open: true });
+
+      expect(buttonByText(wrapper, "I want to make a reservation")).toBeTruthy();
+      expect(buttonByText(wrapper, "What's free tomorrow from 8am to noon?")).toBeTruthy();
+
+      await buttonByText(wrapper, "What's still pending?").trigger("click");
+      await flushPromises();
+
+      expect(chat).toHaveBeenCalledWith([
+        { role: "user", content: "What's still pending?" },
+      ]);
+      expect(wrapper.text()).toContain("You have one pending reservation.");
+      expect(buttonByText(wrapper, "What's still pending?")).toBeUndefined();
+    });
+
+    it("Maintenance suggestions do not offer booking", async () => {
+      wrapper = await mountApp({ user: maintenance, open: true });
+
+      expect(buttonByText(wrapper, "I want to make a reservation")).toBeUndefined();
+      expect(buttonByText(wrapper, "Which vehicles are available?")).toBeTruthy();
+      expect(buttonByText(wrapper, "Which vehicles are in repair?")).toBeTruthy();
+      expect(wrapper.find(".trip-form").exists()).toBe(false);
+    });
+
+    it("Area admin suggestions include the fleet and booking", async () => {
+      wrapper = await mountApp({
+        user: { ...requestor, role: "area_admin", areaId: 5, areaName: "Athletics" },
+        open: true,
+      });
+
+      expect(buttonByText(wrapper, "Which vehicles are available?")).toBeTruthy();
+      expect(buttonByText(wrapper, "Who can drive a van?")).toBeTruthy();
+      expect(buttonByText(wrapper, "I want to make a reservation")).toBeTruthy();
+      expect(buttonByText(wrapper, "What's free tomorrow from 8am to noon?")).toBeUndefined();
+    });
+  });
+
   describe("US-9.7", () => {
     it("Assistant disabled returns 503", async () => {
       chat.mockRejectedValue({
@@ -319,6 +359,31 @@ describe("Feature 9 — AI Assistant", () => {
       expect(wrapper.text()).toContain("Hello");
       expect(wrapper.findAll(".assistant-drawer__bubble--user")).toHaveLength(1);
       expect(wrapper.findAll(".assistant-drawer__bubble--assistant")).toHaveLength(0);
+    });
+
+    it("Try again resends the last message", async () => {
+      chat
+        .mockRejectedValueOnce({
+          response: {
+            status: 502,
+            data: { message: "The assistant could not answer right now. Please try again." },
+          },
+        })
+        .mockResolvedValueOnce({ data: { reply: "You have one pending reservation.", draft: null } });
+      wrapper = await mountApp({ user: requestor, open: true });
+
+      await setMessage(wrapper, "Hello");
+      await buttonByText(wrapper, "Send").trigger("click");
+      await flushPromises();
+
+      expect(wrapper.findAll(".assistant-drawer__bubble--user")).toHaveLength(1);
+      await buttonByText(wrapper, "Try again").trigger("click");
+      await flushPromises();
+
+      expect(chat).toHaveBeenNthCalledWith(2, [{ role: "user", content: "Hello" }]);
+      expect(wrapper.findAll(".assistant-drawer__bubble--user")).toHaveLength(1);
+      expect(wrapper.findAll(".assistant-drawer__bubble--assistant")).toHaveLength(1);
+      expect(wrapper.text()).toContain("You have one pending reservation.");
     });
   });
 

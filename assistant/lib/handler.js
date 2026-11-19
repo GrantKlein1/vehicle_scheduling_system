@@ -152,6 +152,7 @@ export function createChatHandler({
           user: body.user,
           now: body.now,
           timezone: body.timezone,
+          toolNames: body.tools.map((entry) => entry.name),
         }),
         messages: body.messages.map((message) => ({
           role: message.role,
